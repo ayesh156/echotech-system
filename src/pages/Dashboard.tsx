@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { mockInvoices, mockProducts, mockCustomers } from '../data/mockData';
 import { 
-  Package, FileText, Users, TrendingUp, ArrowRight, ArrowUpRight, ArrowDownRight,
-  DollarSign, ShoppingCart, Clock, AlertTriangle, CheckCircle, Eye,
+  Package, FileText, Users, ArrowRight, ArrowUpRight,
+  DollarSign, ShoppingCart, Clock, AlertTriangle, CheckCircle,
   RefreshCw, Cpu, Monitor, HardDrive
 } from 'lucide-react';
 
@@ -17,7 +17,6 @@ export const Dashboard: React.FC = () => {
   const pendingInvoices = mockInvoices.filter((inv) => inv.status === 'pending').length;
   const overdueInvoices = mockInvoices.filter((inv) => inv.status === 'overdue').length;
   const totalRevenue = mockInvoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.total, 0);
-  const pendingRevenue = mockInvoices.filter(inv => inv.status === 'pending').reduce((sum, inv) => sum + inv.total, 0);
   const totalProducts = mockProducts.length;
   const lowStockProducts = mockProducts.filter((p) => p.stock < 10).length;
   const totalCustomers = mockCustomers.length;
@@ -38,14 +37,6 @@ export const Dashboard: React.FC = () => {
     { day: 'Sun', value: 380000 },
   ];
   const maxRevenue = Math.max(...revenueData.map(d => d.value));
-
-  // Category distribution for computer shop
-  const categoryData = [
-    { name: 'Graphics Cards', value: 35, color: 'from-emerald-500 to-blue-500' },
-    { name: 'Processors', value: 25, color: 'from-purple-500 to-pink-500' },
-    { name: 'Storage', value: 20, color: 'from-emerald-500 to-teal-500' },
-    { name: 'Peripherals', value: 20, color: 'from-orange-500 to-rose-500' },
-  ];
 
   // Recent activities
   const recentActivities = [
@@ -230,7 +221,7 @@ export const Dashboard: React.FC = () => {
           
           {/* Simple Bar Chart */}
           <div className="flex items-end justify-between gap-2 h-48">
-            {revenueData.map((data, index) => (
+            {revenueData.map((data) => (
               <div key={data.day} className="flex-1 flex flex-col items-center gap-2">
                 <div className="w-full relative flex flex-col items-center">
                   <div 
@@ -348,7 +339,7 @@ export const Dashboard: React.FC = () => {
           </div>
           
           <div className="space-y-3">
-            {topProducts.map((product, index) => (
+            {topProducts.map((product) => (
               <div 
                 key={product.id}
                 className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${

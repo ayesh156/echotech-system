@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { Settings as SettingsIcon, User, Bell, Shield, Palette, Globe } from 'lucide-react';
+import { User, Bell, Palette } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const { theme, toggleTheme } = useTheme();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { TrendingUp, DollarSign, ShoppingCart, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { mockInvoices, mockProducts, mockCustomers } from '../data/mockData';
+import { mockInvoices, mockCustomers } from '../data/mockData';
 
 export const Reports: React.FC = () => {
   const { theme } = useTheme();
@@ -32,7 +32,7 @@ export const Reports: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => {
+        {stats.map((stat) => {
           const Icon = stat.icon;
           return (
             <div 

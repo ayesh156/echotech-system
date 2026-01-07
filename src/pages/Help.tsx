@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { HelpCircle, MessageCircle, Book, Mail, Phone } from 'lucide-react';
+import { HelpCircle, MessageCircle, Book, Mail } from 'lucide-react';
 
 export const Help: React.FC = () => {
   const { theme } = useTheme();
