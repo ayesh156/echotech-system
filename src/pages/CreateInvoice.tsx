@@ -946,7 +946,7 @@ export const CreateInvoice: React.FC = () => {
         </div>
 
         {/* Right Panel - Cart Summary (Always Visible) */}
-        <div className={`w-80 rounded-xl overflow-hidden flex flex-col ${
+        <div className={`w-[30rem] rounded-xl overflow-hidden flex flex-col ${
           theme === 'dark' ? 'bg-slate-800/50' : 'bg-white shadow-sm'
         }`}>
           {/* Customer Info */}
