@@ -78,11 +78,11 @@ export function SearchableSelect({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "w-full justify-between font-normal h-10",
+            "w-full justify-between font-normal h-10 rounded-xl px-4",
             theme === 'dark' 
               ? "border-slate-700 bg-slate-800 text-white hover:bg-slate-700 hover:text-white" 
               : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:text-slate-900",
-            !value && "text-muted-foreground",
+            !value && (theme === 'dark' ? "text-slate-400" : "text-slate-500"),
             triggerClassName
           )}
         >
@@ -101,25 +101,29 @@ export function SearchableSelect({
                 )}
               </span>
             ) : (
-              placeholder
+              <span className={theme === 'dark' ? "text-slate-400" : "text-slate-500"}>{placeholder}</span>
             )}
           </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className={cn(
+            "ml-2 h-4 w-4 shrink-0",
+            theme === 'dark' ? "text-slate-400" : "text-slate-500"
+          )} />
         </Button>
       </PopoverTrigger>
       <PopoverContent 
         className={cn(
-          "w-[--radix-popover-trigger-width] p-0",
+          "w-[--radix-popover-trigger-width] p-0 rounded-xl",
           theme === 'dark' ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-white",
           className
         )}
         align="start"
       >
-        <Command className={theme === 'dark' ? "bg-slate-800" : "bg-white"} shouldFilter={false}>
+        <Command className={cn("rounded-xl", theme === 'dark' ? "bg-slate-800" : "bg-white")} shouldFilter={false}>
           <CommandInput 
             placeholder={searchPlaceholder}
             value={searchQuery}
             onValueChange={setSearchQuery}
+            theme={theme}
             className={cn(
               theme === 'dark' ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400"
             )}
@@ -139,7 +143,7 @@ export function SearchableSelect({
                     setOpen(false);
                   }}
                   className={cn(
-                    "cursor-pointer",
+                    "cursor-pointer rounded-lg",
                     theme === 'dark' 
                       ? "text-slate-200 hover:bg-slate-700 hover:text-white data-[selected=true]:bg-slate-700 data-[selected=true]:text-white aria-selected:bg-slate-700 aria-selected:text-white" 
                       : "text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[selected=true]:bg-slate-100 data-[selected=true]:text-slate-900 aria-selected:bg-slate-100 aria-selected:text-slate-900"
@@ -148,7 +152,9 @@ export function SearchableSelect({
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
+                      value === option.value 
+                        ? (theme === 'dark' ? "text-emerald-400 opacity-100" : "text-emerald-600 opacity-100")
+                        : "opacity-0"
                     )}
                   />
                   <span className="flex items-center gap-2 flex-1">

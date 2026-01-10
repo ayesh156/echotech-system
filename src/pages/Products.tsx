@@ -262,7 +262,7 @@ export const Products: React.FC = () => {
                     <div className="flex items-center justify-end gap-2">
                       <button 
                         onClick={() => handleEditProduct(product)}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`p-2 rounded-xl transition-colors ${
                           theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
                         }`}
                       >
@@ -270,7 +270,7 @@ export const Products: React.FC = () => {
                       </button>
                       <button 
                         onClick={() => handleDeleteClick(product)}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`p-2 rounded-xl transition-colors ${
                           theme === 'dark' ? 'hover:bg-red-500/10 text-red-400' : 'hover:bg-red-50 text-red-500'
                         }`}
                       >

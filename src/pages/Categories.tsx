@@ -120,7 +120,7 @@ export const Categories: React.FC = () => {
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => handleEditCategory(category)}
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`p-2 rounded-xl transition-colors ${
                     theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
                   }`}
                 >
@@ -128,7 +128,7 @@ export const Categories: React.FC = () => {
                 </button>
                 <button 
                   onClick={() => handleDeleteClick(category)}
-                  className={`p-2 rounded-lg transition-colors ${
+                  className={`p-2 rounded-xl transition-colors ${
                     theme === 'dark' ? 'hover:bg-red-500/10 text-red-400' : 'hover:bg-red-50 text-red-500'
                   }`}
                 >

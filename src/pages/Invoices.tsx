@@ -304,8 +304,8 @@ export const Invoices: React.FC = () => {
             {/* Sort Button */}
             <button
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className={`p-2 rounded-lg border transition-colors ${
-                theme === 'dark' ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-50'
+              className={`p-2 rounded-xl border transition-colors ${
+                theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400' : 'border-slate-200 hover:bg-slate-50 text-slate-600'
               }`}
               title={sortOrder === 'asc' ? 'Sort Descending' : 'Sort Ascending'}
             >
@@ -313,12 +313,12 @@ export const Invoices: React.FC = () => {
             </button>
 
             {/* View Mode Toggle */}
-            <div className={`flex items-center rounded-lg border p-1 ${
+            <div className={`flex items-center rounded-xl border p-1 ${
               theme === 'dark' ? 'border-slate-700 bg-slate-900/50' : 'border-slate-200 bg-slate-50'
             }`}>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-md transition-colors ${
+                className={`p-1.5 rounded-lg transition-colors ${
                   viewMode === 'grid' 
                     ? 'bg-emerald-500 text-white' 
                     : theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
@@ -328,7 +328,7 @@ export const Invoices: React.FC = () => {
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`p-1.5 rounded-md transition-colors ${
+                className={`p-1.5 rounded-lg transition-colors ${
                   viewMode === 'table' 
                     ? 'bg-emerald-500 text-white' 
                     : theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
@@ -505,8 +505,8 @@ export const Invoices: React.FC = () => {
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded-lg border disabled:opacity-50 ${
-                    theme === 'dark' ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-50'
+                  className={`px-3 py-1 rounded-xl border disabled:opacity-50 ${
+                    theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                   }`}
                 >
                   Previous
@@ -517,8 +517,8 @@ export const Invoices: React.FC = () => {
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className={`px-3 py-1 rounded-lg border disabled:opacity-50 ${
-                    theme === 'dark' ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-50'
+                  className={`px-3 py-1 rounded-xl border disabled:opacity-50 ${
+                    theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                   }`}
                 >
                   Next
@@ -596,7 +596,7 @@ export const Invoices: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           <button 
                             onClick={() => handleViewClick(invoice)}
-                            className={`p-2 rounded-lg transition-colors ${
+                            className={`p-2 rounded-xl transition-colors ${
                               theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
                             }`}
                           >
@@ -604,7 +604,7 @@ export const Invoices: React.FC = () => {
                           </button>
                           <button 
                             onClick={() => handleEditClick(invoice)}
-                            className={`p-2 rounded-lg transition-colors ${
+                            className={`p-2 rounded-xl transition-colors ${
                               theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
                             }`}
                           >
@@ -612,7 +612,7 @@ export const Invoices: React.FC = () => {
                           </button>
                           <button 
                             onClick={() => handleDeleteClick(invoice)}
-                            className={`p-2 rounded-lg transition-colors ${
+                            className={`p-2 rounded-xl transition-colors ${
                               theme === 'dark' ? 'hover:bg-red-500/10 text-red-400' : 'hover:bg-red-50 text-red-500'
                             }`}
                           >
@@ -638,8 +638,8 @@ export const Invoices: React.FC = () => {
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className={`px-3 py-1 rounded-lg border disabled:opacity-50 ${
-                      theme === 'dark' ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-50'
+                    className={`px-3 py-1 rounded-xl border disabled:opacity-50 ${
+                      theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                     }`}
                   >
                     Previous
@@ -647,8 +647,8 @@ export const Invoices: React.FC = () => {
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className={`px-3 py-1 rounded-lg border disabled:opacity-50 ${
-                      theme === 'dark' ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-50'
+                    className={`px-3 py-1 rounded-xl border disabled:opacity-50 ${
+                      theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                     }`}
                   >
                     Next
