@@ -50,7 +50,8 @@ export const InvoiceEditModal: React.FC<InvoiceEditModalProps> = ({
     return products.filter(
       (p) =>
         p.name.toLowerCase().includes(searchLower) ||
-        p.sku.toLowerCase().includes(searchLower) ||
+        p.serialNumber.toLowerCase().includes(searchLower) ||
+        (p.barcode && p.barcode.toLowerCase().includes(searchLower)) ||
         p.category.toLowerCase().includes(searchLower)
     );
   }, [products, productSearch, selectedProductId]);

@@ -356,7 +356,7 @@ export const ViewInvoice: React.FC = () => {
                                   </p>
                                   {product && (
                                     <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                                      SKU: {product.sku}
+                                      S/N: {product.serialNumber}
                                     </span>
                                   )}
                                 </div>

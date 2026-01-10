@@ -58,7 +58,8 @@ export const InvoiceWizardModal: React.FC<InvoiceWizardModalProps> = ({
     return products.filter(
       (p) =>
         p.name.toLowerCase().includes(searchLower) ||
-        p.sku.toLowerCase().includes(searchLower) ||
+        p.serialNumber.toLowerCase().includes(searchLower) ||
+        (p.barcode && p.barcode.toLowerCase().includes(searchLower)) ||
         p.category.toLowerCase().includes(searchLower)
     );
   }, [products, productSearch, selectedProductId]);
@@ -336,7 +337,7 @@ export const InvoiceWizardModal: React.FC<InvoiceWizardModalProps> = ({
                               {p.name}
                             </p>
                             <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                              SKU: {p.sku} • {p.category}
+                              S/N: {p.serialNumber} • {p.category}
                             </p>
                           </div>
                           <div className="text-right">

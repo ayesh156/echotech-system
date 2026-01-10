@@ -86,7 +86,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (product) {
       setFormData({
         name: product.name,
-        sku: product.sku,
+        sku: product.serialNumber,
         category: product.category.toLowerCase().replace(/ /g, '-'),
         brand: product.brand.toLowerCase().replace(/ /g, '-'),
         price: product.price,
@@ -142,12 +142,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const newProduct: Product = {
         id: product?.id || `prod-${Date.now()}`,
         name: formData.name,
-        sku: formData.sku,
+        serialNumber: formData.sku,
         category: categoryLabel,
         brand: brandLabel,
         price: formData.price,
         stock: formData.stock,
         description: formData.description,
+        createdAt: product?.createdAt || new Date().toISOString(),
       };
       onSave(newProduct);
       onClose();

@@ -112,7 +112,8 @@ export const CreateInvoice: React.FC = () => {
       filtered = products.filter(
         (p) =>
           p.name.toLowerCase().includes(searchLower) ||
-          p.sku.toLowerCase().includes(searchLower) ||
+          p.serialNumber.toLowerCase().includes(searchLower) ||
+          (p.barcode && p.barcode.toLowerCase().includes(searchLower)) ||
           p.category.toLowerCase().includes(searchLower) ||
           p.brand.toLowerCase().includes(searchLower)
       );
@@ -779,7 +780,7 @@ export const CreateInvoice: React.FC = () => {
                         {product.name}
                       </p>
                       <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {product.sku} • Stock: {product.stock}
+                        {product.serialNumber} • Stock: {product.stock}
                       </p>
                     </div>
                     <div className="text-right">
@@ -946,7 +947,7 @@ export const CreateInvoice: React.FC = () => {
         </div>
 
         {/* Right Panel - Cart Summary (Always Visible) */}
-        <div className={`w-[30rem] rounded-xl overflow-hidden flex flex-col ${
+        <div className={`w-[96] rounded-xl overflow-hidden flex flex-col ${
           theme === 'dark' ? 'bg-slate-800/50' : 'bg-white shadow-sm'
         }`}>
           {/* Customer Info */}
