@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { mockProducts, productCategories, productBrands } from '../data/mockData';
-import type { Product } from '../data/mockData';
+import { mockProducts, productCategories, productBrands, mockSalesHistory } from '../data/mockData';
+import type { Product, SaleRecord } from '../data/mockData';
 import { DeleteConfirmationModal } from '../components/modals/DeleteConfirmationModal';
 import { SearchableSelect } from '../components/ui/searchable-select';
 import { 
   Package, Search, Plus, Edit, Trash2,
   Cpu, Monitor, HardDrive, MemoryStick, Keyboard,
   Calendar, DollarSign, X, Filter, ChevronLeft, ChevronRight,
-  LayoutGrid, List, ChevronsLeft, ChevronsRight
+  LayoutGrid, List, ChevronsLeft, ChevronsRight, History, Clock,
+  User, Receipt, Percent, TrendingUp, AlertTriangle
 } from 'lucide-react';
 
 export const Products: React.FC = () => {
@@ -26,6 +27,9 @@ export const Products: React.FC = () => {
   // Date filter states
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  // Low stock filter state
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   
   // Filter visibility state
   const [showFilters, setShowFilters] = useState(false);
@@ -51,6 +55,19 @@ export const Products: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   
+  // Sales History Modal states
+  const [isSalesHistoryOpen, setIsSalesHistoryOpen] = useState(false);
+  const [selectedProductForHistory, setSelectedProductForHistory] = useState<Product | null>(null);
+  const [productSalesHistory, setProductSalesHistory] = useState<SaleRecord[]>([]);
+  const [salesHistoryStartDate, setSalesHistoryStartDate] = useState('');
+  const [salesHistoryEndDate, setSalesHistoryEndDate] = useState('');
+  const [salesHistorySearchQuery, setSalesHistorySearchQuery] = useState('');
+  const [showSalesHistoryStartCalendar, setShowSalesHistoryStartCalendar] = useState(false);
+  const [showSalesHistoryEndCalendar, setShowSalesHistoryEndCalendar] = useState(false);
+  const [salesHistoryCalendarMonth, setSalesHistoryCalendarMonth] = useState(new Date());
+  const salesHistoryStartCalendarRef = useRef<HTMLDivElement>(null);
+  const salesHistoryEndCalendarRef = useRef<HTMLDivElement>(null);
+  
   // Local products state for demo
   const [products, setProducts] = useState<Product[]>(mockProducts);
 
@@ -62,6 +79,12 @@ export const Products: React.FC = () => {
       }
       if (endCalendarRef.current && !endCalendarRef.current.contains(event.target as Node)) {
         setShowEndCalendar(false);
+      }
+      if (salesHistoryStartCalendarRef.current && !salesHistoryStartCalendarRef.current.contains(event.target as Node)) {
+        setShowSalesHistoryStartCalendar(false);
+      }
+      if (salesHistoryEndCalendarRef.current && !salesHistoryEndCalendarRef.current.contains(event.target as Node)) {
+        setShowSalesHistoryEndCalendar(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -97,7 +120,11 @@ export const Products: React.FC = () => {
       }
     }
     
-    return matchesSearch && matchesCategory && matchesBrand && matchesPrice && matchesDate;
+    // Low stock filter
+    const threshold = product.lowStockThreshold || 10;
+    const matchesLowStock = !showLowStockOnly || product.stock <= threshold;
+    
+    return matchesSearch && matchesCategory && matchesBrand && matchesPrice && matchesDate && matchesLowStock;
   }).sort((a, b) => {
     const dateA = new Date(a.createdAt).getTime();
     const dateB = new Date(b.createdAt).getTime();
@@ -143,6 +170,39 @@ export const Products: React.FC = () => {
   }, [currentPage, totalPages]);
 
   const formatCurrency = (amount: number) => `Rs. ${amount.toLocaleString('en-LK')}`;
+
+  // Check if product is low stock
+  const isLowStock = (product: Product) => {
+    const threshold = product.lowStockThreshold || 10;
+    return product.stock <= threshold;
+  };
+
+  // Render product image or fallback avatar
+  const renderProductImage = (product: Product, size: 'sm' | 'md' | 'lg' = 'md') => {
+    const sizeClasses = {
+      sm: 'w-8 h-8',
+      md: 'w-10 h-10',
+      lg: 'w-12 h-12'
+    };
+    
+    if (product.image) {
+      return (
+        <img 
+          src={product.image} 
+          alt={product.name}
+          className={`${sizeClasses[size]} rounded-lg object-cover flex-shrink-0`}
+        />
+      );
+    }
+    
+    return (
+      <div className={`${sizeClasses[size]} rounded-lg flex items-center justify-center flex-shrink-0 ${
+        theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
+      }`}>
+        {getProductIcon(product.category)}
+      </div>
+    );
+  };
 
   const getProductIcon = (category: string) => {
     switch (category) {
@@ -324,9 +384,197 @@ export const Products: React.FC = () => {
     setMaxPrice('');
     setStartDate('');
     setEndDate('');
+    setShowLowStockOnly(false);
   };
 
-  const advancedFiltersCount = [minPrice, maxPrice, startDate, endDate].filter(Boolean).length;
+  const advancedFiltersCount = [minPrice, maxPrice, startDate, endDate, showLowStockOnly].filter(Boolean).length;
+  
+  // Count of low stock products
+  const lowStockCount = products.filter(p => p.stock <= (p.lowStockThreshold || 10)).length;
+
+  // Sales History Handler
+  const handleViewSalesHistory = (product: Product) => {
+    setSelectedProductForHistory(product);
+    const salesForProduct = mockSalesHistory.filter(sale => sale.productId === product.id);
+    // Sort by date descending (newest first)
+    salesForProduct.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime());
+    setProductSalesHistory(salesForProduct);
+    setSalesHistoryStartDate('');
+    setSalesHistoryEndDate('');
+    setSalesHistorySearchQuery('');
+    setShowSalesHistoryStartCalendar(false);
+    setShowSalesHistoryEndCalendar(false);
+    setIsSalesHistoryOpen(true);
+  };
+
+  const closeSalesHistory = () => {
+    setIsSalesHistoryOpen(false);
+    setSelectedProductForHistory(null);
+    setProductSalesHistory([]);
+    setSalesHistoryStartDate('');
+    setSalesHistoryEndDate('');
+    setSalesHistorySearchQuery('');
+    setShowSalesHistoryStartCalendar(false);
+    setShowSalesHistoryEndCalendar(false);
+  };
+
+  // Render calendar for sales history modal
+  const renderSalesHistoryCalendar = (
+    selectedDate: string, 
+    setSelectedDate: (date: string) => void, 
+    setShowCalendar: (show: boolean) => void
+  ) => {
+    const getDaysInMonthLocal = (date: Date) => {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const daysInMonth = lastDay.getDate();
+      const startingDay = firstDay.getDay();
+      return { daysInMonth, startingDay };
+    };
+
+    const { daysInMonth, startingDay } = getDaysInMonthLocal(salesHistoryCalendarMonth);
+    const days = [];
+    const selectedDateObj = selectedDate ? new Date(selectedDate) : null;
+
+    for (let i = 0; i < startingDay; i++) {
+      days.push(<div key={`empty-${i}`} className="w-8 h-8" />);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const currentDate = new Date(salesHistoryCalendarMonth.getFullYear(), salesHistoryCalendarMonth.getMonth(), day);
+      const isSelected = selectedDateObj && 
+        currentDate.getDate() === selectedDateObj.getDate() &&
+        currentDate.getMonth() === selectedDateObj.getMonth() &&
+        currentDate.getFullYear() === selectedDateObj.getFullYear();
+      const isToday = new Date().toDateString() === currentDate.toDateString();
+
+      days.push(
+        <button
+          key={day}
+          onClick={() => {
+            const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            setSelectedDate(dateStr);
+            setShowCalendar(false);
+          }}
+          className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${
+            isSelected
+              ? 'bg-emerald-500 text-white'
+              : isToday
+              ? theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
+              : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+          }`}
+        >
+          {day}
+        </button>
+      );
+    }
+
+    return (
+      <div className={`absolute top-full left-0 mt-2 p-3 rounded-xl border shadow-xl z-[60] min-w-[280px] ${
+        theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+      }`}>
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => setSalesHistoryCalendarMonth(new Date(salesHistoryCalendarMonth.getFullYear(), salesHistoryCalendarMonth.getMonth() - 1, 1))}
+            className={`p-1 rounded-lg transition-colors ${
+              theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
+            }`}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+            {salesHistoryCalendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </span>
+          <button
+            onClick={() => setSalesHistoryCalendarMonth(new Date(salesHistoryCalendarMonth.getFullYear(), salesHistoryCalendarMonth.getMonth() + 1, 1))}
+            className={`p-1 rounded-lg transition-colors ${
+              theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
+            }`}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
+            <div key={day} className={`w-8 h-8 flex items-center justify-center text-xs font-medium ${
+              theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+            }`}>
+              {day}
+            </div>
+          ))}
+        </div>
+        
+        <div className="grid grid-cols-7 gap-1">
+          {days}
+        </div>
+
+        <button
+          onClick={() => {
+            setSelectedDate('');
+            setShowCalendar(false);
+          }}
+          className={`w-full mt-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+            theme === 'dark' 
+              ? 'bg-slate-700 hover:bg-slate-600 text-slate-300' 
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+          }`}
+        >
+          Clear
+        </button>
+      </div>
+    );
+  };
+
+  // Filter sales history by search and date
+  const filteredSalesHistory = useMemo(() => {
+    let filtered = productSalesHistory;
+    
+    // Search filter
+    if (salesHistorySearchQuery) {
+      const query = salesHistorySearchQuery.toLowerCase();
+      filtered = filtered.filter(sale => 
+        sale.customerName.toLowerCase().includes(query) ||
+        sale.invoiceId.toLowerCase().includes(query)
+      );
+    }
+    
+    // Date filter
+    if (salesHistoryStartDate || salesHistoryEndDate) {
+      filtered = filtered.filter(sale => {
+        const saleDate = new Date(sale.saleDate);
+        
+        if (salesHistoryStartDate) {
+          const start = new Date(salesHistoryStartDate);
+          start.setHours(0, 0, 0, 0);
+          if (saleDate < start) return false;
+        }
+        
+        if (salesHistoryEndDate) {
+          const end = new Date(salesHistoryEndDate);
+          end.setHours(23, 59, 59, 999);
+          if (saleDate > end) return false;
+        }
+        
+        return true;
+      });
+    }
+    
+    return filtered;
+  }, [productSalesHistory, salesHistoryStartDate, salesHistoryEndDate, salesHistorySearchQuery]);
+
+  // Calculate sales statistics (based on filtered data)
+  const getSalesStats = () => {
+    if (filteredSalesHistory.length === 0) return { totalSold: 0, totalRevenue: 0, avgDiscount: 0 };
+    
+    const totalSold = filteredSalesHistory.reduce((sum, sale) => sum + sale.quantity, 0);
+    const totalRevenue = filteredSalesHistory.reduce((sum, sale) => sum + sale.total, 0);
+    const avgDiscount = filteredSalesHistory.reduce((sum, sale) => sum + sale.discount, 0) / filteredSalesHistory.length;
+    
+    return { totalSold, totalRevenue, avgDiscount };
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -551,6 +799,30 @@ export const Products: React.FC = () => {
                 </div>
               </div>
 
+              {/* Low Stock Filter */}
+              <button
+                onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
+                  showLowStockOnly
+                    ? 'bg-red-500 text-white'
+                    : theme === 'dark'
+                      ? 'bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:bg-slate-700/50'
+                      : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                Low Stock
+                {lowStockCount > 0 && (
+                  <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                    showLowStockOnly
+                      ? 'bg-white/20'
+                      : 'bg-red-500 text-white'
+                  }`}>
+                    {lowStockCount}
+                  </span>
+                )}
+              </button>
+
               {/* Clear Advanced Filters */}
               {advancedFiltersCount > 0 && (
                 <button
@@ -614,22 +886,27 @@ export const Products: React.FC = () => {
                   <tr 
                     key={product.id}
                     className={`border-b transition-colors ${
-                      theme === 'dark' 
-                        ? 'border-slate-700/30 hover:bg-slate-800/30' 
-                        : 'border-slate-100 hover:bg-slate-50'
+                      isLowStock(product)
+                        ? theme === 'dark'
+                          ? 'border-red-900/30 bg-red-950/20 hover:bg-red-950/30'
+                          : 'border-red-100 bg-red-50/50 hover:bg-red-50'
+                        : theme === 'dark' 
+                          ? 'border-slate-700/30 hover:bg-slate-800/30' 
+                          : 'border-slate-100 hover:bg-slate-50'
                     }`}
                   >
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
-                        }`}>
-                          {getProductIcon(product.category)}
-                        </div>
+                        {renderProductImage(product, 'sm')}
                         <div className="min-w-0">
-                          <span className={`font-medium block truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                            {product.name}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`font-medium block truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                              {product.name}
+                            </span>
+                            {isLowStock(product) && (
+                              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                            )}
+                          </div>
                           {product.barcode && (
                             <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
                               Barcode: {product.barcode}
@@ -657,17 +934,24 @@ export const Products: React.FC = () => {
                       {formatCurrency(product.price)}
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                        product.stock < 10
-                          ? 'bg-red-500/10 text-red-500'
-                          : product.stock < 20
-                          ? 'bg-amber-500/10 text-amber-500'
-                          : theme === 'dark' 
-                            ? 'bg-emerald-500/10 text-emerald-400' 
-                            : 'bg-emerald-50 text-emerald-600'
-                      }`}>
-                        {product.stock}
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                          isLowStock(product)
+                            ? 'bg-red-500/10 text-red-500'
+                            : product.stock < 20
+                            ? 'bg-amber-500/10 text-amber-500'
+                            : theme === 'dark' 
+                              ? 'bg-emerald-500/10 text-emerald-400' 
+                              : 'bg-emerald-50 text-emerald-600'
+                        }`}>
+                          {product.stock}
+                        </span>
+                        {isLowStock(product) && (
+                          <span className="text-[10px] text-red-500 font-medium whitespace-nowrap">
+                            Low Stock!
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className={`px-3 py-3 text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                       {new Date(product.createdAt).toLocaleDateString('en-GB', {
@@ -677,20 +961,31 @@ export const Products: React.FC = () => {
                       })}
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => handleViewSalesHistory(product)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            theme === 'dark' ? 'hover:bg-emerald-500/10 text-emerald-400' : 'hover:bg-emerald-50 text-emerald-600'
+                          }`}
+                          title="Sales History"
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
                         <button 
                           onClick={() => handleEditProduct(product)}
-                          className={`p-2 rounded-xl transition-colors ${
+                          className={`p-1.5 rounded-lg transition-colors ${
                             theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
                           }`}
+                          title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handleDeleteClick(product)}
-                          className={`p-2 rounded-xl transition-colors ${
+                          className={`p-1.5 rounded-lg transition-colors ${
                             theme === 'dark' ? 'hover:bg-red-500/10 text-red-400' : 'hover:bg-red-50 text-red-500'
                           }`}
+                          title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -707,25 +1002,40 @@ export const Products: React.FC = () => {
             {paginatedProducts.map((product) => (
               <div 
                 key={product.id}
-                className={`p-4 ${theme === 'dark' ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}`}
+                className={`p-4 ${
+                  isLowStock(product)
+                    ? theme === 'dark'
+                      ? 'bg-red-950/20 hover:bg-red-950/30'
+                      : 'bg-red-50/50 hover:bg-red-50'
+                    : theme === 'dark' ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'
+                }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
-                  }`}>
-                    {getProductIcon(product.category)}
-                  </div>
+                  {renderProductImage(product, 'lg')}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <h3 className={`font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                          {product.name}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className={`font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                            {product.name}
+                          </h3>
+                          {isLowStock(product) && (
+                            <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                          )}
+                        </div>
                         <p className={`text-xs font-mono mt-0.5 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
                           S/N: {product.serialNumber}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
+                        <button 
+                          onClick={() => handleViewSalesHistory(product)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            theme === 'dark' ? 'hover:bg-emerald-500/10 text-emerald-400' : 'hover:bg-emerald-50 text-emerald-600'
+                          }`}
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
                         <button 
                           onClick={() => handleEditProduct(product)}
                           className={`p-2 rounded-lg transition-colors ${
@@ -760,9 +1070,9 @@ export const Products: React.FC = () => {
                       <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                         {formatCurrency(product.price)}
                       </span>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                          product.stock < 10
+                          isLowStock(product)
                             ? 'bg-red-500/10 text-red-500'
                             : product.stock < 20
                             ? 'bg-amber-500/10 text-amber-500'
@@ -772,6 +1082,9 @@ export const Products: React.FC = () => {
                         }`}>
                           Stock: {product.stock}
                         </span>
+                        {isLowStock(product) && (
+                          <span className="text-xs text-red-500 font-medium">Low!</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -787,20 +1100,41 @@ export const Products: React.FC = () => {
             <div 
               key={product.id}
               className={`rounded-2xl border overflow-hidden transition-all hover:shadow-lg ${
-                theme === 'dark' 
-                  ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600' 
-                  : 'bg-white border-slate-200 hover:border-slate-300'
+                isLowStock(product)
+                  ? theme === 'dark'
+                    ? 'bg-red-950/20 border-red-900/50 hover:border-red-800'
+                    : 'bg-red-50/50 border-red-200 hover:border-red-300'
+                  : theme === 'dark' 
+                    ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600' 
+                    : 'bg-white border-slate-200 hover:border-slate-300'
               }`}
             >
-              {/* Card Header with Icon */}
+              {/* Card Header with Image */}
               <div className={`p-4 ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
                 <div className="flex items-start justify-between gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    theme === 'dark' ? 'bg-slate-700' : 'bg-white'
-                  }`}>
-                    {getProductIcon(product.category)}
-                  </div>
+                  {product.image ? (
+                    <img 
+                      src={product.image} 
+                      alt={product.name}
+                      className="w-12 h-12 rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      theme === 'dark' ? 'bg-slate-700' : 'bg-white'
+                    }`}>
+                      {getProductIcon(product.category)}
+                    </div>
+                  )}
                   <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => handleViewSalesHistory(product)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        theme === 'dark' ? 'hover:bg-emerald-500/10 text-emerald-400' : 'hover:bg-emerald-50 text-emerald-600'
+                      }`}
+                      title="Sales History"
+                    >
+                      <History className="w-4 h-4" />
+                    </button>
                     <button 
                       onClick={() => handleEditProduct(product)}
                       className={`p-2 rounded-lg transition-colors ${
@@ -824,9 +1158,14 @@ export const Products: React.FC = () => {
               {/* Card Content */}
               <div className="p-4 space-y-3">
                 <div>
-                  <h3 className={`font-semibold line-clamp-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {product.name}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className={`font-semibold line-clamp-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      {product.name}
+                    </h3>
+                    {isLowStock(product) && (
+                      <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    )}
+                  </div>
                   <p className={`text-xs font-mono mt-1 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
                     S/N: {product.serialNumber}
                   </p>
@@ -847,6 +1186,15 @@ export const Products: React.FC = () => {
                   }`}>
                     {product.brand}
                   </span>
+                  {product.warranty && (
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      theme === 'dark' 
+                        ? 'bg-blue-500/10 text-blue-400' 
+                        : 'bg-blue-50 text-blue-600'
+                    }`}>
+                      {product.warranty}
+                    </span>
+                  )}
                 </div>
                 
                 <div className={`pt-3 border-t flex items-center justify-between ${
@@ -855,17 +1203,22 @@ export const Products: React.FC = () => {
                   <span className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                     {formatCurrency(product.price)}
                   </span>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    product.stock < 10
-                      ? 'bg-red-500/10 text-red-500'
-                      : product.stock < 20
-                      ? 'bg-amber-500/10 text-amber-500'
-                      : theme === 'dark' 
-                        ? 'bg-emerald-500/10 text-emerald-400' 
-                        : 'bg-emerald-50 text-emerald-600'
-                  }`}>
-                    Stock: {product.stock}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      isLowStock(product)
+                        ? 'bg-red-500/10 text-red-500'
+                        : product.stock < 20
+                        ? 'bg-amber-500/10 text-amber-500'
+                        : theme === 'dark' 
+                          ? 'bg-emerald-500/10 text-emerald-400' 
+                          : 'bg-emerald-50 text-emerald-600'
+                    }`}>
+                      Stock: {product.stock}
+                    </span>
+                    {isLowStock(product) && (
+                      <span className="text-[10px] text-red-500 font-medium">Low Stock!</span>
+                    )}
+                  </div>
                 </div>
                 
                 <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -1033,6 +1386,318 @@ export const Products: React.FC = () => {
           <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
             Try adjusting your search or filter criteria
           </p>
+        </div>
+      )}
+
+      {/* Sales History Modal */}
+      {isSalesHistoryOpen && selectedProductForHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl border shadow-2xl ${
+            theme === 'dark' 
+              ? 'bg-slate-900 border-slate-700' 
+              : 'bg-white border-slate-200'
+          }`}>
+            {/* Modal Header */}
+            <div className={`px-6 py-4 border-b flex items-start justify-between flex-shrink-0 ${
+              theme === 'dark' ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'
+            }`}>
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'
+                }`}>
+                  <History className={`w-6 h-6 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                </div>
+                <div>
+                  <h2 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                    Sales History
+                  </h2>
+                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {selectedProductForHistory.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closeSalesHistory}
+                className={`p-2 rounded-xl transition-colors ${
+                  theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search and Date Filter */}
+            <div className={`px-6 py-3 border-b flex-shrink-0 ${
+              theme === 'dark' ? 'border-slate-700 bg-slate-800/20' : 'border-slate-200 bg-slate-50/30'
+            }`}>
+              <div className="flex flex-col md:flex-row md:items-center gap-3">
+                  {/* Search Field */}
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border flex-1 min-w-0 ${
+                    theme === 'dark' 
+                      ? 'bg-slate-800/50 border-slate-700/50' 
+                      : 'bg-white border-slate-200'
+                  }`}>
+                    <Search className={`w-4 h-4 flex-shrink-0 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
+                    <input
+                      type="text"
+                      placeholder="Search by invoice number, customer name..."
+                      value={salesHistorySearchQuery}
+                      onChange={(e) => setSalesHistorySearchQuery(e.target.value)}
+                      className={`bg-transparent border-none outline-none flex-1 min-w-0 text-sm ${
+                        theme === 'dark' ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                    {salesHistorySearchQuery && (
+                      <button
+                        onClick={() => setSalesHistorySearchQuery('')}
+                        className={`p-1 rounded-lg transition-colors ${
+                          theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Date Filter with Modern Calendar */}
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Calendar className={`w-4 h-4 ${theme === 'dark' ? 'text-emerald-500' : 'text-emerald-600'}`} />
+                      <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                        Date:
+                      </span>
+                    </div>
+                  
+                    {/* Start Date Picker */}
+                    <div className="relative" ref={salesHistoryStartCalendarRef}>
+                      <button
+                        onClick={() => {
+                          setShowSalesHistoryStartCalendar(!showSalesHistoryStartCalendar);
+                          setShowSalesHistoryEndCalendar(false);
+                          setSalesHistoryCalendarMonth(salesHistoryStartDate ? new Date(salesHistoryStartDate) : new Date());
+                        }}
+                        className={`px-3 py-1.5 rounded-xl border text-sm min-w-[120px] text-left flex items-center gap-2 ${
+                          theme === 'dark' 
+                            ? 'bg-slate-800/50 border-slate-700/50 text-white hover:bg-slate-700/50' 
+                            : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Calendar className="w-3.5 h-3.5 opacity-50" />
+                        {salesHistoryStartDate ? formatDateDisplay(salesHistoryStartDate) : 'Start Date'}
+                      </button>
+                      {showSalesHistoryStartCalendar && renderSalesHistoryCalendar(salesHistoryStartDate, setSalesHistoryStartDate, setShowSalesHistoryStartCalendar)}
+                    </div>
+                  
+                    <span className={theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}>to</span>
+                  
+                    {/* End Date Picker */}
+                    <div className="relative" ref={salesHistoryEndCalendarRef}>
+                      <button
+                        onClick={() => {
+                          setShowSalesHistoryEndCalendar(!showSalesHistoryEndCalendar);
+                          setShowSalesHistoryStartCalendar(false);
+                          setSalesHistoryCalendarMonth(salesHistoryEndDate ? new Date(salesHistoryEndDate) : new Date());
+                        }}
+                        className={`px-3 py-1.5 rounded-xl border text-sm min-w-[120px] text-left flex items-center gap-2 ${
+                          theme === 'dark' 
+                            ? 'bg-slate-800/50 border-slate-700/50 text-white hover:bg-slate-700/50' 
+                            : 'bg-white border-slate-200 text-slate-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Calendar className="w-3.5 h-3.5 opacity-50" />
+                        {salesHistoryEndDate ? formatDateDisplay(salesHistoryEndDate) : 'End Date'}
+                      </button>
+                      {showSalesHistoryEndCalendar && renderSalesHistoryCalendar(salesHistoryEndDate, setSalesHistoryEndDate, setShowSalesHistoryEndCalendar)}
+                    </div>
+
+                    {(salesHistoryStartDate || salesHistoryEndDate) && (
+                      <button
+                        onClick={() => {
+                          setSalesHistoryStartDate('');
+                          setSalesHistoryEndDate('');
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
+                          theme === 'dark'
+                            ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400'
+                            : 'bg-red-50 hover:bg-red-100 text-red-600'
+                        }`}
+                      >
+                        Clear Dates
+                      </button>
+                    )}
+                  </div>
+
+                  <span className={`text-xs ml-auto ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Showing {filteredSalesHistory.length} of {productSalesHistory.length} records
+                  </span>
+                </div>
+            </div>
+
+            {/* Stats Cards */}
+            {filteredSalesHistory.length > 0 && (
+              <div className={`px-6 py-4 border-b grid grid-cols-3 gap-4 flex-shrink-0 ${
+                theme === 'dark' ? 'border-slate-700 bg-slate-800/30' : 'border-slate-200 bg-slate-50/50'
+              }`}>
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white border border-slate-200'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'
+                    }`}>
+                      <TrendingUp className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
+                    </div>
+                    <div>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Total Sold</p>
+                      <p className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        {getSalesStats().totalSold} units
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white border border-slate-200'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'
+                    }`}>
+                      <DollarSign className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                    </div>
+                    <div>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Total Revenue</p>
+                      <p className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        {formatCurrency(getSalesStats().totalRevenue)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-white border border-slate-200'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'
+                    }`}>
+                      <Percent className={`w-5 h-5 ${theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}`} />
+                    </div>
+                    <div>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Avg. Discount</p>
+                      <p className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        {getSalesStats().avgDiscount.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sales List - Scrollable */}
+            <div className="overflow-y-auto flex-1 min-h-0">
+              {filteredSalesHistory.length === 0 ? (
+                <div className="p-12 text-center">
+                  <History className={`w-12 h-12 mx-auto mb-3 ${theme === 'dark' ? 'text-slate-600' : 'text-slate-300'}`} />
+                  <p className={`font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {productSalesHistory.length === 0 ? 'No sales history' : 'No sales found for selected dates'}
+                  </p>
+                  <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {productSalesHistory.length === 0 
+                      ? "This product hasn't been sold yet" 
+                      : 'Try adjusting your date filter'}
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-200 dark:divide-slate-700/50">
+                  {filteredSalesHistory.map((sale) => (
+                    <div 
+                      key={sale.id}
+                      className={`px-6 py-4 hover:${theme === 'dark' ? 'bg-slate-800/30' : 'bg-slate-50'} transition-colors`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          {/* Customer & Invoice */}
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
+                            }`}>
+                              <User className={`w-4 h-4 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`} />
+                            </div>
+                            <div>
+                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                                {sale.customerName}
+                              </p>
+                              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                                <Receipt className="w-3 h-3 inline mr-1" />
+                                {sale.invoiceId}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Date & Time */}
+                          <div className="flex items-center gap-2 text-sm">
+                            <Clock className={`w-4 h-4 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
+                            <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}>
+                              {new Date(sale.saleDate).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                              {' at '}
+                              {new Date(sale.saleDate).toLocaleTimeString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                              })}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Sale Details */}
+                        <div className="text-right space-y-1">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                              Qty: {sale.quantity}
+                            </span>
+                            <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>×</span>
+                            <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                              {formatCurrency(sale.unitPrice)}
+                            </span>
+                          </div>
+                          
+                          {sale.discount > 0 && (
+                            <div className="flex items-center justify-end gap-2">
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                theme === 'dark' 
+                                  ? 'bg-amber-500/10 text-amber-400' 
+                                  : 'bg-amber-50 text-amber-600'
+                              }`}>
+                                -{sale.discount}% OFF
+                              </span>
+                              <span className={`text-xs line-through ${theme === 'dark' ? 'text-slate-600' : 'text-slate-400'}`}>
+                                {formatCurrency(sale.unitPrice * sale.quantity)}
+                              </span>
+                            </div>
+                          )}
+                          
+                          <p className={`text-lg font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                            {formatCurrency(sale.total)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`px-6 py-4 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+              <button
+                onClick={closeSalesHistory}
+                className={`w-full py-2.5 rounded-xl font-medium transition-colors ${
+                  theme === 'dark'
+                    ? 'bg-slate-700 hover:bg-slate-600 text-white'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

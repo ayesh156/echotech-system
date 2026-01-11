@@ -119,7 +119,8 @@ export const InvoiceWizardModal: React.FC<InvoiceWizardModalProps> = ({
       total: Math.round(total * 100) / 100,
       date: issueDate,
       dueDate,
-      status: 'pending',
+      status: 'unpaid',
+      paidAmount: 0,
     };
 
     onCreateInvoice(invoice);

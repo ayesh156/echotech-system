@@ -6,8 +6,8 @@ import PrintableInvoice from '../components/PrintableInvoice';
 import {
   FileText, ArrowLeft, Printer, Edit3, User, Phone,
   Package, CheckCircle, Clock,
-  AlertTriangle, XCircle, Mail, MapPin,
-  Copy, Download, Share2, MoreVertical, TrendingUp, Monitor, X
+  XCircle, Mail, MapPin,
+  Copy, Download, Share2, MoreVertical, TrendingUp, Monitor, X, CircleDollarSign
 } from 'lucide-react';
 
 export const ViewInvoice: React.FC = () => {
@@ -87,23 +87,23 @@ export const ViewInvoice: React.FC = () => {
   }
 
   const statusConfig = {
-    paid: { 
-      label: 'Paid', 
+    fullpaid: { 
+      label: 'Full Paid', 
       icon: CheckCircle, 
       color: 'emerald',
       bgClass: 'bg-emerald-500/10 border-emerald-500/30',
       textClass: 'text-emerald-400'
     },
-    pending: { 
-      label: 'Pending', 
-      icon: Clock, 
+    halfpay: { 
+      label: 'Half Pay', 
+      icon: CircleDollarSign, 
       color: 'amber',
       bgClass: 'bg-amber-500/10 border-amber-500/30',
       textClass: 'text-amber-400'
     },
-    overdue: { 
-      label: 'Overdue', 
-      icon: AlertTriangle, 
+    unpaid: { 
+      label: 'Unpaid', 
+      icon: XCircle, 
       color: 'red',
       bgClass: 'bg-red-500/10 border-red-500/30',
       textClass: 'text-red-400'
@@ -245,8 +245,8 @@ export const ViewInvoice: React.FC = () => {
                   <p className="text-4xl font-bold tracking-wider">INVOICE</p>
                   <p className="text-emerald-200 text-lg mt-2">{invoice.id}</p>
                   <div className={`inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-full ${
-                    invoice.status === 'paid' ? 'bg-emerald-500' :
-                    invoice.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'
+                    invoice.status === 'fullpaid' ? 'bg-emerald-500' :
+                    invoice.status === 'halfpay' ? 'bg-amber-500' : 'bg-red-500'
                   }`}>
                     <StatusIcon className="w-4 h-4" />
                     <span className="font-semibold">{status.label.toUpperCase()}</span>
@@ -570,12 +570,12 @@ export const ViewInvoice: React.FC = () => {
                 </div>
               </div>
 
-              {invoice.status === 'paid' && (
+              {invoice.status === 'fullpaid' && (
                 <div className="flex gap-3">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'
+                    theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'
                   }`}>
-                    <CheckCircle className="w-4 h-4 text-blue-500" />
+                    <CheckCircle className="w-4 h-4 text-emerald-500" />
                   </div>
                   <div>
                     <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
@@ -588,16 +588,16 @@ export const ViewInvoice: React.FC = () => {
                 </div>
               )}
 
-              {invoice.status === 'pending' && (
+              {invoice.status === 'halfpay' && (
                 <div className="flex gap-3">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     theme === 'dark' ? 'bg-amber-500/20' : 'bg-amber-100'
                   }`}>
-                    <Clock className="w-4 h-4 text-amber-500" />
+                    <CircleDollarSign className="w-4 h-4 text-amber-500" />
                   </div>
                   <div>
                     <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                      Awaiting Payment
+                      Partial Payment
                     </p>
                     <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>
                       Due by {new Date(invoice.dueDate).toLocaleDateString('en-GB')}
@@ -606,19 +606,19 @@ export const ViewInvoice: React.FC = () => {
                 </div>
               )}
 
-              {invoice.status === 'overdue' && (
+              {invoice.status === 'unpaid' && (
                 <div className="flex gap-3">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     theme === 'dark' ? 'bg-red-500/20' : 'bg-red-100'
                   }`}>
-                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                    <XCircle className="w-4 h-4 text-red-500" />
                   </div>
                   <div>
                     <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                      Payment Overdue
+                      Payment Pending
                     </p>
                     <p className={`text-xs text-red-400`}>
-                      Was due on {new Date(invoice.dueDate).toLocaleDateString('en-GB')}
+                      Due by {new Date(invoice.dueDate).toLocaleDateString('en-GB')}
                     </p>
                   </div>
                 </div>

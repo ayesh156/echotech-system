@@ -4,8 +4,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { mockInvoices, mockProducts, mockCustomers } from '../data/mockData';
 import { 
   Package, FileText, Users, ArrowRight, ArrowUpRight,
-  DollarSign, ShoppingCart, Clock, AlertTriangle, CheckCircle,
-  RefreshCw, Cpu, Monitor, HardDrive
+  DollarSign, ShoppingCart, AlertTriangle, CheckCircle,
+  RefreshCw, Cpu, Monitor, HardDrive, XCircle, CircleDollarSign
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -13,10 +13,10 @@ export const Dashboard: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('7d');
 
   // Calculate statistics
-  const paidInvoices = mockInvoices.filter((inv) => inv.status === 'paid').length;
-  const pendingInvoices = mockInvoices.filter((inv) => inv.status === 'pending').length;
-  const overdueInvoices = mockInvoices.filter((inv) => inv.status === 'overdue').length;
-  const totalRevenue = mockInvoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.total, 0);
+  const fullpaidInvoices = mockInvoices.filter((inv) => inv.status === 'fullpaid').length;
+  const halfpayInvoices = mockInvoices.filter((inv) => inv.status === 'halfpay').length;
+  const unpaidInvoices = mockInvoices.filter((inv) => inv.status === 'unpaid').length;
+  const totalRevenue = mockInvoices.filter(inv => inv.status === 'fullpaid').reduce((sum, inv) => sum + inv.total, 0);
   const totalProducts = mockProducts.length;
   const lowStockProducts = mockProducts.filter((p) => p.stock < 10).length;
   const totalCustomers = mockCustomers.length;
@@ -293,28 +293,28 @@ export const Dashboard: React.FC = () => {
             <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/30' : 'bg-slate-50'}`}>
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Paid</span>
+                <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Full Paid</span>
               </div>
               <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                {paidInvoices}
+                {fullpaidInvoices}
               </p>
             </div>
             <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/30' : 'bg-slate-50'}`}>
               <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4 text-amber-500" />
-                <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Pending</span>
+                <CircleDollarSign className="w-4 h-4 text-amber-500" />
+                <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Half Pay</span>
               </div>
               <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                {pendingInvoices}
+                {halfpayInvoices}
               </p>
             </div>
             <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/30' : 'bg-slate-50'}`}>
               <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="w-4 h-4 text-red-500" />
-                <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Overdue</span>
+                <XCircle className="w-4 h-4 text-red-500" />
+                <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Unpaid</span>
               </div>
               <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                {overdueInvoices}
+                {unpaidInvoices}
               </p>
             </div>
           </div>

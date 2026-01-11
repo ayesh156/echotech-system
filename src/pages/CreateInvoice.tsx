@@ -275,7 +275,8 @@ export const CreateInvoice: React.FC = () => {
       date: new Date().toISOString().split('T')[0],
       buyingDate,
       dueDate,
-      status: paymentMethod === 'credit' ? 'pending' : 'paid',
+      status: paymentMethod === 'credit' ? 'unpaid' : 'fullpaid',
+      paidAmount: paymentMethod === 'credit' ? 0 : Math.round(total * 100) / 100,
     };
 
     // Add to mockInvoices

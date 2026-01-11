@@ -6,8 +6,8 @@ import { mockInvoices, mockCustomers } from '../data/mockData';
 export const Reports: React.FC = () => {
   const { theme } = useTheme();
 
-  const totalRevenue = mockInvoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + inv.total, 0);
-  const pendingRevenue = mockInvoices.filter(inv => inv.status === 'pending').reduce((sum, inv) => sum + inv.total, 0);
+  const totalRevenue = mockInvoices.filter(inv => inv.status === 'fullpaid').reduce((sum, inv) => sum + inv.total, 0);
+  const pendingRevenue = mockInvoices.filter(inv => inv.status === 'halfpay' || inv.status === 'unpaid').reduce((sum, inv) => sum + inv.total - (inv.paidAmount || 0), 0);
   
   const formatCurrency = (amount: number) => `Rs. ${amount.toLocaleString('en-LK')}`;
 

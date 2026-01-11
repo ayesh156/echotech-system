@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Product } from '../../data/mockData';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
@@ -6,7 +6,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { SearchableSelect } from '../ui/searchable-select';
-import { Package, Tag, DollarSign, Boxes, FileText, Save, Plus, Building2, Layers } from 'lucide-react';
+import { Package, Tag, DollarSign, Boxes, FileText, Save, Plus, Building2, Layers, ImageIcon, Upload, X, Shield, AlertCircle, Clipboard, CheckCircle2 } from 'lucide-react';
 
 // Computer shop categories
 const categoryOptions = [
@@ -45,6 +45,18 @@ const brandOptions = [
   { value: 'steelseries', label: 'SteelSeries' },
 ];
 
+// Warranty period options
+const warrantyOptions = [
+  { value: '', label: 'No Warranty' },
+  { value: '3 months', label: '3 Months' },
+  { value: '6 months', label: '6 Months' },
+  { value: '1 year', label: '1 Year' },
+  { value: '2 years', label: '2 Years' },
+  { value: '3 years', label: '3 Years' },
+  { value: '5 years', label: '5 Years' },
+  { value: 'lifetime', label: 'Lifetime' },
+];
+
 interface ProductFormModalProps {
   isOpen: boolean;
   product?: Product;
@@ -60,7 +72,39 @@ interface ProductFormData {
   price: number;
   stock: number;
   description: string;
+  image: string;
+  warranty: string;
+  lowStockThreshold: number;
 }
+
+// Image compression utility
+const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      let { width, height } = img;
+      
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      ctx?.drawImage(img, 0, 0, width, height);
+      
+      const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressedBase64);
+    };
+    
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   isOpen,
@@ -69,6 +113,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onSave,
 }) => {
   const { theme } = useTheme();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -78,9 +124,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     price: 0,
     stock: 0,
     description: '',
+    image: '',
+    warranty: '',
+    lowStockThreshold: 10,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [pasteSuccess, setPasteSuccess] = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -92,6 +145,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         price: product.price,
         stock: product.stock,
         description: product.description || '',
+        image: product.image || '',
+        warranty: product.warranty || '',
+        lowStockThreshold: product.lowStockThreshold || 10,
       });
     } else {
       setFormData({
@@ -102,10 +158,125 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         price: 0,
         stock: 0,
         description: '',
+        image: '',
+        warranty: '',
+        lowStockThreshold: 10,
       });
     }
     setErrors({});
+    setUploadProgress(0);
+    setIsUploading(false);
   }, [product, isOpen]);
+
+  // Handle image upload with compression and progress
+  const handleImageUpload = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setErrors(prev => ({ ...prev, image: 'Please select an image file' }));
+      return;
+    }
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setErrors(prev => ({ ...prev, image: 'Image must be less than 10MB' }));
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setErrors(prev => ({ ...prev, image: '' }));
+
+    try {
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + Math.random() * 15;
+        });
+      }, 100);
+
+      // Compress the image
+      const compressedImage = await compressImage(file);
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        setFormData(prev => ({ ...prev, image: compressedImage }));
+        setIsUploading(false);
+        setUploadProgress(0);
+      }, 300);
+    } catch {
+      setErrors(prev => ({ ...prev, image: 'Failed to process image' }));
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  }, []);
+
+  // Handle file input change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+  };
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+  };
+
+  // Handle paste from clipboard (Google image paste)
+  const handlePaste = useCallback(async (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          setPasteSuccess(true);
+          setTimeout(() => setPasteSuccess(false), 2000);
+          handleImageUpload(file);
+        }
+        break;
+      }
+    }
+  }, [handleImageUpload]);
+
+  // Add paste event listener
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('paste', handlePaste);
+      return () => document.removeEventListener('paste', handlePaste);
+    }
+  }, [isOpen, handlePaste]);
+
+  // Remove image
+  const handleRemoveImage = () => {
+    setFormData(prev => ({ ...prev, image: '' }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -149,6 +320,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         stock: formData.stock,
         description: formData.description,
         createdAt: product?.createdAt || new Date().toISOString(),
+        image: formData.image || undefined,
+        warranty: formData.warranty || undefined,
+        lowStockThreshold: formData.lowStockThreshold || 10,
       };
       onSave(newProduct);
       onClose();
@@ -321,6 +495,167 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               />
               {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
             </div>
+          </div>
+
+          {/* Warranty & Low Stock Threshold Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Warranty */}
+            <div className="space-y-2">
+              <Label className={`flex items-center gap-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                <Shield className="w-4 h-4" />
+                Warranty Period
+              </Label>
+              <SearchableSelect
+                options={warrantyOptions}
+                value={formData.warranty}
+                onValueChange={(value) => handleChange('warranty', value)}
+                placeholder="Select warranty..."
+                searchPlaceholder="Search warranty..."
+                emptyMessage="No options found"
+                theme={theme}
+              />
+            </div>
+
+            {/* Low Stock Threshold */}
+            <div className="space-y-2">
+              <Label htmlFor="lowStockThreshold" className={`flex items-center gap-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                <AlertCircle className="w-4 h-4" />
+                Low Stock Alert
+              </Label>
+              <Input
+                id="lowStockThreshold"
+                type="number"
+                min="0"
+                value={formData.lowStockThreshold}
+                onChange={(e) => handleChange('lowStockThreshold', parseInt(e.target.value) || 10)}
+                placeholder="Alert when stock below..."
+                className={`${
+                  theme === 'dark' 
+                    ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500' 
+                    : 'bg-white border-slate-200'
+                }`}
+              />
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                Show warning when stock falls below this number
+              </p>
+            </div>
+          </div>
+
+          {/* Product Image Upload */}
+          <div className="space-y-2">
+            <Label className={`flex items-center gap-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+              <ImageIcon className="w-4 h-4" />
+              Product Image
+              {pasteSuccess && (
+                <span className="flex items-center gap-1 text-xs text-emerald-500 ml-2">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Image pasted!
+                </span>
+              )}
+            </Label>
+            
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            {formData.image ? (
+              /* Image Preview */
+              <div className={`relative rounded-xl border-2 border-dashed overflow-hidden ${
+                theme === 'dark' ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'
+              }`}>
+                <img 
+                  src={formData.image} 
+                  alt="Product preview" 
+                  className="w-full h-48 object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className={`absolute bottom-0 left-0 right-0 px-3 py-2 text-xs ${
+                  theme === 'dark' ? 'bg-slate-900/80 text-slate-300' : 'bg-white/80 text-slate-600'
+                }`}>
+                  Click the X to remove and upload a new image
+                </div>
+              </div>
+            ) : (
+              /* Upload Drop Zone */
+              <div
+                ref={dropZoneRef}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`relative rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all ${
+                  isDragOver
+                    ? 'border-emerald-500 bg-emerald-500/10'
+                    : theme === 'dark' 
+                      ? 'border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-800' 
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                {isUploading ? (
+                  /* Upload Progress */
+                  <div className="space-y-3">
+                    <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center ${
+                      theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-50'
+                    }`}>
+                      <Upload className="w-6 h-6 text-emerald-500 animate-pulse" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        Compressing & Uploading...
+                      </p>
+                      <div className={`w-full h-2 rounded-full overflow-hidden ${
+                        theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'
+                      }`}>
+                        <div 
+                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {Math.round(uploadProgress)}% complete
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Upload Instructions */
+                  <div className="space-y-3">
+                    <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center ${
+                      theme === 'dark' ? 'bg-slate-700' : 'bg-slate-100'
+                    }`}>
+                      <Upload className={`w-6 h-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`} />
+                    </div>
+                    <div>
+                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        Drop image here or click to upload
+                      </p>
+                      <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        PNG, JPG up to 10MB. Images will be compressed automatically.
+                      </p>
+                    </div>
+                    <div className={`flex items-center justify-center gap-2 pt-2 border-t ${
+                      theme === 'dark' ? 'border-slate-700' : 'border-slate-200'
+                    }`}>
+                      <Clipboard className={`w-4 h-4 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                      <span className={`text-xs ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                        Pro tip: Copy image from Google and press Ctrl+V to paste
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {errors.image && <p className="text-xs text-red-500">{errors.image}</p>}
           </div>
 
           {/* Description */}

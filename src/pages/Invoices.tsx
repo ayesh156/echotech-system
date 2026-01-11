@@ -5,9 +5,9 @@ import { mockInvoices as initialMockInvoices, mockCustomers, mockProducts } from
 import type { Invoice } from '../data/mockData';
 import { 
   FileText, Search, Plus, Eye, Edit, Trash2, 
-  CheckCircle, Clock, AlertTriangle, Filter,
+  CheckCircle, Filter,
   Grid, List, SortAsc, SortDesc, ChevronDown, RefreshCw,
-  TrendingUp, Calendar, User, Building2
+  Calendar, User, Building2, XCircle, CircleDollarSign
 } from 'lucide-react';
 import { DeleteConfirmationModal } from '../components/modals/DeleteConfirmationModal';
 import { InvoiceEditModal } from '../components/modals/InvoiceEditModal';
@@ -102,13 +102,13 @@ export const Invoices: React.FC = () => {
   // Stats
   const stats = useMemo(() => {
     const totalInvoices = invoices.length;
-    const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.total, 0);
-    const pendingAmount = invoices.filter(i => i.status === 'pending').reduce((sum, i) => sum + i.total, 0);
-    const overdueAmount = invoices.filter(i => i.status === 'overdue').reduce((sum, i) => sum + i.total, 0);
-    const paidCount = invoices.filter(i => i.status === 'paid').length;
-    const pendingCount = invoices.filter(i => i.status === 'pending').length;
-    const overdueCount = invoices.filter(i => i.status === 'overdue').length;
-    return { totalInvoices, totalRevenue, pendingAmount, overdueAmount, paidCount, pendingCount, overdueCount };
+    const totalRevenue = invoices.filter(i => i.status === 'fullpaid').reduce((sum, i) => sum + i.total, 0);
+    const halfpayAmount = invoices.filter(i => i.status === 'halfpay').reduce((sum, i) => sum + (i.paidAmount || 0), 0);
+    const unpaidAmount = invoices.filter(i => i.status === 'unpaid').reduce((sum, i) => sum + i.total, 0);
+    const fullpaidCount = invoices.filter(i => i.status === 'fullpaid').length;
+    const halfpayCount = invoices.filter(i => i.status === 'halfpay').length;
+    const unpaidCount = invoices.filter(i => i.status === 'unpaid').length;
+    return { totalInvoices, totalRevenue, halfpayAmount, unpaidAmount, fullpaidCount, halfpayCount, unpaidCount };
   }, [invoices]);
 
   const hasActiveFilters = searchQuery || statusFilter !== 'all' || customerFilter !== 'all' || dateFilter !== 'all';
@@ -124,28 +124,37 @@ export const Invoices: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'paid': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'pending': return <Clock className="w-4 h-4 text-amber-500" />;
-      case 'overdue': return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      case 'fullpaid': return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'halfpay': return <CircleDollarSign className="w-4 h-4 text-amber-500" />;
+      case 'unpaid': return <XCircle className="w-4 h-4 text-red-500" />;
       default: return null;
     }
   };
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'paid': 
+      case 'fullpaid': 
         return theme === 'dark' 
           ? 'bg-green-500/10 text-green-400 border-green-500/20' 
           : 'bg-green-50 text-green-600 border-green-200';
-      case 'pending': 
+      case 'halfpay': 
         return theme === 'dark' 
           ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
           : 'bg-amber-50 text-amber-600 border-amber-200';
-      case 'overdue': 
+      case 'unpaid': 
         return theme === 'dark' 
           ? 'bg-red-500/10 text-red-400 border-red-500/20' 
           : 'bg-red-50 text-red-600 border-red-200';
       default: return '';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'fullpaid': return 'Full Paid';
+      case 'halfpay': return 'Half Pay';
+      case 'unpaid': return 'Unpaid';
+      default: return status;
     }
   };
 
@@ -213,33 +222,33 @@ export const Invoices: React.FC = () => {
         <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-emerald-400" />
+              <CheckCircle className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
               <p className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Rs. {(stats.totalRevenue / 1000).toFixed(0)}K</p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>{stats.paidCount} Paid</p>
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>{stats.fullpaidCount} Full Paid</p>
             </div>
           </div>
         </div>
         <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center">
-              <Clock className="w-5 h-5 text-amber-400" />
+              <CircleDollarSign className="w-5 h-5 text-amber-400" />
             </div>
             <div>
-              <p className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Rs. {(stats.pendingAmount / 1000).toFixed(0)}K</p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>{stats.pendingCount} Pending</p>
+              <p className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Rs. {(stats.halfpayAmount / 1000).toFixed(0)}K</p>
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>{stats.halfpayCount} Half Pay</p>
             </div>
           </div>
         </div>
         <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
+              <XCircle className="w-5 h-5 text-red-400" />
             </div>
             <div>
-              <p className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Rs. {(stats.overdueAmount / 1000).toFixed(0)}K</p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>{stats.overdueCount} Overdue</p>
+              <p className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Rs. {(stats.unpaidAmount / 1000).toFixed(0)}K</p>
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>{stats.unpaidCount} Unpaid</p>
             </div>
           </div>
         </div>
@@ -357,9 +366,9 @@ export const Invoices: React.FC = () => {
                 theme={theme}
                 options={[
                   { value: 'all', label: 'All Status', icon: <Filter className="w-4 h-4" /> },
-                  { value: 'paid', label: 'Paid', icon: <CheckCircle className="w-4 h-4 text-emerald-500" /> },
-                  { value: 'pending', label: 'Pending', icon: <Clock className="w-4 h-4 text-amber-500" /> },
-                  { value: 'overdue', label: 'Overdue', icon: <AlertTriangle className="w-4 h-4 text-red-500" /> },
+                  { value: 'fullpaid', label: 'Full Paid', icon: <CheckCircle className="w-4 h-4 text-emerald-500" /> },
+                  { value: 'halfpay', label: 'Half Pay', icon: <CircleDollarSign className="w-4 h-4 text-amber-500" /> },
+                  { value: 'unpaid', label: 'Unpaid', icon: <XCircle className="w-4 h-4 text-red-500" /> },
                 ]}
               />
             </div>
@@ -424,8 +433,8 @@ export const Invoices: React.FC = () => {
                 >
                   {/* Status bar */}
                   <div className={`h-1 ${
-                    invoice.status === 'paid' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
-                      : invoice.status === 'pending' ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                    invoice.status === 'fullpaid' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
+                      : invoice.status === 'halfpay' ? 'bg-gradient-to-r from-amber-500 to-orange-500'
                       : 'bg-gradient-to-r from-red-500 to-rose-500'
                   }`} />
                   <div className="p-4">
@@ -442,7 +451,7 @@ export const Invoices: React.FC = () => {
                       </div>
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border ${getStatusStyle(invoice.status)}`}>
                         {getStatusIcon(invoice.status)}
-                        {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                        {getStatusLabel(invoice.status)}
                       </span>
                     </div>
                     {/* Dates */}
@@ -455,7 +464,7 @@ export const Invoices: React.FC = () => {
                       </div>
                       <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-800/80' : 'bg-slate-50'}`}>
                         <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Due</p>
-                        <p className={`text-sm font-medium ${new Date(invoice.dueDate) < new Date() && invoice.status !== 'paid' ? 'text-red-400' : theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        <p className={`text-sm font-medium ${new Date(invoice.dueDate) < new Date() && invoice.status !== 'fullpaid' ? 'text-red-400' : theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                           {new Date(invoice.dueDate).toLocaleDateString()}
                         </p>
                       </div>
@@ -586,7 +595,7 @@ export const Invoices: React.FC = () => {
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusStyle(invoice.status)}`}>
                           {getStatusIcon(invoice.status)}
-                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                          {getStatusLabel(invoice.status)}
                         </span>
                       </td>
                       <td className={`px-6 py-4 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
