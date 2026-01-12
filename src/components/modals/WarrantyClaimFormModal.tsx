@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { WarrantyClaim } from '../../data/mockData';
-import { mockProducts, mockCustomers, mockInvoices } from '../../data/mockData';
+import { mockProducts, mockCustomers, mockInvoices, generateClaimNumber } from '../../data/mockData';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Input } from '../ui/input';
@@ -299,7 +299,7 @@ export const WarrantyClaimFormModal: React.FC<WarrantyClaimFormModalProps> = ({
       const replacementProduct = mockProducts.find((p) => p.id === formData.replacementProductId);
 
       const newClaim: WarrantyClaim = {
-        id: claim?.id || `WC-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
+        id: claim?.id || generateClaimNumber(),
         invoiceId: formData.invoiceId,
         productId: formData.productId,
         productName: product?.name || '',

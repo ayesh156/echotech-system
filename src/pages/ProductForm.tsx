@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Product } from '../data/mockData';
 import { mockProducts, generateSerialNumber } from '../data/mockData';
 import { useTheme } from '../contexts/ThemeContext';
 import { Input } from '../components/ui/input';
@@ -292,26 +291,13 @@ export const ProductForm: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      const newProduct: Product = {
-        id: existingProduct?.id || `prod-${Date.now()}`,
-        name: formData.name,
-        serialNumber: formData.serialNumber,
-        barcode: formData.barcode || undefined,
-        category: formData.category,
-        brand: formData.brand,
-        price: formData.price,
-        stock: formData.stock,
-        description: formData.description || undefined,
-        createdAt: existingProduct?.createdAt || new Date().toISOString(),
-        image: formData.image || undefined,
-        warranty: formData.warranty || undefined,
-        lowStockThreshold: formData.lowStockThreshold || 10,
-      };
-      
       // In a real app, this would save to a database/API
-      console.log('Product saved:', newProduct);
+      // Product data would be: {
+      //   id: existingProduct?.id || `prod-${Date.now()}`,
+      //   name, serialNumber, barcode, category, brand, price, stock, etc.
+      // }
       
-      // Navigate back to products list
+      // Navigate back to products list after successful save
       navigate('/products');
     }
   };

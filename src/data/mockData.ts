@@ -503,10 +503,15 @@ export const productBrands = [
   'SteelSeries',
 ];
 
+// Generate 8-digit claim number
+export const generateClaimNumber = (): string => {
+  return Date.now().toString().slice(-8);
+};
+
 // Warranty Claims - tracks all warranty issues and replacements
 export const mockWarrantyClaims: WarrantyClaim[] = [
   {
-    id: 'WC-2025-0001',
+    id: '25010001',
     invoiceId: '10240001',
     invoiceItemIndex: 0,
     productId: '1',
@@ -531,7 +536,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     handledBy: 'Nuwan Silva',
   },
   {
-    id: 'WC-2025-0002',
+    id: '25010002',
     invoiceId: '10240002',
     invoiceItemIndex: 0,
     productId: '3',
@@ -550,7 +555,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     handledBy: 'Chamara Fernando',
   },
   {
-    id: 'WC-2025-0003',
+    id: '25010003',
     invoiceId: '10240003',
     invoiceItemIndex: 1,
     productId: '15',
@@ -569,7 +574,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     handledBy: 'Nuwan Silva',
   },
   {
-    id: 'WC-2025-0004',
+    id: '25010004',
     invoiceId: '10240004',
     invoiceItemIndex: 0,
     productId: '17',
@@ -589,7 +594,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     handledBy: 'Chamara Fernando',
   },
   {
-    id: 'WC-2025-0005',
+    id: '25010005',
     invoiceId: '10250008',
     invoiceItemIndex: 0,
     productId: '5',
@@ -610,7 +615,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     handledBy: 'Nuwan Silva',
   },
   {
-    id: 'WC-2025-0006',
+    id: '25010006',
     invoiceId: '10240006',
     invoiceItemIndex: 0,
     productId: '6',
@@ -629,7 +634,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     handledBy: 'Chamara Fernando',
   },
   {
-    id: 'WC-2025-0007',
+    id: '25010007',
     invoiceId: '10240002',
     invoiceItemIndex: 2,
     productId: '12',
@@ -653,7 +658,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     handledBy: 'Nuwan Silva',
   },
   {
-    id: 'WC-2025-0008',
+    id: '25010008',
     invoiceId: '10250011',
     invoiceItemIndex: 1,
     productId: '18',
@@ -670,7 +675,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     notes: 'Customer uses keyboard in gaming café environment. Heavy daily usage.',
   },
   {
-    id: 'WC-2025-0009',
+    id: '25010009',
     invoiceId: '10240001',
     invoiceItemIndex: 1,
     productId: '8',
@@ -694,7 +699,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     handledBy: 'Chamara Fernando',
   },
   {
-    id: 'WC-2025-0010',
+    id: '25010010',
     invoiceId: '10250007',
     invoiceItemIndex: 0,
     productId: '19',
