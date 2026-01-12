@@ -16,6 +16,7 @@ const CreateInvoice = lazy(() => import('./pages/CreateInvoice').then(m => ({ de
 const ViewInvoice = lazy(() => import('./pages/ViewInvoice').then(m => ({ default: m.ViewInvoice })));
 const Products = lazy(() => import('./pages/Products').then(m => ({ default: m.Products })));
 const ProductForm = lazy(() => import('./pages/ProductForm').then(m => ({ default: m.ProductForm })));
+const ProductLabels = lazy(() => import('./pages/ProductLabels').then(m => ({ default: m.ProductLabels })));
 const Categories = lazy(() => import('./pages/Categories').then(m => ({ default: m.Categories })));
 const Brands = lazy(() => import('./pages/Brands').then(m => ({ default: m.Brands })));
 const Customers = lazy(() => import('./pages/Customers').then(m => ({ default: m.Customers })));
@@ -52,6 +53,7 @@ function App() {
                   <Route path="/products" element={<Products />} />
                   <Route path="/products/add" element={<ProductForm />} />
                   <Route path="/products/edit/:id" element={<ProductForm />} />
+                  <Route path="/products/labels" element={<ProductLabels />} />
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/brands" element={<Brands />} />
                   <Route path="/customers" element={<Customers />} />

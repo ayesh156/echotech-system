@@ -58,12 +58,13 @@ export function Warranties() {
   const [customerFilter, setCustomerFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc'>('date-desc');
 
   // Date filter states
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  
+
   // Calendar states
   const [showStartCalendar, setShowStartCalendar] = useState(false);
   const [showEndCalendar, setShowEndCalendar] = useState(false);
@@ -73,7 +74,13 @@ export function Warranties() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(6);
+  const [itemsPerPage, setItemsPerPage] = useState(viewMode === 'card' ? 9 : 10);
+
+  // Update itemsPerPage and reset currentPage when viewMode changes
+  useEffect(() => {
+    setItemsPerPage(viewMode === 'card' ? 9 : 10);
+    setCurrentPage(1);
+  }, [viewMode]);
 
   // Claims state for CRUD operations
   const [claims, setClaims] = useState<WarrantyClaim[]>(mockWarrantyClaims);

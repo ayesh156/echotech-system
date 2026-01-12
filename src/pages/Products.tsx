@@ -10,7 +10,8 @@ import {
   Cpu, Monitor, HardDrive, MemoryStick, Keyboard,
   Calendar, DollarSign, X, Filter, ChevronLeft, ChevronRight,
   LayoutGrid, List, ChevronsLeft, ChevronsRight, History, Clock,
-  User, Receipt, Percent, TrendingUp, AlertTriangle, SortAsc, SortDesc
+  User, Receipt, Percent, TrendingUp, AlertTriangle, SortAsc, SortDesc,
+  Barcode
 } from 'lucide-react';
 
 export const Products: React.FC = () => {
@@ -598,13 +599,26 @@ export const Products: React.FC = () => {
             Manage your computer shop inventory
           </p>
         </div>
-        <button 
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/products/labels')}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${
+              theme === 'dark'
+                ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm'
+            }`}
+          >
+            <Barcode className="w-5 h-5 text-purple-500" />
+            <span className="hidden sm:inline">Print Labels</span>
+          </button>
+          <button 
             onClick={handleAddProduct}
             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
           >
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">Add Product</span>
           </button>
+        </div>
       </div>
 
       {/* Analytics Cards */}
