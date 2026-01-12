@@ -7,7 +7,8 @@ import {
   FileText, ArrowLeft, Printer, Edit3, User, Phone,
   Package, CheckCircle, Clock,
   XCircle, Mail, MapPin,
-  Copy, Download, Share2, MoreVertical, TrendingUp, Monitor, X, CircleDollarSign
+  Copy, Download, Share2, MoreVertical, TrendingUp, Monitor, X, CircleDollarSign,
+  AlertTriangle, Store, Globe, Shield
 } from 'lucide-react';
 
 export const ViewInvoice: React.FC = () => {
@@ -43,6 +44,36 @@ export const ViewInvoice: React.FC = () => {
   const getProductDetails = (productId: string) => {
     return mockProducts.find(p => p.id === productId);
   };
+  
+  // Check warranty status
+  const getWarrantyStatus = (warrantyDueDate?: string) => {
+    if (!warrantyDueDate) return null;
+    const today = new Date();
+    const dueDate = new Date(warrantyDueDate);
+    const daysRemaining = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysRemaining < 0) {
+      return { status: 'expired', message: `Warranty expired ${Math.abs(daysRemaining)} days ago`, color: 'red' };
+    } else if (daysRemaining <= 30) {
+      return { status: 'expiring', message: `Warranty expires in ${daysRemaining} days`, color: 'amber' };
+    } else {
+      return { status: 'active', message: `Warranty valid until ${dueDate.toLocaleDateString('en-GB')}`, color: 'emerald' };
+    }
+  };
+  
+  // Check if any items have expired or expiring warranty
+  const warrantyAlerts = useMemo(() => {
+    if (!invoice) return [];
+    return invoice.items
+      .map(item => {
+        const warrantyStatus = getWarrantyStatus(item.warrantyDueDate);
+        if (warrantyStatus && (warrantyStatus.status === 'expired' || warrantyStatus.status === 'expiring')) {
+          return { ...item, warrantyStatus };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }, [invoice]);
 
   const handleCopyInvoiceNumber = () => {
     if (invoice) {
@@ -258,7 +289,7 @@ export const ViewInvoice: React.FC = () => {
             {/* Invoice Body */}
             <div className={`p-8 ${theme === 'dark' ? 'bg-slate-900' : 'bg-white'}`}>
               {/* Customer & Date Row */}
-              <div className="grid grid-cols-2 gap-6 mb-8">
+              <div className="grid grid-cols-2 gap-6 mb-6">
                 <div className={`p-5 rounded-xl border-l-4 border-emerald-500 ${
                   theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'
                 }`}>
@@ -307,6 +338,76 @@ export const ViewInvoice: React.FC = () => {
                   </div>
                 </div>
               </div>
+              
+              {/* Payment Method & Sales Channel */}
+              <div className="grid grid-cols-2 gap-6 mb-8">
+                <div className={`p-4 rounded-xl flex items-center gap-3 ${
+                  theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'
+                }`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    theme === 'dark' ? 'bg-cyan-500/20' : 'bg-cyan-100'
+                  }`}>
+                    <CircleDollarSign className="w-5 h-5 text-cyan-500" />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-bold uppercase tracking-wider ${
+                      theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                    }`}>Payment Method</p>
+                    <p className={`font-semibold capitalize ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      {invoice.paymentMethod ? invoice.paymentMethod.replace('_', ' ') : 'Cash'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className={`p-4 rounded-xl flex items-center gap-3 ${
+                  theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'
+                }`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    invoice.salesChannel === 'online' 
+                      ? (theme === 'dark' ? 'bg-purple-500/20' : 'bg-purple-100')
+                      : (theme === 'dark' ? 'bg-amber-500/20' : 'bg-amber-100')
+                  }`}>
+                    {invoice.salesChannel === 'online' 
+                      ? <Globe className="w-5 h-5 text-purple-500" />
+                      : <Store className="w-5 h-5 text-amber-500" />
+                    }
+                  </div>
+                  <div>
+                    <p className={`text-xs font-bold uppercase tracking-wider ${
+                      theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                    }`}>Sales Channel</p>
+                    <p className={`font-semibold capitalize ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      {invoice.salesChannel === 'online' ? 'Online' : 'On Site'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Warranty Alerts Banner */}
+              {warrantyAlerts.length > 0 && (
+                <div className={`mb-6 p-4 rounded-xl border ${
+                  theme === 'dark' ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className={`font-semibold mb-2 ${theme === 'dark' ? 'text-amber-400' : 'text-amber-700'}`}>
+                        Warranty Alerts
+                      </h4>
+                      <div className="space-y-1">
+                        {warrantyAlerts.map((item: any) => (
+                          <div key={item.productId} className="flex items-center gap-2 text-sm">
+                            <Shield className={`w-4 h-4 ${item.warrantyStatus.color === 'red' ? 'text-red-500' : 'text-amber-500'}`} />
+                            <span className={theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}>
+                              <strong>{item.productName}</strong>: {item.warrantyStatus.message}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Items Table */}
               <div className="mb-8">
@@ -336,6 +437,7 @@ export const ViewInvoice: React.FC = () => {
                     <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'}`}>
                       {invoice.items.map((item, index) => {
                         const product = getProductDetails(item.productId);
+                        const warrantyStatus = getWarrantyStatus(item.warrantyDueDate);
                         return (
                           <tr key={item.productId + index} className={
                             index % 2 === 1 ? (theme === 'dark' ? 'bg-slate-800/30' : 'bg-slate-50/50') : ''
@@ -354,11 +456,26 @@ export const ViewInvoice: React.FC = () => {
                                   <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                                     {item.productName}
                                   </p>
-                                  {product && (
-                                    <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                                      S/N: {product.serialNumber}
-                                    </span>
-                                  )}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {product && (
+                                      <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                                        S/N: {product.serialNumber}
+                                      </span>
+                                    )}
+                                    {warrantyStatus && (
+                                      <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                        warrantyStatus.status === 'expired' 
+                                          ? 'bg-red-500/20 text-red-400'
+                                          : warrantyStatus.status === 'expiring'
+                                            ? 'bg-amber-500/20 text-amber-400'
+                                            : 'bg-emerald-500/20 text-emerald-400'
+                                      }`}>
+                                        <Shield className="w-3 h-3" />
+                                        {warrantyStatus.status === 'expired' ? 'Expired' : 
+                                         warrantyStatus.status === 'expiring' ? 'Expiring Soon' : 'Active'}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -370,7 +487,18 @@ export const ViewInvoice: React.FC = () => {
                             <td className={`py-4 px-4 text-right font-mono ${
                               theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
                             }`}>
-                              Rs. {item.unitPrice.toLocaleString()}
+                              {item.originalPrice && item.originalPrice !== item.unitPrice ? (
+                                <div className="flex flex-col items-end">
+                                  <span className="line-through text-red-400 text-xs">
+                                    Rs. {item.originalPrice.toLocaleString()}
+                                  </span>
+                                  <span className="text-emerald-400">
+                                    Rs. {item.unitPrice.toLocaleString()}
+                                  </span>
+                                </div>
+                              ) : (
+                                <>Rs. {item.unitPrice.toLocaleString()}</>
+                              )}
                             </td>
                             <td className={`py-4 px-4 text-right font-mono font-bold ${
                               theme === 'dark' ? 'text-white' : 'text-slate-900'

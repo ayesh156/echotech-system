@@ -10,7 +10,7 @@ import {
   Cpu, Monitor, HardDrive, MemoryStick, Keyboard,
   Calendar, DollarSign, X, Filter, ChevronLeft, ChevronRight,
   LayoutGrid, List, ChevronsLeft, ChevronsRight, History, Clock,
-  User, Receipt, Percent, TrendingUp, AlertTriangle
+  User, Receipt, Percent, TrendingUp, AlertTriangle, SortAsc, SortDesc
 } from 'lucide-react';
 
 export const Products: React.FC = () => {
@@ -38,11 +38,11 @@ export const Products: React.FC = () => {
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc'>('date-desc');
   
   // View mode state (table or card)
-  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('card');
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
   
   // Calendar states
   const [showStartCalendar, setShowStartCalendar] = useState(false);
@@ -141,6 +141,16 @@ export const Products: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedCategory, selectedBrand, minPrice, maxPrice, startDate, endDate, sortBy]);
+
+  // Reset items per page when view mode changes
+  useEffect(() => {
+    if (viewMode === 'table') {
+      setItemsPerPage(10);
+    } else {
+      setItemsPerPage(12);
+    }
+    setCurrentPage(1);
+  }, [viewMode]);
 
   // Generate page numbers for pagination
   const getPageNumbers = useMemo(() => {
@@ -588,45 +598,75 @@ export const Products: React.FC = () => {
             Manage your computer shop inventory
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* View Toggle Buttons */}
-          <div className={`flex items-center rounded-xl overflow-hidden border ${
-            theme === 'dark' ? 'border-slate-700' : 'border-slate-200'
-          }`}>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-2.5 transition-colors ${
-                viewMode === 'table'
-                  ? 'bg-emerald-500 text-white'
-                  : theme === 'dark'
-                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    : 'bg-white hover:bg-slate-100 text-slate-700'
-              }`}
-              title="Table view"
-            >
-              <List className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setViewMode('card')}
-              className={`p-2.5 transition-colors ${
-                viewMode === 'card'
-                  ? 'bg-emerald-500 text-white'
-                  : theme === 'dark'
-                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    : 'bg-white hover:bg-slate-100 text-slate-700'
-              }`}
-              title="Card view"
-            >
-              <LayoutGrid className="w-5 h-5" />
-            </button>
-          </div>
-          <button 
+        <button 
             onClick={handleAddProduct}
             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
           >
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">Add Product</span>
           </button>
+      </div>
+
+      {/* Analytics Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Total Products */}
+        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+              <Package className="w-5 h-5 text-blue-500" />
+            </div>
+            <div>
+              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                {products.length}
+              </p>
+              <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total Products</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Stock Value */}
+        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+              <DollarSign className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className={`text-2xl font-bold text-emerald-500`}>
+                {formatCurrency(products.reduce((sum, p) => sum + (p.price * p.stock), 0))}
+              </p>
+              <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Stock Value</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Low Stock Items */}
+        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                {lowStockCount}
+              </p>
+              <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Low Stock</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Items in Stock */}
+        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
+              <TrendingUp className="w-5 h-5 text-purple-500" />
+            </div>
+            <div>
+              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                {products.reduce((sum, p) => sum + p.stock, 0)}
+              </p>
+              <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total Stock</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -706,18 +746,47 @@ export const Products: React.FC = () => {
             {/* Sort Button */}
             <button
               onClick={() => setSortBy(sortBy === 'date-desc' ? 'date-asc' : 'date-desc')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                theme === 'dark'
-                  ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              className={`p-2 rounded-xl border transition-colors ${
+                theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400' : 'border-slate-200 hover:bg-slate-50 text-slate-600'
               }`}
-              title="Sort by date created"
+              title={sortBy === 'date-desc' ? 'Sort Ascending' : 'Sort Descending'}
             >
-              <Calendar className="w-4 h-4" />
-              <span className="text-sm hidden sm:inline">
-                {sortBy === 'date-desc' ? 'Newest' : 'Oldest'}
-              </span>
+              {sortBy === 'date-desc' ? <SortDesc className="w-4 h-4" /> : <SortAsc className="w-4 h-4" />}
             </button>
+
+            {/* View Mode Toggle */}
+            <div className={`flex items-center rounded-xl overflow-hidden border ${
+              theme === 'dark' ? 'border-slate-700' : 'border-slate-200'
+            }`}>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-2 transition-colors ${
+                  viewMode === 'table'
+                    ? 'bg-emerald-500 text-white'
+                    : theme === 'dark'
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                      : 'bg-white hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Table view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('card')}
+                className={`p-2 transition-colors ${
+                  viewMode === 'card'
+                    ? 'bg-emerald-500 text-white'
+                    : theme === 'dark'
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                      : 'bg-white hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Card view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
+
+            
           </div>
         </div>
 
@@ -1254,7 +1323,7 @@ export const Products: React.FC = () => {
                 <div className={`flex items-center rounded-full p-0.5 ${
                   theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
                 }`}>
-                  {[5, 10, 20, 50].map((num) => (
+                  {(viewMode === 'table' ? [5, 10, 20, 50] : [6, 12, 24, 48]).map((num) => (
                     <button
                       key={num}
                       onClick={() => {

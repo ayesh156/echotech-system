@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { mockCustomers, mockProducts, mockInvoices } from '../data/mockData';
@@ -9,7 +9,7 @@ import {
   FileText, User, Package, CheckCircle, ChevronRight, ChevronLeft,
   Search, Plus, Trash2, ArrowLeft, UserX, CreditCard,
   Building2, ShoppingCart, Receipt, Calendar,
-  Zap, Banknote, Printer, X, Minus, Edit2, Shield
+  Zap, Banknote, Printer, X, Minus, Edit2, Shield, Store, Globe, GripVertical
 } from 'lucide-react';
 
 // Extended Invoice Item with warranty tracking
@@ -69,7 +69,13 @@ export const CreateInvoice: React.FC = () => {
     new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'bank_transfer' | 'credit'>('cash');
+  const [salesChannel, setSalesChannel] = useState<'on-site' | 'online'>('on-site');
   const [notes, setNotes] = useState('');
+
+  // Resizable panels state
+  const [leftPanelWidth, setLeftPanelWidth] = useState(55); // percentage
+  const [isResizing, setIsResizing] = useState(false);
+  const mainContainerRef = useRef<HTMLDivElement>(null);
 
   // Print state
   const [showPrintPreview, setShowPrintPreview] = useState(false);
@@ -88,6 +94,34 @@ export const CreateInvoice: React.FC = () => {
   const customerSearchRef = useRef<HTMLInputElement>(null);
   const productSearchRef = useRef<HTMLInputElement>(null);
   const priceInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle resizing
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+  
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !mainContainerRef.current) return;
+    const containerRect = mainContainerRef.current.getBoundingClientRect();
+    const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    setLeftPanelWidth(Math.min(Math.max(newWidth, 30), 70)); // Clamp between 30% and 70%
+  }, [isResizing]);
+  
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+  
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
   const currentCustomer = customers.find((c) => c.id === selectedCustomer);
 
@@ -244,11 +278,9 @@ export const CreateInvoice: React.FC = () => {
   const tax = enableTax ? taxableAmount * (taxRate / 100) : 0;
   const total = taxableAmount + tax;
 
-  // Generate invoice number
+  // Generate invoice number (8-digit format)
   const generateInvoiceNumber = () => {
-    const year = new Date().getFullYear();
-    const count = mockInvoices.length + 1;
-    return `INV-${year}-${String(count).padStart(4, '0')}`;
+    return Date.now().toString().slice(-8);
   };
 
   const handleCreateInvoice = () => {
@@ -268,6 +300,7 @@ export const CreateInvoice: React.FC = () => {
         unitPrice: item.unitPrice,
         total: item.total,
         warrantyDueDate: item.warrantyDueDate,
+        originalPrice: item.originalPrice !== item.unitPrice ? item.originalPrice : undefined,
       })),
       subtotal: Math.round(subtotal * 100) / 100,
       tax: Math.round(tax * 100) / 100,
@@ -277,6 +310,8 @@ export const CreateInvoice: React.FC = () => {
       dueDate,
       status: paymentMethod === 'credit' ? 'unpaid' : 'fullpaid',
       paidAmount: paymentMethod === 'credit' ? 0 : Math.round(total * 100) / 100,
+      paymentMethod,
+      salesChannel,
     };
 
     // Add to mockInvoices
@@ -587,11 +622,17 @@ export const CreateInvoice: React.FC = () => {
       </div>
 
       {/* Main Content - Split Panel Layout */}
-      <div className="flex-1 flex gap-3 min-h-0">
+      <div 
+        ref={mainContainerRef}
+        className={`flex-1 flex min-h-0 ${isResizing ? 'select-none' : ''}`}
+      >
         {/* Left Panel - Main Content */}
-        <div className={`flex-1 rounded-xl overflow-hidden flex flex-col ${
-          theme === 'dark' ? 'bg-slate-800/50' : 'bg-white shadow-sm'
-        }`}>
+        <div 
+          className={`rounded-xl overflow-hidden flex flex-col ${
+            theme === 'dark' ? 'bg-slate-800/50' : 'bg-white shadow-sm'
+          }`}
+          style={{ width: `${leftPanelWidth}%` }}
+        >
           {/* Step 1: Customer Selection */}
           {step === 1 && (
             <div className="flex-1 flex flex-col p-4 overflow-hidden">
@@ -878,6 +919,41 @@ export const CreateInvoice: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Sales Channel */}
+                <div>
+                  <label className={`text-sm font-medium mb-2 block ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Sales Channel
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setSalesChannel('on-site')}
+                      className={`p-3 rounded-xl text-center transition-all border-2 flex items-center justify-center gap-2 ${
+                        salesChannel === 'on-site'
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-transparent'
+                          : theme === 'dark' 
+                            ? 'bg-slate-700/50 hover:bg-slate-700 text-slate-300 border-slate-600' 
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      <Store className="w-5 h-5" />
+                      <span className="text-sm font-medium">On Site</span>
+                    </button>
+                    <button
+                      onClick={() => setSalesChannel('online')}
+                      className={`p-3 rounded-xl text-center transition-all border-2 flex items-center justify-center gap-2 ${
+                        salesChannel === 'online'
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-transparent'
+                          : theme === 'dark' 
+                            ? 'bg-slate-700/50 hover:bg-slate-700 text-slate-300 border-slate-600' 
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      <Globe className="w-5 h-5" />
+                      <span className="text-sm font-medium">Online</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Discount */}
                 <div>
                   <label className={`text-sm font-medium mb-2 block ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -947,10 +1023,25 @@ export const CreateInvoice: React.FC = () => {
           )}
         </div>
 
+        {/* Resizer Handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          className={`w-3 cursor-col-resize flex items-center justify-center transition-colors flex-shrink-0 mx-1 rounded-full ${
+            isResizing
+              ? 'bg-emerald-500'
+              : theme === 'dark' ? 'bg-slate-700 hover:bg-emerald-500/50' : 'bg-slate-200 hover:bg-emerald-500/50'
+          }`}
+        >
+          <GripVertical className={`w-4 h-4 ${isResizing ? 'text-white' : 'text-slate-400'}`} />
+        </div>
+
         {/* Right Panel - Cart Summary (Always Visible) */}
-        <div className={`w-[96] rounded-xl overflow-hidden flex flex-col ${
-          theme === 'dark' ? 'bg-slate-800/50' : 'bg-white shadow-sm'
-        }`}>
+        <div 
+          className={`rounded-xl overflow-hidden flex flex-col ${
+            theme === 'dark' ? 'bg-slate-800/50' : 'bg-white shadow-sm'
+          }`}
+          style={{ width: `${100 - leftPanelWidth}%` }}
+        >
           {/* Customer Info */}
           <div className={`p-3 border-b ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
             <div className="flex items-center gap-2">
@@ -1042,7 +1133,14 @@ export const CreateInvoice: React.FC = () => {
                         }`}
                       >
                         <span className="text-xs">
-                          Rs. {item.unitPrice.toLocaleString()} /unit
+                          {item.originalPrice && item.originalPrice !== item.unitPrice ? (
+                            <>
+                              <span className="line-through text-red-400 mr-1">Rs. {item.originalPrice.toLocaleString()}</span>
+                              <span className="text-emerald-400">Rs. {item.unitPrice.toLocaleString()}</span>
+                            </>
+                          ) : (
+                            <>Rs. {item.unitPrice.toLocaleString()} /unit</>
+                          )}
                         </span>
                         <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
                         {item.isCustomPrice && (

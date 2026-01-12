@@ -7,6 +7,7 @@ interface InvoiceItemWithWarranty {
   productName: string;
   quantity: number;
   unitPrice: number;
+  originalPrice?: number;
   total: number;
   warrantyDueDate?: string;
 }
@@ -532,7 +533,20 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
                   <div className="product-desc">A large, high-resolution monitor for immersive viewing experience.</div>
                 </td>
                 <td>{item.quantity}</td>
-                <td>{formatCurrency(item.unitPrice)}</td>
+                <td>
+                  {item.originalPrice && item.originalPrice !== item.unitPrice ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      <span style={{ textDecoration: 'line-through', fontSize: '7pt' }}>
+                        {formatCurrency(item.originalPrice)}
+                      </span>
+                      <span style={{ fontWeight: '600' }}>
+                        {formatCurrency(item.unitPrice)}
+                      </span>
+                    </div>
+                  ) : (
+                    formatCurrency(item.unitPrice)
+                  )}
+                </td>
                 <td>{formatCurrency(item.total)}</td>
               </tr>
             ))}

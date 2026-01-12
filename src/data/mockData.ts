@@ -21,6 +21,7 @@ export interface Customer {
   name: string;
   email: string;
   phone: string;
+  address?: string;
   totalSpent: number;
   totalOrders: number;
   lastPurchase?: string;
@@ -38,6 +39,8 @@ export interface Invoice {
   paidAmount?: number; // Amount paid so far (for halfpay tracking)
   date: string;
   dueDate: string;
+  paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'credit';
+  salesChannel?: 'on-site' | 'online';
 }
 
 export interface InvoiceItem {
@@ -45,7 +48,9 @@ export interface InvoiceItem {
   productName: string;
   quantity: number;
   unitPrice: number;
+  originalPrice?: number; // Original price before discount
   total: number;
+  warrantyDueDate?: string;
 }
 
 // Sales History for tracking product sales
@@ -65,9 +70,44 @@ export interface SaleRecord {
   saleDate: string; // ISO date with time
 }
 
+// Warranty Claim for tracking warranty issues and replacements
+export interface WarrantyClaim {
+  id: string;
+  invoiceId: string;
+  invoiceItemIndex?: number; // Index of the item in invoice items array
+  productId: string;
+  productName: string;
+  productSerialNumber?: string;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string;
+  claimDate: string; // ISO date with time when claim was filed
+  warrantyExpiryDate: string; // Original warranty expiry date
+  status: 'pending' | 'under-review' | 'approved' | 'rejected' | 'replaced' | 'repaired';
+  issueDescription: string;
+  issueCategory: 'defective' | 'damaged' | 'not-working' | 'performance' | 'other';
+  resolution?: string;
+  resolutionDate?: string; // ISO date with time when resolved
+  // Replacement tracking
+  isReplacement: boolean;
+  replacementProductId?: string;
+  replacementProductName?: string;
+  replacementSerialNumber?: string;
+  replacementDate?: string; // ISO date with time
+  // Additional metadata
+  notes?: string;
+  attachments?: string[]; // URLs or file paths
+  handledBy?: string; // Staff member who handled the claim
+}
+
 // Helper function to generate unique 8-digit numeric serial number based on timestamp
 // Uses last 8 digits of timestamp in milliseconds for uniqueness
 const generateSerialNumber = () => {
+  return Date.now().toString().slice(-8);
+};
+
+// Helper function to generate unique 8-digit invoice number
+export const generateInvoiceNumber = () => {
   return Date.now().toString().slice(-8);
 };
 
@@ -100,24 +140,24 @@ export { generateSerialNumber };
 
 // Customers
 export const mockCustomers: Customer[] = [
-  { id: '1', name: 'Kasun Perera', email: 'kasun@gmail.com', phone: '077-1234567', totalSpent: 580000, totalOrders: 5, lastPurchase: '2024-01-15' },
-  { id: '2', name: 'Nimali Fernando', email: 'nimali@email.com', phone: '076-2345678', totalSpent: 320000, totalOrders: 3, lastPurchase: '2024-01-10' },
-  { id: '3', name: 'Tech Solutions Ltd', email: 'info@techsol.lk', phone: '011-2567890', totalSpent: 2500000, totalOrders: 18, lastPurchase: '2024-01-18' },
-  { id: '4', name: 'Dilshan Silva', email: 'dilshan.s@hotmail.com', phone: '078-3456789', totalSpent: 185000, totalOrders: 2, lastPurchase: '2024-01-05' },
-  { id: '5', name: 'GameZone Café', email: 'contact@gamezone.lk', phone: '011-3456789', totalSpent: 3200000, totalOrders: 25, lastPurchase: '2024-01-20' },
-  { id: '6', name: 'Priya Jayawardena', email: 'priya.j@yahoo.com', phone: '071-4567890', totalSpent: 95000, totalOrders: 1, lastPurchase: '2024-01-12' },
-  { id: '7', name: 'Creative Studios', email: 'studio@creative.lk', phone: '011-4567891', totalSpent: 1850000, totalOrders: 12, lastPurchase: '2024-01-16' },
-  { id: '8', name: 'Sanjay Mendis', email: 'sanjay.m@gmail.com', phone: '077-5678901', totalSpent: 420000, totalOrders: 4, lastPurchase: '2024-01-08' },
+  { id: '1', name: 'Kasun Perera', email: 'kasun@gmail.com', phone: '077-1234567', address: 'No. 12, Galle Road, Colombo', totalSpent: 580000, totalOrders: 5, lastPurchase: '2024-01-15' },
+  { id: '2', name: 'Nimali Fernando', email: 'nimali@email.com', phone: '076-2345678', address: '12A, Kandy Rd, Kurunegala', totalSpent: 320000, totalOrders: 3, lastPurchase: '2024-01-10' },
+  { id: '3', name: 'Tech Solutions Ltd', email: 'info@techsol.lk', phone: '011-2567890', address: 'No. 45, Industrial Estate, Colombo 15', totalSpent: 2500000, totalOrders: 18, lastPurchase: '2024-01-18' },
+  { id: '4', name: 'Dilshan Silva', email: 'dilshan.s@hotmail.com', phone: '078-3456789', address: '78/2, Hill Street, Kandy', totalSpent: 185000, totalOrders: 2, lastPurchase: '2024-01-05' },
+  { id: '5', name: 'GameZone Café', email: 'contact@gamezone.lk', phone: '011-3456789', address: 'Shop 5, Arcade Mall, Colombo', totalSpent: 3200000, totalOrders: 25, lastPurchase: '2024-01-20' },
+  { id: '6', name: 'Priya Jayawardena', email: 'priya.j@yahoo.com', phone: '071-4567890', address: 'No. 7, Lake Road, Galle', totalSpent: 95000, totalOrders: 1, lastPurchase: '2024-01-12' },
+  { id: '7', name: 'Creative Studios', email: 'studio@creative.lk', phone: '011-4567891', address: 'Studio 3, Art Lane, Colombo', totalSpent: 1850000, totalOrders: 12, lastPurchase: '2024-01-16' },
+  { id: '8', name: 'Sanjay Mendis', email: 'sanjay.m@gmail.com', phone: '077-5678901', address: 'No. 21, Thotalanga Road, Colombo', totalSpent: 420000, totalOrders: 4, lastPurchase: '2024-01-08' },
 ];
 
 // Invoices
 export const mockInvoices: Invoice[] = [
   {
-    id: 'INV-2024-0001',
+    id: '10240001',
     customerId: '1',
     customerName: 'Kasun Perera',
     items: [
-      { productId: '1', productName: 'AMD Ryzen 9 7950X', quantity: 1, unitPrice: 185000, total: 185000 },
+      { productId: '1', productName: 'AMD Ryzen 9 7950X', quantity: 1, unitPrice: 185000, total: 185000, warrantyDueDate: '2027-01-15' },
       { productId: '8', productName: 'Corsair Vengeance DDR5 32GB', quantity: 2, unitPrice: 48000, total: 96000 },
     ],
     subtotal: 281000,
@@ -127,15 +167,17 @@ export const mockInvoices: Invoice[] = [
     paidAmount: 323150,
     date: '2024-01-15',
     dueDate: '2024-01-30',
+    paymentMethod: 'card',
+    salesChannel: 'on-site',
   },
   {
-    id: 'INV-2024-0002',
+    id: '10240002',
     customerId: '3',
     customerName: 'Tech Solutions Ltd',
     items: [
-      { productId: '3', productName: 'NVIDIA GeForce RTX 4090', quantity: 2, unitPrice: 620000, total: 1240000 },
-      { productId: '10', productName: 'ASUS ROG Maximus Z790 Hero', quantity: 2, unitPrice: 185000, total: 370000 },
-      { productId: '12', productName: 'Corsair RM1000x 1000W PSU', quantity: 2, unitPrice: 55000, total: 110000 },
+      { productId: '3', productName: 'NVIDIA GeForce RTX 4090', quantity: 2, unitPrice: 620000, total: 1240000, warrantyDueDate: '2027-01-18' },
+      { productId: '10', productName: 'ASUS ROG Maximus Z790 Hero', quantity: 2, unitPrice: 185000, total: 370000, warrantyDueDate: '2027-01-18' },
+      { productId: '12', productName: 'Corsair RM1000x 1000W PSU', quantity: 2, unitPrice: 55000, total: 110000, warrantyDueDate: '2034-01-18' },
     ],
     subtotal: 1720000,
     tax: 258000,
@@ -144,14 +186,16 @@ export const mockInvoices: Invoice[] = [
     paidAmount: 1978000,
     date: '2024-01-18',
     dueDate: '2024-02-02',
+    paymentMethod: 'bank_transfer',
+    salesChannel: 'on-site',
   },
   {
-    id: 'INV-2024-0003',
+    id: '10240003',
     customerId: '5',
     customerName: 'GameZone Café',
     items: [
-      { productId: '4', productName: 'NVIDIA GeForce RTX 4070 Ti', quantity: 5, unitPrice: 280000, total: 1400000 },
-      { productId: '15', productName: 'LG UltraGear 27GP950-B 4K Monitor', quantity: 5, unitPrice: 195000, total: 975000 },
+      { productId: '4', productName: 'NVIDIA GeForce RTX 4070 Ti', quantity: 5, unitPrice: 280000, total: 1400000, warrantyDueDate: '2027-01-20' },
+      { productId: '15', productName: 'LG UltraGear 27GP950-B 4K Monitor', quantity: 5, unitPrice: 195000, total: 975000, warrantyDueDate: '2027-01-20' },
     ],
     subtotal: 2375000,
     tax: 356250,
@@ -160,14 +204,16 @@ export const mockInvoices: Invoice[] = [
     paidAmount: 1500000,
     date: '2024-01-20',
     dueDate: '2024-02-04',
+    paymentMethod: 'credit',
+    salesChannel: 'online',
   },
   {
-    id: 'INV-2024-0004',
+    id: '10240004',
     customerId: '2',
     customerName: 'Nimali Fernando',
     items: [
-      { productId: '17', productName: 'Logitech G Pro X Superlight 2', quantity: 1, unitPrice: 52000, total: 52000 },
-      { productId: '18', productName: 'Razer Huntsman V3 Pro', quantity: 1, unitPrice: 68000, total: 68000 },
+      { productId: '17', productName: 'Logitech G Pro X Superlight 2', quantity: 1, unitPrice: 52000, total: 52000, warrantyDueDate: '2026-01-10' },
+      { productId: '18', productName: 'Razer Huntsman V3 Pro', quantity: 1, unitPrice: 68000, total: 68000, warrantyDueDate: '2026-01-10' },
     ],
     subtotal: 120000,
     tax: 18000,
@@ -176,14 +222,16 @@ export const mockInvoices: Invoice[] = [
     paidAmount: 138000,
     date: '2024-01-10',
     dueDate: '2024-01-25',
+    paymentMethod: 'cash',
+    salesChannel: 'on-site',
   },
   {
-    id: 'INV-2024-0005',
+    id: '10240005',
     customerId: '7',
     customerName: 'Creative Studios',
     items: [
-      { productId: '16', productName: 'Samsung Odyssey G9 49" Monitor', quantity: 2, unitPrice: 380000, total: 760000 },
-      { productId: '2', productName: 'Intel Core i9-14900K', quantity: 2, unitPrice: 195000, total: 390000 },
+      { productId: '16', productName: 'Samsung Odyssey G9 49" Monitor', quantity: 2, unitPrice: 380000, total: 760000, warrantyDueDate: '2027-01-02' },
+      { productId: '2', productName: 'Intel Core i9-14900K', quantity: 2, unitPrice: 195000, total: 390000, warrantyDueDate: '2027-01-02' },
     ],
     subtotal: 1150000,
     tax: 172500,
@@ -192,14 +240,16 @@ export const mockInvoices: Invoice[] = [
     paidAmount: 0,
     date: '2024-01-02',
     dueDate: '2024-01-17',
+    paymentMethod: 'credit',
+    salesChannel: 'on-site',
   },
   {
-    id: 'INV-2024-0006',
+    id: '10240006',
     customerId: '4',
     customerName: 'Dilshan Silva',
     items: [
-      { productId: '6', productName: 'Samsung 990 Pro 2TB NVMe SSD', quantity: 1, unitPrice: 75000, total: 75000 },
-      { productId: '13', productName: 'NZXT Kraken X73 RGB', quantity: 1, unitPrice: 75000, total: 75000 },
+      { productId: '6', productName: 'Samsung 990 Pro 2TB NVMe SSD', quantity: 1, unitPrice: 75000, total: 75000, warrantyDueDate: '2029-01-05' },
+      { productId: '13', productName: 'NZXT Kraken X73 RGB', quantity: 1, unitPrice: 75000, total: 75000, warrantyDueDate: '2030-01-05' },
     ],
     subtotal: 150000,
     tax: 22500,
@@ -208,6 +258,115 @@ export const mockInvoices: Invoice[] = [
     paidAmount: 100000,
     date: '2024-01-05',
     dueDate: '2024-01-20',
+    paymentMethod: 'cash',
+    salesChannel: 'on-site',
+  },
+  // More invoices with warranty data for testing
+  {
+    id: '10250007',
+    customerId: '1',
+    customerName: 'Kasun Perera',
+    items: [
+      { productId: '19', productName: 'SteelSeries Arctis Nova Pro', quantity: 1, unitPrice: 95000, total: 95000, warrantyDueDate: '2026-01-20' },
+    ],
+    subtotal: 95000,
+    tax: 14250,
+    total: 109250,
+    status: 'fullpaid',
+    paidAmount: 109250,
+    date: '2025-01-20',
+    dueDate: '2025-02-04',
+    paymentMethod: 'card',
+    salesChannel: 'on-site',
+  },
+  {
+    id: '10250008',
+    customerId: '8',
+    customerName: 'Sanjay Mendis',
+    items: [
+      { productId: '5', productName: 'AMD Radeon RX 7900 XTX', quantity: 1, unitPrice: 350000, total: 350000, warrantyDueDate: '2027-02-10' },
+      { productId: '7', productName: 'WD Black SN850X 1TB', quantity: 2, unitPrice: 42000, total: 84000, warrantyDueDate: '2030-02-10' },
+    ],
+    subtotal: 434000,
+    tax: 65100,
+    total: 499100,
+    status: 'fullpaid',
+    paidAmount: 499100,
+    date: '2025-02-10',
+    dueDate: '2025-02-25',
+    paymentMethod: 'bank_transfer',
+    salesChannel: 'online',
+  },
+  {
+    id: '10250009',
+    customerId: '6',
+    customerName: 'Priya Jayawardena',
+    items: [
+      { productId: '14', productName: 'Lian Li O11 Dynamic EVO', quantity: 1, unitPrice: 58000, total: 58000, warrantyDueDate: '2027-03-15' },
+      { productId: '9', productName: 'G.Skill Trident Z5 64GB DDR5', quantity: 1, unitPrice: 95000, total: 95000 },
+    ],
+    subtotal: 153000,
+    tax: 22950,
+    total: 175950,
+    status: 'fullpaid',
+    paidAmount: 175950,
+    date: '2025-03-15',
+    dueDate: '2025-03-30',
+    paymentMethod: 'cash',
+    salesChannel: 'on-site',
+  },
+  {
+    id: '10250010',
+    customerId: '3',
+    customerName: 'Tech Solutions Ltd',
+    items: [
+      { productId: '11', productName: 'MSI MEG Z790 ACE', quantity: 3, unitPrice: 165000, total: 495000, warrantyDueDate: '2028-04-20' },
+      { productId: '20', productName: 'Seagate Exos 18TB HDD', quantity: 5, unitPrice: 125000, total: 625000, warrantyDueDate: '2030-04-20' },
+    ],
+    subtotal: 1120000,
+    tax: 168000,
+    total: 1288000,
+    status: 'halfpay',
+    paidAmount: 800000,
+    date: '2025-04-20',
+    dueDate: '2025-05-05',
+    paymentMethod: 'credit',
+    salesChannel: 'on-site',
+  },
+  {
+    id: '10250011',
+    customerId: '5',
+    customerName: 'GameZone Café',
+    items: [
+      { productId: '17', productName: 'Logitech G Pro X Superlight 2', quantity: 10, unitPrice: 52000, originalPrice: 55000, total: 520000, warrantyDueDate: '2027-05-10' },
+      { productId: '18', productName: 'Razer Huntsman V3 Pro', quantity: 10, unitPrice: 65000, originalPrice: 68000, total: 650000, warrantyDueDate: '2027-05-10' },
+    ],
+    subtotal: 1170000,
+    tax: 175500,
+    total: 1345500,
+    status: 'fullpaid',
+    paidAmount: 1345500,
+    date: '2025-05-10',
+    dueDate: '2025-05-25',
+    paymentMethod: 'bank_transfer',
+    salesChannel: 'online',
+  },
+  {
+    id: '10250012',
+    customerId: '2',
+    customerName: 'Nimali Fernando',
+    items: [
+      { productId: '8', productName: 'Corsair Vengeance DDR5 32GB', quantity: 2, unitPrice: 45000, originalPrice: 48000, total: 90000 },
+    ],
+    subtotal: 90000,
+    tax: 13500,
+    total: 103500,
+    status: 'unpaid',
+    paidAmount: 0,
+    date: '2025-06-01',
+    dueDate: '2025-06-16',
+    paymentMethod: 'credit',
+    salesChannel: 'on-site',
   },
 ];
 
@@ -342,4 +501,214 @@ export const productBrands = [
   'Logitech',
   'Razer',
   'SteelSeries',
+];
+
+// Warranty Claims - tracks all warranty issues and replacements
+export const mockWarrantyClaims: WarrantyClaim[] = [
+  {
+    id: 'WC-2025-0001',
+    invoiceId: '10240001',
+    invoiceItemIndex: 0,
+    productId: '1',
+    productName: 'AMD Ryzen 9 7950X',
+    productSerialNumber: '70451234',
+    customerId: '1',
+    customerName: 'Kasun Perera',
+    customerPhone: '077-1234567',
+    claimDate: '2025-06-15T10:30:00',
+    warrantyExpiryDate: '2027-01-15',
+    status: 'replaced',
+    issueDescription: 'Processor not booting, multiple diagnostic tests failed. System shows no POST with this CPU.',
+    issueCategory: 'defective',
+    resolution: 'One-to-one replacement provided. Original unit sent to AMD for RMA.',
+    resolutionDate: '2025-06-18T14:45:00',
+    isReplacement: true,
+    replacementProductId: '1',
+    replacementProductName: 'AMD Ryzen 9 7950X',
+    replacementSerialNumber: '70981234',
+    replacementDate: '2025-06-18T14:45:00',
+    notes: 'Customer brought the original box and all accessories. Quick replacement processed.',
+    handledBy: 'Nuwan Silva',
+  },
+  {
+    id: 'WC-2025-0002',
+    invoiceId: '10240002',
+    invoiceItemIndex: 0,
+    productId: '3',
+    productName: 'NVIDIA GeForce RTX 4090',
+    productSerialNumber: '70453456',
+    customerId: '3',
+    customerName: 'Tech Solutions Ltd',
+    customerPhone: '011-2567890',
+    claimDate: '2025-05-20T09:15:00',
+    warrantyExpiryDate: '2027-01-18',
+    status: 'under-review',
+    issueDescription: 'Artifacting on screen during heavy GPU load. Thermal throttling observed even with adequate cooling.',
+    issueCategory: 'performance',
+    isReplacement: false,
+    notes: 'Sent to NVIDIA service center for evaluation. Awaiting diagnostic report.',
+    handledBy: 'Chamara Fernando',
+  },
+  {
+    id: 'WC-2025-0003',
+    invoiceId: '10240003',
+    invoiceItemIndex: 1,
+    productId: '15',
+    productName: 'LG UltraGear 27GP950-B 4K Monitor',
+    customerId: '5',
+    customerName: 'GameZone Café',
+    customerPhone: '011-3456789',
+    claimDate: '2025-04-10T11:00:00',
+    warrantyExpiryDate: '2027-01-20',
+    status: 'approved',
+    issueDescription: 'Dead pixels appeared in the center of screen. Count exceeds acceptable limit per LG policy.',
+    issueCategory: 'defective',
+    resolution: 'Approved for replacement. Waiting for replacement unit from LG.',
+    resolutionDate: '2025-04-12T16:30:00',
+    isReplacement: false,
+    handledBy: 'Nuwan Silva',
+  },
+  {
+    id: 'WC-2025-0004',
+    invoiceId: '10240004',
+    invoiceItemIndex: 0,
+    productId: '17',
+    productName: 'Logitech G Pro X Superlight 2',
+    customerId: '2',
+    customerName: 'Nimali Fernando',
+    customerPhone: '076-2345678',
+    claimDate: '2025-07-05T14:20:00',
+    warrantyExpiryDate: '2026-01-10',
+    status: 'rejected',
+    issueDescription: 'Mouse scroll wheel not working properly after 6 months of use.',
+    issueCategory: 'not-working',
+    resolution: 'Claim rejected - Physical damage found on scroll wheel mechanism consistent with liquid damage.',
+    resolutionDate: '2025-07-08T10:00:00',
+    isReplacement: false,
+    notes: 'Customer admitted to accidental coffee spill. Offered repair at discounted rate.',
+    handledBy: 'Chamara Fernando',
+  },
+  {
+    id: 'WC-2025-0005',
+    invoiceId: '10250008',
+    invoiceItemIndex: 0,
+    productId: '5',
+    productName: 'AMD Radeon RX 7900 XTX',
+    productSerialNumber: '70455678',
+    customerId: '8',
+    customerName: 'Sanjay Mendis',
+    customerPhone: '077-5678901',
+    claimDate: '2025-08-01T16:45:00',
+    warrantyExpiryDate: '2027-02-10',
+    status: 'repaired',
+    issueDescription: 'Fan noise excessive, one fan not spinning at correct RPM.',
+    issueCategory: 'damaged',
+    resolution: 'Fan assembly replaced. Card tested and returned to customer.',
+    resolutionDate: '2025-08-05T11:30:00',
+    isReplacement: false,
+    notes: 'Repair completed in-house. New fan assembly sourced from AMD.',
+    handledBy: 'Nuwan Silva',
+  },
+  {
+    id: 'WC-2025-0006',
+    invoiceId: '10240006',
+    invoiceItemIndex: 0,
+    productId: '6',
+    productName: 'Samsung 990 Pro 2TB NVMe SSD',
+    productSerialNumber: '70456789',
+    customerId: '4',
+    customerName: 'Dilshan Silva',
+    customerPhone: '078-3456789',
+    claimDate: '2025-09-10T09:00:00',
+    warrantyExpiryDate: '2029-01-05',
+    status: 'pending',
+    issueDescription: 'SSD showing SMART errors, health at 85% after only 8 months of normal use.',
+    issueCategory: 'performance',
+    isReplacement: false,
+    notes: 'Waiting for customer to bring the drive for diagnostic.',
+    handledBy: 'Chamara Fernando',
+  },
+  {
+    id: 'WC-2025-0007',
+    invoiceId: '10240002',
+    invoiceItemIndex: 2,
+    productId: '12',
+    productName: 'Corsair RM1000x 1000W PSU',
+    customerId: '3',
+    customerName: 'Tech Solutions Ltd',
+    customerPhone: '011-2567890',
+    claimDate: '2025-03-25T13:15:00',
+    warrantyExpiryDate: '2034-01-18',
+    status: 'replaced',
+    issueDescription: 'PSU making clicking noise and occasionally shuts down under load.',
+    issueCategory: 'defective',
+    resolution: 'Immediate replacement provided due to safety concerns. Defective unit returned to Corsair.',
+    resolutionDate: '2025-03-25T15:00:00',
+    isReplacement: true,
+    replacementProductId: '12',
+    replacementProductName: 'Corsair RM1000x 1000W PSU',
+    replacementSerialNumber: '70995678',
+    replacementDate: '2025-03-25T15:00:00',
+    notes: 'Same-day replacement due to potential fire hazard.',
+    handledBy: 'Nuwan Silva',
+  },
+  {
+    id: 'WC-2025-0008',
+    invoiceId: '10250011',
+    invoiceItemIndex: 1,
+    productId: '18',
+    productName: 'Razer Huntsman V3 Pro',
+    customerId: '5',
+    customerName: 'GameZone Café',
+    customerPhone: '011-3456789',
+    claimDate: '2025-10-15T10:30:00',
+    warrantyExpiryDate: '2027-05-10',
+    status: 'pending',
+    issueDescription: 'Multiple keys (W, A, S) not registering consistently during gameplay.',
+    issueCategory: 'not-working',
+    isReplacement: false,
+    notes: 'Customer uses keyboard in gaming café environment. Heavy daily usage.',
+  },
+  {
+    id: 'WC-2025-0009',
+    invoiceId: '10240001',
+    invoiceItemIndex: 1,
+    productId: '8',
+    productName: 'Corsair Vengeance DDR5 32GB (2x16GB)',
+    customerId: '1',
+    customerName: 'Kasun Perera',
+    customerPhone: '077-1234567',
+    claimDate: '2025-11-20T14:00:00',
+    warrantyExpiryDate: '2099-12-31', // Lifetime warranty
+    status: 'replaced',
+    issueDescription: 'One memory stick causing random BSODs and memtest86 errors.',
+    issueCategory: 'defective',
+    resolution: 'Full kit replaced under lifetime warranty.',
+    resolutionDate: '2025-11-22T11:00:00',
+    isReplacement: true,
+    replacementProductId: '8',
+    replacementProductName: 'Corsair Vengeance DDR5 32GB (2x16GB)',
+    replacementSerialNumber: '70998765',
+    replacementDate: '2025-11-22T11:00:00',
+    notes: 'Lifetime warranty - no questions asked replacement.',
+    handledBy: 'Chamara Fernando',
+  },
+  {
+    id: 'WC-2025-0010',
+    invoiceId: '10250007',
+    invoiceItemIndex: 0,
+    productId: '19',
+    productName: 'SteelSeries Arctis Nova Pro',
+    customerId: '1',
+    customerName: 'Kasun Perera',
+    customerPhone: '077-1234567',
+    claimDate: '2025-12-01T09:45:00',
+    warrantyExpiryDate: '2026-01-20',
+    status: 'under-review',
+    issueDescription: 'Left ear cup audio cutting out intermittently. Cable connection seems loose.',
+    issueCategory: 'not-working',
+    isReplacement: false,
+    notes: 'Warranty expiring soon. Prioritized for quick evaluation.',
+    handledBy: 'Nuwan Silva',
+  },
 ];

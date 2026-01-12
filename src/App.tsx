@@ -20,6 +20,7 @@ const Categories = lazy(() => import('./pages/Categories').then(m => ({ default:
 const Brands = lazy(() => import('./pages/Brands').then(m => ({ default: m.Brands })));
 const Customers = lazy(() => import('./pages/Customers').then(m => ({ default: m.Customers })));
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
+const Warranties = lazy(() => import('./pages/Warranties').then(m => ({ default: m.Warranties })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -31,7 +32,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
             <AdminLayout>
               <Suspense fallback={
                 <div className="flex items-center justify-center h-screen">
@@ -49,6 +55,7 @@ function App() {
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/brands" element={<Brands />} />
                   <Route path="/customers" element={<Customers />} />
+                  <Route path="/warranties" element={<Warranties />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/help" element={<Help />} />
