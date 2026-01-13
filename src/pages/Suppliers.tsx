@@ -244,7 +244,7 @@ export const Suppliers: React.FC = () => {
     }
     
     return (
-      <div className={`absolute top-full left-0 mt-2 p-3 rounded-xl shadow-xl border z-50 ${
+      <div className={`absolute top-full left-0 mt-2 p-3 rounded-xl shadow-xl border z-50 w-max ${
         theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
       }`}>
         <div className="flex items-center justify-between mb-3">
@@ -252,7 +252,7 @@ export const Suppliers: React.FC = () => {
             onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
             className={`p-1 rounded-lg ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 text-white" />
           </button>
           <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
             {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -261,7 +261,7 @@ export const Suppliers: React.FC = () => {
             onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
             className={`p-1 rounded-lg ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 text-white" />
           </button>
         </div>
         <div className="grid grid-cols-7 gap-1 mb-2">
@@ -496,8 +496,8 @@ Best regards,
 Ecotec Computer Solutions`;
 
     const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+    const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
+    window.location.href = whatsappUrl;
   };
 
   // Send friendly reminder
@@ -532,8 +532,8 @@ Thank you!
 Ecotec Computer Solutions`;
 
     const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+    const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
+    window.location.href = whatsappUrl;
   };
 
   return (
@@ -820,7 +820,7 @@ Ecotec Computer Solutions`;
                 <Calendar className={`w-4 h-4 flex-shrink-0 ${theme === 'dark' ? 'text-emerald-500' : 'text-emerald-600'}`} />
                 <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Last Order:</span>
                 {/* Start Date */}
-                <div className="relative" ref={startCalendarRef}>
+                <div className="relative overflow-visible" ref={startCalendarRef}>
                   <button
                     onClick={() => {
                       setShowStartCalendar(!showStartCalendar);
@@ -841,7 +841,7 @@ Ecotec Computer Solutions`;
                 <span className={`${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
                 
                 {/* End Date */}
-                <div className="relative" ref={endCalendarRef}>
+                <div className="relative overflow-visible" ref={endCalendarRef}>
                   <button
                     onClick={() => {
                       setShowEndCalendar(!showEndCalendar);

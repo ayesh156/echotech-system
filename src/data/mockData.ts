@@ -7,39 +7,48 @@ export interface WhatsAppSettings {
   enabled: boolean;
 }
 
-// Default WhatsApp message templates with placeholders
+// Default WhatsApp message templates with placeholders - English Modern Templates
 export const mockWhatsAppSettings: WhatsAppSettings = {
-  paymentReminderTemplate: `සුභ දවසක් {{customerName}}! 🙏
+  paymentReminderTemplate: `Hello {{customerName}}! 👋
 
-EchoTech Computer Shop වෙතින් ඔබට සුබපැතුම්!
+Greetings from *EchoTech Computer Shop*!
 
-ඔබගේ Invoice #{{invoiceId}} සඳහා Rs. {{dueAmount}} ක මුදලක් තවමත් ගෙවීමට ඇත.
+This is a friendly reminder about your pending payment:
 
-📅 Due Date: {{dueDate}}
-💰 Total: Rs. {{totalAmount}}
-✅ Paid: Rs. {{paidAmount}}
-⏳ Balance: Rs. {{dueAmount}}
+📄 *Invoice:* #{{invoiceId}}
+💰 *Total Amount:* Rs. {{totalAmount}}
+✅ *Paid:* Rs. {{paidAmount}}
+⏳ *Balance Due:* Rs. {{dueAmount}}
+📅 *Due Date:* {{dueDate}}
 
-කරුණාකර ඉක්මනින් ගෙවීම සිදු කරන්න.
+We kindly request you to settle your outstanding balance at your earliest convenience.
 
-ස්තූතියි! 🙂
-EchoTech Computer Shop
-📞 011-2345678`,
-  overdueReminderTemplate: `⚠️ Payment Overdue Notice
+If you've already made the payment, please disregard this message.
+
+Thank you for your continued trust! 🙏
+*EchoTech Computer Shop*
+📞 011-2345678
+🌐 www.echotech.lk`,
+  overdueReminderTemplate: `⚠️ *URGENT: Payment Overdue Notice*
 
 Dear {{customerName}},
 
-Your invoice #{{invoiceId}} is now OVERDUE.
+We regret to inform you that your payment is now *OVERDUE*.
 
-📅 Due Date: {{dueDate}} ({{daysOverdue}} days overdue)
-💰 Outstanding: Rs. {{dueAmount}}
+📄 *Invoice:* #{{invoiceId}}
+📅 *Due Date:* {{dueDate}}
+⏰ *Days Overdue:* {{daysOverdue}} days
+💰 *Outstanding Amount:* Rs. {{dueAmount}}
 
-Please make the payment immediately to avoid any inconvenience.
+*Immediate action is required.* Please settle this payment as soon as possible to avoid service interruption.
 
-Thank you for your cooperation.
+For payment options or queries, please contact us.
 
-EchoTech Computer Shop
-📞 011-2345678`,
+Thank you for your prompt attention.
+
+*EchoTech Computer Shop*
+📞 011-2345678
+🌐 www.echotech.lk`,
   enabled: true
 };
 
@@ -73,6 +82,18 @@ export interface Customer {
   creditLimit: number; // Maximum credit allowed
   creditDueDate?: string; // Due date for credit payment
   creditStatus: 'clear' | 'active' | 'overdue'; // Credit status
+  // Payment history
+  paymentHistory?: CustomerPayment[];
+}
+
+// Customer Payment History
+export interface CustomerPayment {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  paymentDate: string; // ISO date with time
+  paymentMethod: 'cash' | 'bank' | 'card' | 'cheque';
+  notes?: string;
 }
 
 // Supplier interface for managing suppliers with credit tracking
