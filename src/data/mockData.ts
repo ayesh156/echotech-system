@@ -1,5 +1,48 @@
 // Mock data for Ecotec Computer Shop
 
+// WhatsApp Message Settings
+export interface WhatsAppSettings {
+  paymentReminderTemplate: string;
+  overdueReminderTemplate: string;
+  enabled: boolean;
+}
+
+// Default WhatsApp message templates with placeholders
+export const mockWhatsAppSettings: WhatsAppSettings = {
+  paymentReminderTemplate: `සුභ දවසක් {{customerName}}! 🙏
+
+EchoTech Computer Shop වෙතින් ඔබට සුබපැතුම්!
+
+ඔබගේ Invoice #{{invoiceId}} සඳහා Rs. {{dueAmount}} ක මුදලක් තවමත් ගෙවීමට ඇත.
+
+📅 Due Date: {{dueDate}}
+💰 Total: Rs. {{totalAmount}}
+✅ Paid: Rs. {{paidAmount}}
+⏳ Balance: Rs. {{dueAmount}}
+
+කරුණාකර ඉක්මනින් ගෙවීම සිදු කරන්න.
+
+ස්තූතියි! 🙂
+EchoTech Computer Shop
+📞 011-2345678`,
+  overdueReminderTemplate: `⚠️ Payment Overdue Notice
+
+Dear {{customerName}},
+
+Your invoice #{{invoiceId}} is now OVERDUE.
+
+📅 Due Date: {{dueDate}} ({{daysOverdue}} days overdue)
+💰 Outstanding: Rs. {{dueAmount}}
+
+Please make the payment immediately to avoid any inconvenience.
+
+Thank you for your cooperation.
+
+EchoTech Computer Shop
+📞 011-2345678`,
+  enabled: true
+};
+
 export interface Product {
   id: string;
   name: string;
@@ -25,6 +68,70 @@ export interface Customer {
   totalSpent: number;
   totalOrders: number;
   lastPurchase?: string;
+  // Credit management fields
+  creditBalance: number; // Outstanding credit amount (naya)
+  creditLimit: number; // Maximum credit allowed
+  creditDueDate?: string; // Due date for credit payment
+  creditStatus: 'clear' | 'active' | 'overdue'; // Credit status
+}
+
+// Supplier interface for managing suppliers with credit tracking
+export interface Supplier {
+  id: string;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  address?: string;
+  // Financial tracking
+  totalPurchases: number; // Total value purchased from supplier
+  totalOrders: number; // Number of purchase orders
+  lastOrder?: string; // Last order date
+  // Credit management
+  creditBalance: number; // Outstanding amount owed to supplier (naya)
+  creditLimit: number; // Maximum credit limit from supplier
+  creditDueDate?: string; // Due date for payment
+  creditStatus: 'clear' | 'active' | 'overdue'; // Payment status
+  // Additional info
+  bankDetails?: string;
+  notes?: string;
+  rating: number; // 1-5 supplier rating
+  categories: string[]; // Product categories they supply
+}
+
+// Supplier Purchase interface for tracking products bought from suppliers
+export interface SupplierPurchase {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  productId: string;
+  productName: string;
+  category: string;
+  quantity: number;
+  unitPrice: number; // Price per unit from supplier
+  totalAmount: number; // quantity * unitPrice
+  purchaseDate: string; // When we bought from supplier
+  // Payment tracking
+  paidAmount: number; // How much we've paid
+  paymentStatus: 'unpaid' | 'partial' | 'fullpaid'; // Payment status
+  paymentPercentage: number; // Percentage paid (0-100)
+  lastPaymentDate?: string; // Last payment made
+  // Payment history
+  payments: SupplierPayment[];
+  // Stock tracking
+  soldQuantity: number; // How many sold to customers
+  inStock: number; // Remaining in stock (quantity - soldQuantity)
+  // Notes
+  notes?: string;
+}
+
+export interface SupplierPayment {
+  id: string;
+  purchaseId: string;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: 'cash' | 'bank' | 'card' | 'cheque';
+  notes?: string;
 }
 
 export interface Invoice {
@@ -138,16 +245,533 @@ export const mockProducts: Product[] = [
 // Export the helper function for use in other files
 export { generateSerialNumber };
 
-// Customers
+// Customers with credit management
 export const mockCustomers: Customer[] = [
-  { id: '1', name: 'Kasun Perera', email: 'kasun@gmail.com', phone: '077-1234567', address: 'No. 12, Galle Road, Colombo', totalSpent: 580000, totalOrders: 5, lastPurchase: '2024-01-15' },
-  { id: '2', name: 'Nimali Fernando', email: 'nimali@email.com', phone: '076-2345678', address: '12A, Kandy Rd, Kurunegala', totalSpent: 320000, totalOrders: 3, lastPurchase: '2024-01-10' },
-  { id: '3', name: 'Tech Solutions Ltd', email: 'info@techsol.lk', phone: '011-2567890', address: 'No. 45, Industrial Estate, Colombo 15', totalSpent: 2500000, totalOrders: 18, lastPurchase: '2024-01-18' },
-  { id: '4', name: 'Dilshan Silva', email: 'dilshan.s@hotmail.com', phone: '078-3456789', address: '78/2, Hill Street, Kandy', totalSpent: 185000, totalOrders: 2, lastPurchase: '2024-01-05' },
-  { id: '5', name: 'GameZone Café', email: 'contact@gamezone.lk', phone: '011-3456789', address: 'Shop 5, Arcade Mall, Colombo', totalSpent: 3200000, totalOrders: 25, lastPurchase: '2024-01-20' },
-  { id: '6', name: 'Priya Jayawardena', email: 'priya.j@yahoo.com', phone: '071-4567890', address: 'No. 7, Lake Road, Galle', totalSpent: 95000, totalOrders: 1, lastPurchase: '2024-01-12' },
-  { id: '7', name: 'Creative Studios', email: 'studio@creative.lk', phone: '011-4567891', address: 'Studio 3, Art Lane, Colombo', totalSpent: 1850000, totalOrders: 12, lastPurchase: '2024-01-16' },
-  { id: '8', name: 'Sanjay Mendis', email: 'sanjay.m@gmail.com', phone: '077-5678901', address: 'No. 21, Thotalanga Road, Colombo', totalSpent: 420000, totalOrders: 4, lastPurchase: '2024-01-08' },
+  { id: '1', name: 'Kasun Perera', email: 'kasun@gmail.com', phone: '078-3233760', address: 'No. 12, Galle Road, Colombo', totalSpent: 580000, totalOrders: 5, lastPurchase: '2024-01-15', creditBalance: 0, creditLimit: 100000, creditStatus: 'clear' },
+  { id: '2', name: 'Nimali Fernando', email: 'nimali@email.com', phone: '078-3233760', address: '12A, Kandy Rd, Kurunegala', totalSpent: 320000, totalOrders: 3, lastPurchase: '2024-01-10', creditBalance: 45000, creditLimit: 150000, creditDueDate: '2026-01-20', creditStatus: 'active' },
+  { id: '3', name: 'Tech Solutions Ltd', email: 'info@techsol.lk', phone: '078-3233760', address: 'No. 45, Industrial Estate, Colombo 15', totalSpent: 2500000, totalOrders: 18, lastPurchase: '2024-01-18', creditBalance: 350000, creditLimit: 500000, creditDueDate: '2026-01-05', creditStatus: 'overdue' },
+  { id: '4', name: 'Dilshan Silva', email: 'dilshan.s@hotmail.com', phone: '078-3233760', address: '78/2, Hill Street, Kandy', totalSpent: 185000, totalOrders: 2, lastPurchase: '2024-01-05', creditBalance: 0, creditLimit: 50000, creditStatus: 'clear' },
+  { id: '5', name: 'GameZone Café', email: 'contact@gamezone.lk', phone: '078-3233760', address: 'Shop 5, Arcade Mall, Colombo', totalSpent: 3200000, totalOrders: 25, lastPurchase: '2024-01-20', creditBalance: 420000, creditLimit: 800000, creditDueDate: '2026-02-15', creditStatus: 'active' },
+  { id: '6', name: 'Priya Jayawardena', email: 'priya.j@yahoo.com', phone: '078-3233760', address: 'No. 7, Lake Road, Galle', totalSpent: 95000, totalOrders: 1, lastPurchase: '2024-01-12', creditBalance: 15000, creditLimit: 30000, creditDueDate: '2026-01-08', creditStatus: 'overdue' },
+  { id: '7', name: 'Creative Studios', email: 'studio@creative.lk', phone: '078-3233760', address: 'Studio 3, Art Lane, Colombo', totalSpent: 1850000, totalOrders: 12, lastPurchase: '2024-01-16', creditBalance: 180000, creditLimit: 300000, creditDueDate: '2026-01-25', creditStatus: 'active' },
+  { id: '8', name: 'Sanjay Mendis', email: 'sanjay.m@gmail.com', phone: '078-3233760', address: 'No. 21, Thotalanga Road, Colombo', totalSpent: 420000, totalOrders: 4, lastPurchase: '2024-01-08', creditBalance: 0, creditLimit: 75000, creditStatus: 'clear' },
+];
+
+// Suppliers with credit management
+export const mockSuppliers: Supplier[] = [
+  { 
+    id: '1', 
+    name: 'Rohan Silva', 
+    company: 'TechZone Distributors', 
+    email: 'rohan@techzone.lk', 
+    phone: '078-3233760', 
+    address: 'No. 78, Industrial Zone, Colombo 15',
+    totalPurchases: 4500000, 
+    totalOrders: 45,
+    lastOrder: '2026-01-10',
+    creditBalance: 850000,
+    creditLimit: 2000000,
+    creditDueDate: '2026-01-25',
+    creditStatus: 'active',
+    bankDetails: 'BOC - 1234567890',
+    rating: 5,
+    categories: ['Processors', 'Motherboards', 'Memory']
+  },
+  { 
+    id: '2', 
+    name: 'Chamara Perera', 
+    company: 'PC Parts Lanka', 
+    email: 'chamara@pcparts.lk', 
+    phone: '078-3233760', 
+    address: '45/B, Pettah Market, Colombo',
+    totalPurchases: 3200000, 
+    totalOrders: 38,
+    lastOrder: '2026-01-08',
+    creditBalance: 420000,
+    creditLimit: 1500000,
+    creditDueDate: '2026-01-05',
+    creditStatus: 'overdue',
+    bankDetails: 'Sampath - 9876543210',
+    rating: 4,
+    categories: ['Graphics Cards', 'Power Supply', 'Cases']
+  },
+  { 
+    id: '3', 
+    name: 'Nuwan Fernando', 
+    company: 'GPU World', 
+    email: 'nuwan@gpuworld.lk', 
+    phone: '078-3233760', 
+    address: 'Unity Plaza, Colombo 4',
+    totalPurchases: 8500000, 
+    totalOrders: 62,
+    lastOrder: '2026-01-12',
+    creditBalance: 0,
+    creditLimit: 3000000,
+    creditStatus: 'clear',
+    bankDetails: 'HNB - 5432167890',
+    rating: 5,
+    categories: ['Graphics Cards', 'Monitors']
+  },
+  { 
+    id: '4', 
+    name: 'Malith Gunasekara', 
+    company: 'Storage Solutions', 
+    email: 'malith@storage.lk', 
+    phone: '078-3233760', 
+    address: 'No. 23, High Level Road, Nugegoda',
+    totalPurchases: 2100000, 
+    totalOrders: 28,
+    lastOrder: '2026-01-06',
+    creditBalance: 180000,
+    creditLimit: 800000,
+    creditDueDate: '2026-02-01',
+    creditStatus: 'active',
+    bankDetails: 'Commercial - 1122334455',
+    rating: 4,
+    categories: ['Storage', 'Memory']
+  },
+  { 
+    id: '5', 
+    name: 'Kamal Jayasuriya', 
+    company: 'Peripheral Hub', 
+    email: 'kamal@peripheralhub.lk', 
+    phone: '078-3233760', 
+    address: 'Shop 12, Majestic City, Colombo 4',
+    totalPurchases: 1800000, 
+    totalOrders: 52,
+    lastOrder: '2026-01-11',
+    creditBalance: 95000,
+    creditLimit: 500000,
+    creditDueDate: '2026-01-02',
+    creditStatus: 'overdue',
+    bankDetails: 'NTB - 6677889900',
+    rating: 3,
+    categories: ['Peripherals', 'Cooling']
+  },
+  { 
+    id: '6', 
+    name: 'Dinesh Rathnayake', 
+    company: 'Monitor Masters', 
+    email: 'dinesh@monitormaster.lk', 
+    phone: '078-3233760', 
+    address: 'No. 56, Duplication Road, Colombo 3',
+    totalPurchases: 5600000, 
+    totalOrders: 35,
+    lastOrder: '2026-01-09',
+    creditBalance: 720000,
+    creditLimit: 2500000,
+    creditDueDate: '2026-01-30',
+    creditStatus: 'active',
+    bankDetails: 'Seylan - 9988776655',
+    rating: 5,
+    categories: ['Monitors']
+  },
+  { 
+    id: '7', 
+    name: 'Asanka Mendis', 
+    company: 'Cooler Pro Lanka', 
+    email: 'asanka@coolerpro.lk', 
+    phone: '078-3233760', 
+    address: 'No. 89, Galle Road, Dehiwala',
+    totalPurchases: 1250000, 
+    totalOrders: 22,
+    lastOrder: '2026-01-05',
+    creditBalance: 0,
+    creditLimit: 600000,
+    creditStatus: 'clear',
+    bankDetails: 'NSB - 3344556677',
+    rating: 4,
+    categories: ['Cooling', 'Cases']
+  },
+  { 
+    id: '8', 
+    name: 'Pradeep Wickrama', 
+    company: 'Power Elite Systems', 
+    email: 'pradeep@powerelite.lk', 
+    phone: '078-3233760', 
+    address: '78/A, Kandy Road, Kadawatha',
+    totalPurchases: 3800000, 
+    totalOrders: 41,
+    lastOrder: '2026-01-11',
+    creditBalance: 560000,
+    creditLimit: 1800000,
+    creditDueDate: '2026-02-10',
+    creditStatus: 'active',
+    bankDetails: 'DFCC - 7788990011',
+    rating: 5,
+    categories: ['Power Supply', 'Cases', 'Cooling']
+  },
+  { 
+    id: '9', 
+    name: 'Tharaka Bandara', 
+    company: 'RAM Kingdom', 
+    email: 'tharaka@ramkingdom.lk', 
+    phone: '078-3233760', 
+    address: 'Level 2, Liberty Plaza, Colombo 3',
+    totalPurchases: 2900000, 
+    totalOrders: 33,
+    lastOrder: '2026-01-03',
+    creditBalance: 385000,
+    creditLimit: 1200000,
+    creditDueDate: '2025-12-28',
+    creditStatus: 'overdue',
+    bankDetails: 'Peoples - 2233445566',
+    rating: 3,
+    categories: ['Memory', 'Storage']
+  },
+  { 
+    id: '10', 
+    name: 'Lahiru de Silva', 
+    company: 'Gaming Gear LK', 
+    email: 'lahiru@gaminggear.lk', 
+    phone: '078-3233760', 
+    address: 'Unity Plaza, Colombo 4',
+    totalPurchases: 4200000, 
+    totalOrders: 55,
+    lastOrder: '2026-01-12',
+    creditBalance: 0,
+    creditLimit: 2000000,
+    creditStatus: 'clear',
+    bankDetails: 'BOC - 5566778899',
+    rating: 5,
+    categories: ['Peripherals', 'Monitors', 'Cooling']
+  },
+  { 
+    id: '11', 
+    name: 'Chathura Herath', 
+    company: 'SSD Express', 
+    email: 'chathura@ssdexpress.lk', 
+    phone: '078-3233760', 
+    address: 'No. 34, Main Street, Negombo',
+    totalPurchases: 6100000, 
+    totalOrders: 48,
+    lastOrder: '2026-01-08',
+    creditBalance: 920000,
+    creditLimit: 2800000,
+    creditDueDate: '2026-01-20',
+    creditStatus: 'active',
+    bankDetails: 'Sampath - 1122334466',
+    rating: 4,
+    categories: ['Storage', 'Memory']
+  },
+  { 
+    id: '12', 
+    name: 'Ruwan Pathirana', 
+    company: 'CPU Masters', 
+    email: 'ruwan@cpumasters.lk', 
+    phone: '078-3233760', 
+    address: '56/1, High Level Road, Maharagama',
+    totalPurchases: 7500000, 
+    totalOrders: 58,
+    lastOrder: '2026-01-10',
+    creditBalance: 1250000,
+    creditLimit: 3500000,
+    creditDueDate: '2026-01-15',
+    creditStatus: 'active',
+    bankDetails: 'HNB - 9988776644',
+    rating: 5,
+    categories: ['Processors', 'Motherboards']
+  },
+  { 
+    id: '13', 
+    name: 'Sanath Jayawardena', 
+    company: 'Case & Chassis LK', 
+    email: 'sanath@caseandchassis.lk', 
+    phone: '078-3233760', 
+    address: 'No. 12, Station Road, Moratuwa',
+    totalPurchases: 980000, 
+    totalOrders: 18,
+    lastOrder: '2025-12-20',
+    creditBalance: 145000,
+    creditLimit: 400000,
+    creditDueDate: '2025-12-25',
+    creditStatus: 'overdue',
+    bankDetails: 'Commercial - 5544332211',
+    rating: 2,
+    categories: ['Cases', 'Cooling']
+  },
+  { 
+    id: '14', 
+    name: 'Nihal Fernando', 
+    company: 'Graphics Pro', 
+    email: 'nihal@graphicspro.lk', 
+    phone: '078-3233760', 
+    address: 'Unity Plaza, Level 3, Colombo 4',
+    totalPurchases: 9200000, 
+    totalOrders: 72,
+    lastOrder: '2026-01-12',
+    creditBalance: 0,
+    creditLimit: 4000000,
+    creditStatus: 'clear',
+    bankDetails: 'Seylan - 4455667788',
+    rating: 5,
+    categories: ['Graphics Cards', 'Monitors']
+  },
+];
+
+// Supplier Purchases - Products bought from suppliers
+export const mockSupplierPurchases: SupplierPurchase[] = [
+  // TechZone Distributors purchases (Supplier 1)
+  {
+    id: 'sp-001',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    productId: '1',
+    productName: 'AMD Ryzen 9 7950X',
+    category: 'Processors',
+    quantity: 20,
+    unitPrice: 165000,
+    totalAmount: 3300000,
+    purchaseDate: '2025-12-15',
+    paidAmount: 3300000,
+    paymentStatus: 'fullpaid',
+    paymentPercentage: 100,
+    lastPaymentDate: '2026-01-05',
+    payments: [
+      { id: 'pay-001', purchaseId: 'sp-001', amount: 1650000, paymentDate: '2025-12-20', paymentMethod: 'bank' },
+      { id: 'pay-002', purchaseId: 'sp-001', amount: 1650000, paymentDate: '2026-01-05', paymentMethod: 'bank' },
+    ],
+    soldQuantity: 8,
+    inStock: 12,
+    notes: 'Bulk order - got 10% discount'
+  },
+  {
+    id: 'sp-002',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    productId: '10',
+    productName: 'ASUS ROG Maximus Z790 Hero',
+    category: 'Motherboards',
+    quantity: 10,
+    unitPrice: 165000,
+    totalAmount: 1650000,
+    purchaseDate: '2026-01-02',
+    paidAmount: 800000,
+    paymentStatus: 'partial',
+    paymentPercentage: 48.5,
+    lastPaymentDate: '2026-01-10',
+    payments: [
+      { id: 'pay-003', purchaseId: 'sp-002', amount: 500000, paymentDate: '2026-01-05', paymentMethod: 'cash' },
+      { id: 'pay-004', purchaseId: 'sp-002', amount: 300000, paymentDate: '2026-01-10', paymentMethod: 'bank' },
+    ],
+    soldQuantity: 4,
+    inStock: 6,
+  },
+  {
+    id: 'sp-003',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    productId: '8',
+    productName: 'Corsair Vengeance DDR5 32GB (2x16GB)',
+    category: 'Memory',
+    quantity: 30,
+    unitPrice: 42000,
+    totalAmount: 1260000,
+    purchaseDate: '2026-01-08',
+    paidAmount: 0,
+    paymentStatus: 'unpaid',
+    paymentPercentage: 0,
+    payments: [],
+    soldQuantity: 5,
+    inStock: 25,
+  },
+  // PC Parts Lanka purchases (Supplier 2)
+  {
+    id: 'sp-004',
+    supplierId: '2',
+    supplierName: 'PC Parts Lanka',
+    productId: '3',
+    productName: 'NVIDIA GeForce RTX 4090',
+    category: 'Graphics Cards',
+    quantity: 8,
+    unitPrice: 550000,
+    totalAmount: 4400000,
+    purchaseDate: '2025-12-20',
+    paidAmount: 3980000,
+    paymentStatus: 'partial',
+    paymentPercentage: 90.5,
+    lastPaymentDate: '2026-01-08',
+    payments: [
+      { id: 'pay-005', purchaseId: 'sp-004', amount: 2200000, paymentDate: '2025-12-25', paymentMethod: 'bank' },
+      { id: 'pay-006', purchaseId: 'sp-004', amount: 1780000, paymentDate: '2026-01-08', paymentMethod: 'bank' },
+    ],
+    soldQuantity: 3,
+    inStock: 5,
+  },
+  {
+    id: 'sp-005',
+    supplierId: '2',
+    supplierName: 'PC Parts Lanka',
+    productId: '12',
+    productName: 'Corsair RM1000x 1000W PSU',
+    category: 'Power Supply',
+    quantity: 25,
+    unitPrice: 48000,
+    totalAmount: 1200000,
+    purchaseDate: '2026-01-05',
+    paidAmount: 780000,
+    paymentStatus: 'partial',
+    paymentPercentage: 65,
+    lastPaymentDate: '2026-01-12',
+    payments: [
+      { id: 'pay-007', purchaseId: 'sp-005', amount: 400000, paymentDate: '2026-01-08', paymentMethod: 'cash' },
+      { id: 'pay-008', purchaseId: 'sp-005', amount: 380000, paymentDate: '2026-01-12', paymentMethod: 'cheque' },
+    ],
+    soldQuantity: 5,
+    inStock: 20,
+  },
+  // GPU World purchases (Supplier 3 - Fully paid)
+  {
+    id: 'sp-006',
+    supplierId: '3',
+    supplierName: 'GPU World',
+    productId: '4',
+    productName: 'NVIDIA GeForce RTX 4070 Ti',
+    category: 'Graphics Cards',
+    quantity: 15,
+    unitPrice: 250000,
+    totalAmount: 3750000,
+    purchaseDate: '2025-12-10',
+    paidAmount: 3750000,
+    paymentStatus: 'fullpaid',
+    paymentPercentage: 100,
+    lastPaymentDate: '2025-12-28',
+    payments: [
+      { id: 'pay-009', purchaseId: 'sp-006', amount: 1875000, paymentDate: '2025-12-15', paymentMethod: 'bank' },
+      { id: 'pay-010', purchaseId: 'sp-006', amount: 1875000, paymentDate: '2025-12-28', paymentMethod: 'bank' },
+    ],
+    soldQuantity: 0,
+    inStock: 15,
+    notes: 'Direct import - No credit pending'
+  },
+  {
+    id: 'sp-007',
+    supplierId: '3',
+    supplierName: 'GPU World',
+    productId: '15',
+    productName: 'LG UltraGear 27GP950-B 4K Monitor',
+    category: 'Monitors',
+    quantity: 10,
+    unitPrice: 175000,
+    totalAmount: 1750000,
+    purchaseDate: '2026-01-03',
+    paidAmount: 1750000,
+    paymentStatus: 'fullpaid',
+    paymentPercentage: 100,
+    lastPaymentDate: '2026-01-10',
+    payments: [
+      { id: 'pay-011', purchaseId: 'sp-007', amount: 1750000, paymentDate: '2026-01-10', paymentMethod: 'bank' },
+    ],
+    soldQuantity: 4,
+    inStock: 6,
+  },
+  // Storage Solutions purchases (Supplier 4)
+  {
+    id: 'sp-008',
+    supplierId: '4',
+    supplierName: 'Storage Solutions',
+    productId: '6',
+    productName: 'Samsung 990 Pro 2TB NVMe SSD',
+    category: 'Storage',
+    quantity: 40,
+    unitPrice: 65000,
+    totalAmount: 2600000,
+    purchaseDate: '2026-01-01',
+    paidAmount: 2420000,
+    paymentStatus: 'partial',
+    paymentPercentage: 93,
+    lastPaymentDate: '2026-01-12',
+    payments: [
+      { id: 'pay-012', purchaseId: 'sp-008', amount: 1300000, paymentDate: '2026-01-05', paymentMethod: 'bank' },
+      { id: 'pay-013', purchaseId: 'sp-008', amount: 1120000, paymentDate: '2026-01-12', paymentMethod: 'bank' },
+    ],
+    soldQuantity: 10,
+    inStock: 30,
+  },
+  {
+    id: 'sp-009',
+    supplierId: '4',
+    supplierName: 'Storage Solutions',
+    productId: '9',
+    productName: 'G.Skill Trident Z5 64GB DDR5',
+    category: 'Memory',
+    quantity: 15,
+    unitPrice: 85000,
+    totalAmount: 1275000,
+    purchaseDate: '2026-01-06',
+    paidAmount: 0,
+    paymentStatus: 'unpaid',
+    paymentPercentage: 0,
+    payments: [],
+    soldQuantity: 5,
+    inStock: 10,
+    notes: 'Payment due by Feb 1'
+  },
+  // Peripheral Hub purchases (Supplier 5 - Overdue)
+  {
+    id: 'sp-010',
+    supplierId: '5',
+    supplierName: 'Peripheral Hub',
+    productId: '17',
+    productName: 'Logitech G Pro X Superlight 2',
+    category: 'Peripherals',
+    quantity: 50,
+    unitPrice: 45000,
+    totalAmount: 2250000,
+    purchaseDate: '2025-12-01',
+    paidAmount: 2155000,
+    paymentStatus: 'partial',
+    paymentPercentage: 95.8,
+    lastPaymentDate: '2026-01-02',
+    payments: [
+      { id: 'pay-014', purchaseId: 'sp-010', amount: 1125000, paymentDate: '2025-12-10', paymentMethod: 'bank' },
+      { id: 'pay-015', purchaseId: 'sp-010', amount: 1030000, paymentDate: '2026-01-02', paymentMethod: 'bank' },
+    ],
+    soldQuantity: 15,
+    inStock: 35,
+  },
+  {
+    id: 'sp-011',
+    supplierId: '5',
+    supplierName: 'Peripheral Hub',
+    productId: '13',
+    productName: 'NZXT Kraken X73 RGB',
+    category: 'Cooling',
+    quantity: 20,
+    unitPrice: 68000,
+    totalAmount: 1360000,
+    purchaseDate: '2026-01-05',
+    paidAmount: 0,
+    paymentStatus: 'unpaid',
+    paymentPercentage: 0,
+    payments: [],
+    soldQuantity: 2,
+    inStock: 18,
+    notes: 'OVERDUE - Need to pay immediately'
+  },
+  // Monitor Masters purchases (Supplier 6)
+  {
+    id: 'sp-012',
+    supplierId: '6',
+    supplierName: 'Monitor Masters',
+    productId: '16',
+    productName: 'Samsung Odyssey G9 49" Monitor',
+    category: 'Monitors',
+    quantity: 5,
+    unitPrice: 340000,
+    totalAmount: 1700000,
+    purchaseDate: '2026-01-08',
+    paidAmount: 980000,
+    paymentStatus: 'partial',
+    paymentPercentage: 57.6,
+    lastPaymentDate: '2026-01-12',
+    payments: [
+      { id: 'pay-016', purchaseId: 'sp-012', amount: 500000, paymentDate: '2026-01-10', paymentMethod: 'bank' },
+      { id: 'pay-017', purchaseId: 'sp-012', amount: 480000, paymentDate: '2026-01-12', paymentMethod: 'cash' },
+    ],
+    soldQuantity: 2,
+    inStock: 3,
+  },
 ];
 
 // Invoices
@@ -519,7 +1143,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productSerialNumber: '70451234',
     customerId: '1',
     customerName: 'Kasun Perera',
-    customerPhone: '077-1234567',
+    customerPhone: '078-3233760',
     claimDate: '2025-06-15T10:30:00',
     warrantyExpiryDate: '2027-01-15',
     status: 'replaced',
@@ -544,7 +1168,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productSerialNumber: '70453456',
     customerId: '3',
     customerName: 'Tech Solutions Ltd',
-    customerPhone: '011-2567890',
+    customerPhone: '078-3233760',
     claimDate: '2025-05-20T09:15:00',
     warrantyExpiryDate: '2027-01-18',
     status: 'under-review',
@@ -562,7 +1186,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productName: 'LG UltraGear 27GP950-B 4K Monitor',
     customerId: '5',
     customerName: 'GameZone Café',
-    customerPhone: '011-3456789',
+    customerPhone: '078-3233760',
     claimDate: '2025-04-10T11:00:00',
     warrantyExpiryDate: '2027-01-20',
     status: 'approved',
@@ -581,7 +1205,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productName: 'Logitech G Pro X Superlight 2',
     customerId: '2',
     customerName: 'Nimali Fernando',
-    customerPhone: '076-2345678',
+    customerPhone: '078-3233760',
     claimDate: '2025-07-05T14:20:00',
     warrantyExpiryDate: '2026-01-10',
     status: 'rejected',
@@ -602,7 +1226,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productSerialNumber: '70455678',
     customerId: '8',
     customerName: 'Sanjay Mendis',
-    customerPhone: '077-5678901',
+    customerPhone: '078-3233760',
     claimDate: '2025-08-01T16:45:00',
     warrantyExpiryDate: '2027-02-10',
     status: 'repaired',
@@ -623,7 +1247,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productSerialNumber: '70456789',
     customerId: '4',
     customerName: 'Dilshan Silva',
-    customerPhone: '078-3456789',
+    customerPhone: '078-3233760',
     claimDate: '2025-09-10T09:00:00',
     warrantyExpiryDate: '2029-01-05',
     status: 'pending',
@@ -641,7 +1265,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productName: 'Corsair RM1000x 1000W PSU',
     customerId: '3',
     customerName: 'Tech Solutions Ltd',
-    customerPhone: '011-2567890',
+    customerPhone: '078-3233760',
     claimDate: '2025-03-25T13:15:00',
     warrantyExpiryDate: '2034-01-18',
     status: 'replaced',
@@ -665,7 +1289,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productName: 'Razer Huntsman V3 Pro',
     customerId: '5',
     customerName: 'GameZone Café',
-    customerPhone: '011-3456789',
+    customerPhone: '078-3233760',
     claimDate: '2025-10-15T10:30:00',
     warrantyExpiryDate: '2027-05-10',
     status: 'pending',
@@ -682,7 +1306,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productName: 'Corsair Vengeance DDR5 32GB (2x16GB)',
     customerId: '1',
     customerName: 'Kasun Perera',
-    customerPhone: '077-1234567',
+    customerPhone: '078-3233760',
     claimDate: '2025-11-20T14:00:00',
     warrantyExpiryDate: '2099-12-31', // Lifetime warranty
     status: 'replaced',
@@ -706,7 +1330,7 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     productName: 'SteelSeries Arctis Nova Pro',
     customerId: '1',
     customerName: 'Kasun Perera',
-    customerPhone: '077-1234567',
+    customerPhone: '078-3233760',
     claimDate: '2025-12-01T09:45:00',
     warrantyExpiryDate: '2026-01-20',
     status: 'under-review',

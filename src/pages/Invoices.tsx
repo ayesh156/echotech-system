@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { mockInvoices as initialMockInvoices, mockCustomers, mockProducts } from '../data/mockData';
+import { mockInvoices as initialMockInvoices, mockCustomers, mockProducts, mockWhatsAppSettings } from '../data/mockData';
 import type { Invoice } from '../data/mockData';
 import { 
   FileText, Search, Plus, Eye, Edit, Trash2, 
@@ -9,7 +9,7 @@ import {
   List, SortAsc, SortDesc, RefreshCw, LayoutGrid,
   Calendar, User, Building2, XCircle, CircleDollarSign, DollarSign,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Shield, AlertTriangle
+  Shield, AlertTriangle, MessageCircle
 } from 'lucide-react';
 import { DeleteConfirmationModal } from '../components/modals/DeleteConfirmationModal';
 import { InvoiceEditModal } from '../components/modals/InvoiceEditModal';
@@ -230,6 +230,63 @@ export const Invoices: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => `Rs. ${amount.toLocaleString('en-LK')}`;
+
+  // WhatsApp payment reminder function
+  const sendWhatsAppReminder = (invoice: Invoice) => {
+    const customer = mockCustomers.find(c => c.id === invoice.customerId);
+    if (!customer?.phone) {
+      alert('Customer phone number not found!');
+      return;
+    }
+
+    // Calculate amounts
+    const dueAmount = invoice.total - (invoice.paidAmount || 0);
+    const dueDate = new Date(invoice.dueDate);
+    const today = new Date();
+    const isOverdue = dueDate < today && invoice.status !== 'fullpaid';
+    const daysOverdue = isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
+    // Choose template based on overdue status
+    let message = isOverdue 
+      ? mockWhatsAppSettings.overdueReminderTemplate 
+      : mockWhatsAppSettings.paymentReminderTemplate;
+
+    // Replace placeholders
+    message = message
+      .replace(/\{\{customerName\}\}/g, invoice.customerName)
+      .replace(/\{\{invoiceId\}\}/g, invoice.id)
+      .replace(/\{\{totalAmount\}\}/g, invoice.total.toLocaleString())
+      .replace(/\{\{paidAmount\}\}/g, (invoice.paidAmount || 0).toLocaleString())
+      .replace(/\{\{dueAmount\}\}/g, dueAmount.toLocaleString())
+      .replace(/\{\{dueDate\}\}/g, dueDate.toLocaleDateString('en-GB'))
+      .replace(/\{\{daysOverdue\}\}/g, daysOverdue.toString());
+
+    // Format phone number (remove dashes and ensure country code)
+    let phone = customer.phone.replace(/[-\s]/g, '');
+    // If starts with 0, replace with Sri Lanka country code
+    if (phone.startsWith('0')) {
+      phone = '94' + phone.substring(1);
+    }
+    // If doesn't start with country code, add it
+    if (!phone.startsWith('94') && !phone.startsWith('+94')) {
+      phone = '94' + phone;
+    }
+    phone = phone.replace('+', '');
+
+    // Open WhatsApp with the message using wa.me format
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  // Check if invoice needs reminder (unpaid or halfpay)
+  const needsReminder = (invoice: Invoice) => {
+    return invoice.status !== 'fullpaid';
+  };
+
+  // Check if invoice is overdue
+  const isOverdue = (invoice: Invoice) => {
+    return new Date(invoice.dueDate) < new Date() && invoice.status !== 'fullpaid';
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -790,7 +847,7 @@ export const Invoices: React.FC = () => {
                       </div>
                     </div>
                     {/* Actions */}
-                    <div className={`flex gap-2 pt-3 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                    <div className={`flex flex-wrap gap-2 pt-3 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
                       <button 
                         onClick={() => handleViewClick(invoice)}
                         className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium ${
@@ -815,6 +872,30 @@ export const Invoices: React.FC = () => {
                       >
                         <Trash2 className="w-4 h-4" /> Delete
                       </button>
+                      {/* WhatsApp Reminder Button - Only show for unpaid/partial invoices */}
+                      {needsReminder(invoice) ? (
+                        <button 
+                          onClick={() => sendWhatsAppReminder(invoice)}
+                          className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${
+                            isOverdue(invoice)
+                              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 shadow-lg'
+                              : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600'
+                          }`}
+                          title={isOverdue(invoice) ? 'Send Overdue Reminder via WhatsApp' : 'Send Payment Reminder via WhatsApp'}
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          {isOverdue(invoice) ? '⚠️ Send Overdue Reminder' : '💬 WhatsApp Reminder'}
+                        </button>
+                      ) : (
+                        <div className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium ${
+                          theme === 'dark' 
+                            ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' 
+                            : 'bg-emerald-50 border border-emerald-200 text-emerald-600'
+                        }`}>
+                          <CheckCircle className="w-4 h-4" />
+                          ✨ Payment Complete
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1081,6 +1162,20 @@ export const Invoices: React.FC = () => {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+                          {/* WhatsApp Reminder Button for Table View */}
+                          {needsReminder(invoice) && (
+                            <button 
+                              onClick={() => sendWhatsAppReminder(invoice)}
+                              className={`p-2 rounded-xl transition-colors ${
+                                isOverdue(invoice)
+                                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                                  : 'bg-green-500/20 text-green-500 hover:bg-green-500/30'
+                              }`}
+                              title={isOverdue(invoice) ? 'Send Overdue Reminder via WhatsApp' : 'Send Payment Reminder via WhatsApp'}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

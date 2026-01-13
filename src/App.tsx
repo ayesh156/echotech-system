@@ -20,6 +20,7 @@ const ProductLabels = lazy(() => import('./pages/ProductLabels').then(m => ({ de
 const Categories = lazy(() => import('./pages/Categories').then(m => ({ default: m.Categories })));
 const Brands = lazy(() => import('./pages/Brands').then(m => ({ default: m.Brands })));
 const Customers = lazy(() => import('./pages/Customers').then(m => ({ default: m.Customers })));
+const Suppliers = lazy(() => import('./pages/Suppliers').then(m => ({ default: m.Suppliers })));
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Warranties = lazy(() => import('./pages/Warranties').then(m => ({ default: m.Warranties })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
@@ -57,6 +58,7 @@ function App() {
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/brands" element={<Brands />} />
                   <Route path="/customers" element={<Customers />} />
+                  <Route path="/suppliers" element={<Suppliers />} />
                   <Route path="/warranties" element={<Warranties />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />

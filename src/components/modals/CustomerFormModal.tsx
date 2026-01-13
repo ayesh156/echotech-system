@@ -90,6 +90,10 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
         totalSpent: customer?.totalSpent || 0,
         totalOrders: customer?.totalOrders || 0,
         lastPurchase: customer?.lastPurchase,
+        creditBalance: customer?.creditBalance || 0,
+        creditLimit: customer?.creditLimit || 50000,
+        creditStatus: customer?.creditStatus || 'clear',
+        creditDueDate: customer?.creditDueDate,
       };
       onSave(newCustomer);
       onClose();

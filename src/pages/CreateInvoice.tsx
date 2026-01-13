@@ -350,7 +350,17 @@ export const CreateInvoice: React.FC = () => {
   const printCustomer = useMemo(() => {
     if (!createdInvoice) return null;
     if (createdInvoice.customerId === 'walk-in') {
-      return { id: 'walk-in', name: 'Walk-in Customer', email: '', phone: '', totalSpent: 0, totalOrders: 0 };
+      return { 
+        id: 'walk-in', 
+        name: 'Walk-in Customer', 
+        email: '', 
+        phone: '', 
+        totalSpent: 0, 
+        totalOrders: 0,
+        creditBalance: 0,
+        creditLimit: 0,
+        creditStatus: 'clear' as const
+      };
     }
     return customers.find(c => c.id === createdInvoice.customerId) || null;
   }, [createdInvoice, customers]);

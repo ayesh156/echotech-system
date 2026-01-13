@@ -1,14 +1,14 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { mockInvoices, mockCustomers, mockProducts } from '../data/mockData';
+import { mockInvoices, mockCustomers, mockProducts, mockWhatsAppSettings } from '../data/mockData';
 import PrintableInvoice from '../components/PrintableInvoice';
 import {
   FileText, ArrowLeft, Printer, Edit3, User, Phone,
   Package, CheckCircle, Clock,
   XCircle, Mail, MapPin,
   Copy, Download, Share2, MoreVertical, TrendingUp, Monitor, X, CircleDollarSign,
-  AlertTriangle, Store, Globe, Shield
+  AlertTriangle, Store, Globe, Shield, MessageCircle
 } from 'lucide-react';
 
 export const ViewInvoice: React.FC = () => {
@@ -35,6 +35,9 @@ export const ViewInvoice: React.FC = () => {
         phone: '',
         totalSpent: 0,
         totalOrders: 0,
+        creditBalance: 0,
+        creditLimit: 0,
+        creditStatus: 'clear' as const
       };
     }
     return mockCustomers.find(c => c.id === invoice.customerId) || null;
@@ -88,6 +91,54 @@ export const ViewInvoice: React.FC = () => {
   const handleActualPrint = () => {
     window.print();
   };
+
+  // WhatsApp payment reminder function
+  const sendWhatsAppReminder = () => {
+    if (!invoice || !customer?.phone) {
+      alert('Customer phone number not found!');
+      return;
+    }
+
+    // Calculate amounts
+    const dueAmount = invoice.total - (invoice.paidAmount || 0);
+    const dueDate = new Date(invoice.dueDate);
+    const today = new Date();
+    const isOverdue = dueDate < today && invoice.status !== 'fullpaid';
+    const daysOverdue = isOverdue ? Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
+    // Choose template based on overdue status
+    let message = isOverdue 
+      ? mockWhatsAppSettings.overdueReminderTemplate 
+      : mockWhatsAppSettings.paymentReminderTemplate;
+
+    // Replace placeholders
+    message = message
+      .replace(/\{\{customerName\}\}/g, invoice.customerName)
+      .replace(/\{\{invoiceId\}\}/g, invoice.id)
+      .replace(/\{\{totalAmount\}\}/g, invoice.total.toLocaleString())
+      .replace(/\{\{paidAmount\}\}/g, (invoice.paidAmount || 0).toLocaleString())
+      .replace(/\{\{dueAmount\}\}/g, dueAmount.toLocaleString())
+      .replace(/\{\{dueDate\}\}/g, dueDate.toLocaleDateString('en-GB'))
+      .replace(/\{\{daysOverdue\}\}/g, daysOverdue.toString());
+
+    // Format phone number (remove dashes and ensure country code)
+    let phone = customer.phone.replace(/[-\s]/g, '');
+    if (phone.startsWith('0')) {
+      phone = '94' + phone.substring(1);
+    }
+    if (!phone.startsWith('94') && !phone.startsWith('+94')) {
+      phone = '94' + phone;
+    }
+    phone = phone.replace('+', '');
+
+    // Open WhatsApp with the message using wa.me format
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  // Check if invoice needs reminder
+  const needsReminder = invoice && invoice.status !== 'fullpaid';
+  const isInvoiceOverdue = invoice && new Date(invoice.dueDate) < new Date() && invoice.status !== 'fullpaid';
 
   if (!invoice) {
     return (
@@ -212,6 +263,22 @@ export const ViewInvoice: React.FC = () => {
               <Edit3 className="w-4 h-4" />
               Edit Invoice
             </button>
+
+            {/* WhatsApp Reminder Button */}
+            {needsReminder && (
+              <button
+                onClick={sendWhatsAppReminder}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all shadow-lg ${
+                  isInvoiceOverdue
+                    ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white shadow-red-500/20'
+                    : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-green-500/20'
+                }`}
+                title={isInvoiceOverdue ? 'Send Overdue Reminder via WhatsApp' : 'Send Payment Reminder via WhatsApp'}
+              >
+                <MessageCircle className="w-4 h-4" />
+                {isInvoiceOverdue ? 'Overdue Reminder' : 'WhatsApp Reminder'}
+              </button>
+            )}
 
             {/* More Actions */}
             <div className="relative">
