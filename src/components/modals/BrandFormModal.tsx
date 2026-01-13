@@ -1,16 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Building2, Tag, FileText, Save, Plus, Globe, Mail, Phone } from 'lucide-react';
+import { Building2, Tag, FileText, Save, Plus, Globe, Mail, Phone, Upload, X, Loader2, Image as ImageIcon } from 'lucide-react';
+
+// Image compression utility
+const compressImage = (file: File, maxWidth: number = 200, quality: number = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      let { width, height } = img;
+      
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      ctx?.drawImage(img, 0, 0, width, height);
+      
+      const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressedBase64);
+    };
+    
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 export interface Brand {
   id: string;
   name: string;
   description?: string;
   website?: string;
+  image?: string;
   productCount: number;
 }
 
@@ -27,6 +57,7 @@ interface BrandFormData {
   website: string;
   contactEmail: string;
   contactPhone: string;
+  image: string;
 }
 
 export const BrandFormModal: React.FC<BrandFormModalProps> = ({
@@ -43,9 +74,15 @@ export const BrandFormModal: React.FC<BrandFormModalProps> = ({
     website: '',
     contactEmail: '',
     contactPhone: '',
+    image: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (brand) {
@@ -55,6 +92,7 @@ export const BrandFormModal: React.FC<BrandFormModalProps> = ({
         website: brand.website || '',
         contactEmail: '',
         contactPhone: '',
+        image: brand.image || '',
       });
     } else {
       setFormData({
@@ -63,10 +101,109 @@ export const BrandFormModal: React.FC<BrandFormModalProps> = ({
         website: '',
         contactEmail: '',
         contactPhone: '',
+        image: '',
       });
     }
     setErrors({});
+    setIsUploading(false);
+    setUploadProgress(0);
   }, [brand, isOpen]);
+
+  // Handle image upload
+  const handleImageUpload = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + Math.random() * 15;
+        });
+      }, 100);
+
+      const compressedImage = await compressImage(file);
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        setFormData(prev => ({ ...prev, image: compressedImage }));
+        setIsUploading(false);
+        setUploadProgress(0);
+      }, 300);
+    } catch {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  }, []);
+
+  // Handle paste from clipboard
+  const handlePaste = useCallback(async (e: ClipboardEvent) => {
+    if (!isOpen) return;
+    
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await handleImageUpload(file);
+        }
+        break;
+      }
+    }
+  }, [isOpen, handleImageUpload]);
+
+  useEffect(() => {
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [handlePaste]);
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      await handleImageUpload(file);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = () => {
+    setFormData(prev => ({ ...prev, image: '' }));
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -95,6 +232,7 @@ export const BrandFormModal: React.FC<BrandFormModalProps> = ({
         name: formData.name,
         description: formData.description,
         website: formData.website,
+        image: formData.image,
         productCount: brand?.productCount || 0,
       };
       onSave(newBrand);
@@ -144,6 +282,100 @@ export const BrandFormModal: React.FC<BrandFormModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Hidden file input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileInputChange}
+            accept="image/*"
+            className="hidden"
+          />
+
+          {/* Brand Logo Upload */}
+          <div className="space-y-2">
+            <Label className={`flex items-center gap-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+              <ImageIcon className="w-4 h-4" />
+              Brand Logo
+            </Label>
+            <div
+              ref={dropZoneRef}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
+              className={`relative rounded-xl border-2 border-dashed transition-all cursor-pointer ${
+                isDragging
+                  ? 'border-emerald-500 bg-emerald-500/10'
+                  : theme === 'dark'
+                    ? 'border-slate-700 hover:border-slate-600 bg-slate-800/50'
+                    : 'border-slate-300 hover:border-slate-400 bg-slate-50'
+              }`}
+            >
+              {isUploading ? (
+                <div className="p-8 flex flex-col items-center justify-center gap-3">
+                  <div className="relative">
+                    <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xs font-bold text-emerald-500">{Math.round(uploadProgress)}%</span>
+                    </div>
+                  </div>
+                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Compressing image...
+                  </p>
+                </div>
+              ) : formData.image ? (
+                <div className="p-4 flex items-center gap-4">
+                  <div className={`w-20 h-20 rounded-xl overflow-hidden bg-white border flex items-center justify-center ${
+                    theme === 'dark' ? 'border-slate-700' : 'border-slate-200'
+                  }`}>
+                    <img 
+                      src={formData.image} 
+                      alt="Brand logo" 
+                      className="w-full h-full object-contain p-1"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '';
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      Logo uploaded
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Click to change or drag a new image
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeImage();
+                    }}
+                    className={`p-2 rounded-lg transition-colors ${
+                      theme === 'dark' ? 'hover:bg-red-500/10 text-red-400' : 'hover:bg-red-50 text-red-500'
+                    }`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="p-8 flex flex-col items-center justify-center gap-3">
+                  <div className={`p-3 rounded-xl ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                    <Upload className={`w-6 h-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`} />
+                  </div>
+                  <div className="text-center">
+                    <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      Drop logo here or click to upload
+                    </p>
+                    <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                      Or paste from clipboard (Ctrl+V)
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Brand Name */}
           <div className="space-y-2">
             <Label htmlFor="name" className={`flex items-center gap-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
