@@ -71,8 +71,8 @@ export const PurchasePaymentModal: React.FC<PurchasePaymentModalProps> = ({
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-md max-h-[calc(100vh-2rem)] overflow-hidden rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col ${
+      {/* Modal - Full scroll */}
+      <div className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 ${
         theme === 'dark' ? 'bg-slate-900' : 'bg-white'
       }`}>
         {/* Success Overlay */}
@@ -87,7 +87,7 @@ export const PurchasePaymentModal: React.FC<PurchasePaymentModalProps> = ({
         )}
 
         {/* Header */}
-        <div className="relative overflow-hidden flex-shrink-0">
+        <div className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600" />
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRoLTJ2LTRoMnY0em0wLTZ2LTRoLTJ2NGgyek0zNCAyNmgtMnYtNGgydjR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
           
@@ -144,8 +144,8 @@ export const PurchasePaymentModal: React.FC<PurchasePaymentModalProps> = ({
           </div>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        {/* Content */}
+        <div className="p-6 space-y-5">
           {/* Quick Amount Buttons */}
           <div>
             <label className={`block text-sm font-medium mb-3 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>

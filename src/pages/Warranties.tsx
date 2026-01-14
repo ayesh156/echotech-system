@@ -1,6 +1,14 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { mockWarrantyClaims, mockProducts, mockCustomers, type WarrantyClaim } from '../data/mockData';
+import { 
+  mockWarrantyClaims, 
+  mockProducts, 
+  mockCustomers as initialMockCustomers,
+  mockInvoices as initialMockInvoices,
+  type WarrantyClaim,
+  type Customer,
+  type Invoice
+} from '../data/mockData';
 import { SearchableSelect } from '../components/ui/searchable-select';
 import { WarrantyClaimFormModal } from '../components/modals/WarrantyClaimFormModal';
 import { WarrantyClaimViewModal } from '../components/modals/WarrantyClaimViewModal';
@@ -29,6 +37,8 @@ import {
   SortAsc,
   SortDesc,
   Trash2,
+  DollarSign,
+  Zap,
 } from 'lucide-react';
 
 // Status configuration with colors and icons
@@ -47,6 +57,17 @@ const issueCategoryConfig: Record<WarrantyClaim['issueCategory'], { label: strin
   'not-working': { label: 'Not Working', color: 'text-yellow-500' },
   performance: { label: 'Performance Issue', color: 'text-blue-500' },
   other: { label: 'Other', color: 'text-slate-500' },
+};
+
+// Workflow stage configuration
+const workflowStageConfig: Record<string, { label: string; color: string; bgColor: string; icon: string }> = {
+  'received': { label: 'Received', color: 'text-blue-500', bgColor: 'bg-blue-500/10', icon: '📥' },
+  'inspecting': { label: 'Inspecting', color: 'text-amber-500', bgColor: 'bg-amber-500/10', icon: '🔍' },
+  'awaiting_parts': { label: 'Awaiting Parts', color: 'text-orange-500', bgColor: 'bg-orange-500/10', icon: '📦' },
+  'repairing': { label: 'Repairing', color: 'text-purple-500', bgColor: 'bg-purple-500/10', icon: '🔧' },
+  'testing': { label: 'Testing', color: 'text-cyan-500', bgColor: 'bg-cyan-500/10', icon: '🧪' },
+  'ready': { label: 'Ready', color: 'text-green-500', bgColor: 'bg-green-500/10', icon: '✅' },
+  'completed': { label: 'Completed', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', icon: '🎉' }
 };
 
 export function Warranties() {
@@ -84,6 +105,10 @@ export function Warranties() {
 
   // Claims state for CRUD operations
   const [claims, setClaims] = useState<WarrantyClaim[]>(mockWarrantyClaims);
+  
+  // Customer and Invoice state for credit-warranty integration
+  const [customers, setCustomers] = useState<Customer[]>(initialMockCustomers);
+  const [invoices, setInvoices] = useState<Invoice[]>(initialMockInvoices);
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -125,7 +150,7 @@ export function Warranties() {
 
   const customerOptions = [
     { value: '', label: 'All Customers' },
-    ...mockCustomers.map((c) => ({ value: c.id, label: c.name })),
+    ...customers.map((c) => ({ value: c.id, label: c.name })),
   ];
 
   // Filtered and sorted claims
@@ -197,13 +222,36 @@ export function Warranties() {
   const totalPages = Math.ceil(filteredClaims.length / itemsPerPage);
   const paginatedClaims = filteredClaims.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // Analytics
+  // Analytics with credit impact tracking
   const analytics = useMemo(() => {
     const pending = claims.filter((c) => c.status === 'pending' || c.status === 'under-review').length;
     const resolved = claims.filter((c) => ['approved', 'replaced', 'repaired'].includes(c.status)).length;
     const rejected = claims.filter((c) => c.status === 'rejected').length;
     const replacements = claims.filter((c) => c.isReplacement).length;
-    return { pending, resolved, rejected, replacements, total: claims.length };
+    
+    // Calculate total credits issued from warranty claims
+    const totalCreditsIssued = claims.reduce((sum, claim) => {
+      return sum + (claim.financialImpact?.creditAmount || 0);
+    }, 0);
+    
+    // Claims with financial impact
+    const claimsWithCredits = claims.filter(c => c.financialImpact?.creditAmount && c.financialImpact.creditAmount > 0).length;
+    
+    // Workflow stats
+    const inProgress = claims.filter(c => c.workflow?.stage && !['completed', 'ready'].includes(c.workflow.stage)).length;
+    const urgentClaims = claims.filter(c => c.workflow?.priorityLevel === 'urgent').length;
+    
+    return { 
+      pending, 
+      resolved, 
+      rejected, 
+      replacements, 
+      total: claims.length,
+      totalCreditsIssued,
+      claimsWithCredits,
+      inProgress,
+      urgentClaims
+    };
   }, [claims]);
 
   // CRUD Handlers
@@ -228,6 +276,93 @@ export function Warranties() {
     } else {
       setClaims((prev) => [...prev, claim]);
     }
+  };
+  
+  /**
+   * Apply warranty credit to customer - reduces customer credit balance
+   * This is called when a warranty claim results in a credit/refund
+   * @reserved - Available for UI integration when status update modal triggers credit processing
+   */
+  const handleApplyWarrantyCredit = (claimId: string, creditAmount: number, creditType: 'full_refund' | 'partial_refund' | 'credit_note') => {
+    const claim = claims.find(c => c.id === claimId);
+    if (!claim) return;
+    
+    const customer = customers.find(c => c.id === claim.customerId);
+    const invoice = invoices.find(inv => inv.id === claim.invoiceId);
+    if (!customer || !invoice) return;
+    
+    // Update claim with financial impact
+    setClaims(prev => prev.map(c => {
+      if (c.id === claimId) {
+        const invoiceItem = invoice.items[c.invoiceItemIndex || 0];
+        return {
+          ...c,
+          financialImpact: {
+            type: creditType,
+            originalItemValue: invoiceItem?.total || 0,
+            creditAmount,
+            processedDate: new Date().toISOString(),
+            creditTransactionId: `WC-${Date.now()}`
+          }
+        };
+      }
+      return c;
+    }));
+    
+    // Update customer credit balance
+    setCustomers(prev => prev.map(c => {
+      if (c.id === claim.customerId) {
+        const newCreditBalance = Math.max(0, c.creditBalance - creditAmount);
+        return {
+          ...c,
+          creditBalance: newCreditBalance,
+          creditStatus: newCreditBalance === 0 ? 'clear' : c.creditStatus
+        };
+      }
+      return c;
+    }));
+    
+    // Update invoice with warranty credit
+    setInvoices(prev => prev.map(inv => {
+      if (inv.id === claim.invoiceId) {
+        return {
+          ...inv,
+          warrantyCredits: [...(inv.warrantyCredits || []), {
+            warrantyClaimId: claimId,
+            amount: creditAmount,
+            date: new Date().toISOString()
+          }]
+        };
+      }
+      return inv;
+    }));
+  };
+  
+  /**
+   * Update warranty claim workflow stage
+   * @reserved - Available for UI integration via status update modal
+   */
+  const handleUpdateWorkflowStage = (claimId: string, newStage: string, notes?: string) => {
+    setClaims(prev => prev.map(claim => {
+      if (claim.id === claimId) {
+        const existingHistory = claim.workflow?.history || [];
+        return {
+          ...claim,
+          workflow: {
+            ...claim.workflow,
+            stage: newStage as any,
+            history: [...existingHistory, {
+              stage: newStage,
+              date: new Date().toISOString(),
+              notes,
+              updatedBy: 'Admin'
+            }],
+            priorityLevel: claim.workflow?.priorityLevel || 'normal'
+          }
+        };
+      }
+      return claim;
+    }));
   };
 
   const handleConfirmDelete = () => {
@@ -483,10 +618,70 @@ export function Warranties() {
             </div>
           </div>
 
+          {/* Workflow Stage Badge - Shows current processing stage */}
+          {claim.workflow?.stage && (
+            <div className={`flex items-center gap-2 mt-3 px-3 py-2 rounded-lg ${
+              workflowStageConfig[claim.workflow.stage]?.bgColor || 'bg-slate-500/10'
+            }`}>
+              <span className="text-sm">{workflowStageConfig[claim.workflow.stage]?.icon || '📋'}</span>
+              <span className={`text-sm font-medium ${workflowStageConfig[claim.workflow.stage]?.color || 'text-slate-500'}`}>
+                {workflowStageConfig[claim.workflow.stage]?.label || claim.workflow.stage}
+              </span>
+              {claim.financialImpact?.creditAmount && claim.financialImpact.creditAmount > 0 && (
+                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${
+                  theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
+                }`}>
+                  -Rs.{claim.financialImpact.creditAmount.toLocaleString()}
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Issue Description Preview */}
           <div className={`p-3 mt-3 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50 border border-slate-700/50' : 'bg-slate-50 border border-slate-200'}`}>
             <p className={`text-sm line-clamp-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{claim.issueDescription}</p>
           </div>
+          
+          {/* Quick Workflow Actions - Advance to next stage */}
+          {claim.workflow?.stage && claim.workflow.stage !== 'completed' && (
+            <div className={`flex items-center gap-2 mt-3 p-2 rounded-lg ${
+              theme === 'dark' ? 'bg-slate-800/30' : 'bg-slate-50'
+            }`}>
+              <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Quick:</span>
+              {(() => {
+                const stages = ['received', 'inspecting', 'awaiting_parts', 'repairing', 'testing', 'ready', 'completed'];
+                const currentIndex = stages.indexOf(claim.workflow.stage);
+                const nextStage = stages[currentIndex + 1];
+                if (!nextStage) return null;
+                return (
+                  <button
+                    onClick={() => handleUpdateWorkflowStage(claim.id, nextStage, 'Quick advance from card')}
+                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      theme === 'dark' 
+                        ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20' 
+                        : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
+                    }`}
+                  >
+                    <CheckCircle className="w-3 h-3" />
+                    Move to {workflowStageConfig[nextStage]?.label || nextStage}
+                  </button>
+                );
+              })()}
+              {['approved', 'replaced', 'repaired'].includes(claim.status) && !claim.financialImpact?.creditAmount && (
+                <button
+                  onClick={() => handleApplyWarrantyCredit(claim.id, 0, 'credit_note')}
+                  className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium transition-colors ${
+                    theme === 'dark' 
+                      ? 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20' 
+                      : 'bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200'
+                  }`}
+                >
+                  <DollarSign className="w-3 h-3" />
+                  Credit
+                </button>
+              )}
+            </div>
+          )}
           
           {/* Actions */}
           <div className={`flex gap-2 pt-3 mt-3 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
@@ -632,8 +827,8 @@ export function Warranties() {
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      {/* Stats Cards - Enhanced with Credit & Workflow tracking */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
@@ -658,6 +853,17 @@ export function Warranties() {
         </div>
         <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center">
+              <Wrench className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{analytics.inProgress}</p>
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>In Progress</p>
+            </div>
+          </div>
+        </div>
+        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-emerald-400" />
             </div>
@@ -670,11 +876,11 @@ export function Warranties() {
         <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center">
-              <XCircle className="w-5 h-5 text-red-400" />
+              <Zap className="w-5 h-5 text-red-400" />
             </div>
             <div>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{analytics.rejected}</p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Rejected</p>
+              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{analytics.urgentClaims}</p>
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Urgent</p>
             </div>
           </div>
         </div>
@@ -686,6 +892,22 @@ export function Warranties() {
             <div>
               <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{analytics.replacements}</p>
               <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Replacements</p>
+            </div>
+          </div>
+        </div>
+        {/* Credit Impact Card */}
+        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border-emerald-500/30' : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 shadow-sm'}`}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <p className={`text-lg font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                Rs.{analytics.totalCreditsIssued.toLocaleString()}
+              </p>
+              <p className={`text-xs ${theme === 'dark' ? 'text-emerald-500/70' : 'text-emerald-600/70'}`}>
+                Credits Issued ({analytics.claimsWithCredits})
+              </p>
             </div>
           </div>
         </div>

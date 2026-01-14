@@ -218,8 +218,8 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 ${
+      {/* Modal - Full scroll */}
+      <div className={`relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 ${
         theme === 'dark' ? 'bg-slate-900' : 'bg-white'
       }`}>
         {/* Header with gradient */}
@@ -273,7 +273,7 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-220px)]">
+        <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-5">
             {/* Basic Info Tab */}
             {activeTab === 'basic' && (

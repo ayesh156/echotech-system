@@ -5,7 +5,7 @@ import {
   Package, FileText, Users, LayoutDashboard, Settings, 
   Moon, Sun, Menu, X, ChevronLeft, ChevronRight, Bell, Search,
   User, HelpCircle, ChevronDown, Sparkles, TrendingUp,
-  FolderTree, Building, Shield, Truck
+  FolderTree, Building, Shield, Truck, ClipboardCheck
 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import logoImage from '../assets/logo.jpg';
@@ -46,6 +46,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: '/brands', icon: Building, label: 'Brands', badge: null },
     { path: '/customers', icon: Users, label: 'Customers', badge: '3' },
     { path: '/suppliers', icon: Truck, label: 'Suppliers', badge: '2' },
+    { path: '/grn', icon: ClipboardCheck, label: 'GRN', badge: null },
     { path: '/reports', icon: TrendingUp, label: 'Reports', badge: null },
   ];
 

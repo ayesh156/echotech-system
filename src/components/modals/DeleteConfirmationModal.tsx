@@ -27,7 +27,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className={`rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border ${
+      <div className={`rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl border ${
         theme === 'dark' 
           ? 'bg-slate-900 border-slate-700/50' 
           : 'bg-white border-slate-200'

@@ -1,7 +1,11 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { mockCustomers, mockWhatsAppSettings, mockInvoices } from '../data/mockData';
-import type { Customer, Invoice } from '../data/mockData';
+import { 
+  mockCustomers, 
+  mockWhatsAppSettings, 
+  mockInvoices
+} from '../data/mockData';
+import type { Customer, Invoice, CustomerPayment } from '../data/mockData';
 import { CustomerFormModal } from '../components/modals/CustomerFormModal';
 import { DeleteConfirmationModal } from '../components/modals/DeleteConfirmationModal';
 import { CustomerStatementModal } from '../components/modals/CustomerStatementModal';
@@ -401,57 +405,218 @@ export const Customers: React.FC = () => {
 
   type PaymentMethod = 'cash' | 'bank' | 'card' | 'cheque';
 
+  /**
+   * Handle payment from invoice - Updates both invoice and customer credit
+   * This creates a bi-directional sync between invoice payments and customer credit
+   */
   const handleMarkInvoiceAsPaid = (invoiceId: string, amount: number, paymentMethod: PaymentMethod = 'cash', notes?: string) => {
-    // Create payment history entry
-    const paymentEntry = {
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return;
+
+    // Create payment entry with source tracking
+    const paymentEntry: CustomerPayment = {
       id: `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       invoiceId,
       amount,
       paymentDate: new Date().toISOString(),
       paymentMethod,
-      notes
+      notes,
+      source: 'invoice', // Payment initiated from invoice
+      appliedToInvoices: [{ invoiceId, amount }]
     };
 
-    // Update invoice
+    // Update invoice with payment
     setInvoices(prev => prev.map(inv => {
       if (inv.id === invoiceId) {
-        const newPaidAmount = (inv.paidAmount || 0) + amount;
-        const newStatus = newPaidAmount >= inv.total ? 'fullpaid' : 'halfpay';
-        return { ...inv, paidAmount: newPaidAmount, status: newStatus };
+        const newPaidAmount = Math.min((inv.paidAmount || 0) + amount, inv.total);
+        const newStatus = newPaidAmount >= inv.total ? 'fullpaid' : newPaidAmount > 0 ? 'halfpay' : 'unpaid';
+        
+        return { 
+          ...inv, 
+          paidAmount: newPaidAmount, 
+          status: newStatus,
+          lastPaymentDate: new Date().toISOString(),
+          payments: [...(inv.payments || []), {
+            id: paymentEntry.id,
+            invoiceId,
+            amount,
+            paymentDate: new Date().toISOString(),
+            paymentMethod,
+            notes
+          }],
+          // Track credit settlement
+          creditSettlements: [...(inv.creditSettlements || []), {
+            paymentId: paymentEntry.id,
+            amount,
+            date: new Date().toISOString()
+          }]
+        };
       }
       return inv;
     }));
 
-    // Update customer credit balance and add payment history
+    // Bi-directional sync: Update customer credit balance
     if (customerForStatement) {
       setCustomers(prev => prev.map(c => {
         if (c.id === customerForStatement.id) {
           const newCreditBalance = Math.max(0, c.creditBalance - amount);
-          const newStatus = newCreditBalance === 0 ? 'clear' : c.creditStatus;
-          const existingHistory = c.paymentHistory || [];
+          
+          // Determine new credit status
+          let newStatus: 'clear' | 'active' | 'overdue' = c.creditStatus;
+          if (newCreditBalance === 0) {
+            newStatus = 'clear';
+          }
+          
+          // Update creditInvoices - remove if fully paid
+          const updatedInvoice = invoices.find(inv => inv.id === invoiceId);
+          const isNowFullyPaid = updatedInvoice && ((updatedInvoice.paidAmount || 0) + amount >= updatedInvoice.total);
+          const newCreditInvoices = isNowFullyPaid 
+            ? (c.creditInvoices || []).filter(id => id !== invoiceId)
+            : c.creditInvoices || [];
+          
           return { 
             ...c, 
             creditBalance: newCreditBalance, 
             creditStatus: newStatus,
-            paymentHistory: [...existingHistory, paymentEntry]
+            creditInvoices: newCreditInvoices,
+            paymentHistory: [...(c.paymentHistory || []), paymentEntry]
           };
         }
         return c;
       }));
 
-      // Update the customerForStatement state as well so the modal shows updated history
+      // Update customerForStatement for immediate UI update
       setCustomerForStatement(prev => {
         if (!prev) return prev;
-        const existingHistory = prev.paymentHistory || [];
+        const newCreditBalance = Math.max(0, prev.creditBalance - amount);
+        const updatedInvoice = invoices.find(inv => inv.id === invoiceId);
+        const isNowFullyPaid = updatedInvoice && ((updatedInvoice.paidAmount || 0) + amount >= updatedInvoice.total);
+        
         return {
           ...prev,
-          creditBalance: Math.max(0, prev.creditBalance - amount),
-          creditStatus: Math.max(0, prev.creditBalance - amount) === 0 ? 'clear' : prev.creditStatus,
-          paymentHistory: [...existingHistory, paymentEntry]
+          creditBalance: newCreditBalance,
+          creditStatus: newCreditBalance === 0 ? 'clear' : prev.creditStatus,
+          creditInvoices: isNowFullyPaid 
+            ? (prev.creditInvoices || []).filter(id => id !== invoiceId)
+            : prev.creditInvoices || [],
+          paymentHistory: [...(prev.paymentHistory || []), paymentEntry]
         };
       });
     }
   };
+
+  /**
+   * Handle bulk credit payment from customer side
+   * Distributes payment across unpaid invoices (oldest first)
+   * @reserved - Available for future multi-invoice payment UI
+   */
+  // @ts-expect-error Reserved for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleCustomerCreditPayment = useCallback((customerId: string, totalAmount: number, paymentMethod: PaymentMethod, notes?: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    if (!customer) return;
+
+    // Apply payment to invoices using helper function logic
+    const customerCreditInvoices = invoices
+      .filter(inv => inv.customerId === customerId && inv.status !== 'fullpaid')
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()); // Pay oldest first
+
+    let remainingPayment = totalAmount;
+    const paymentDistribution: { invoiceId: string; amount: number }[] = [];
+    const updatedInvoices = [...invoices];
+
+    for (const invoice of customerCreditInvoices) {
+      if (remainingPayment <= 0) break;
+
+      const invoiceBalance = invoice.total - (invoice.paidAmount || 0);
+      const paymentForThisInvoice = Math.min(remainingPayment, invoiceBalance);
+
+      if (paymentForThisInvoice > 0) {
+        paymentDistribution.push({ invoiceId: invoice.id, amount: paymentForThisInvoice });
+        remainingPayment -= paymentForThisInvoice;
+
+        // Update invoice in array
+        const idx = updatedInvoices.findIndex(i => i.id === invoice.id);
+        if (idx >= 0) {
+          const newPaidAmount = (updatedInvoices[idx].paidAmount || 0) + paymentForThisInvoice;
+          const newStatus = newPaidAmount >= updatedInvoices[idx].total ? 'fullpaid' : 'halfpay';
+
+          updatedInvoices[idx] = {
+            ...updatedInvoices[idx],
+            paidAmount: newPaidAmount,
+            status: newStatus,
+            lastPaymentDate: new Date().toISOString(),
+            payments: [...(updatedInvoices[idx].payments || []), {
+              id: `pay-${Date.now()}-${invoice.id}`,
+              invoiceId: invoice.id,
+              amount: paymentForThisInvoice,
+              paymentDate: new Date().toISOString(),
+              paymentMethod,
+              notes: `Part of bulk payment: ${notes || ''}`
+            }],
+            creditSettlements: [...(updatedInvoices[idx].creditSettlements || []), {
+              paymentId: `pay-${Date.now()}-${invoice.id}`,
+              amount: paymentForThisInvoice,
+              date: new Date().toISOString()
+            }]
+          };
+        }
+      }
+    }
+
+    // Update invoices state
+    setInvoices(updatedInvoices);
+
+    // Create customer payment entry
+    const paymentEntry: CustomerPayment = {
+      id: `CP-${Date.now()}`,
+      invoiceId: paymentDistribution.length === 1 ? paymentDistribution[0].invoiceId : 'BULK',
+      amount: totalAmount,
+      paymentDate: new Date().toISOString(),
+      paymentMethod,
+      notes: notes || `Payment distributed to ${paymentDistribution.length} invoice(s)`,
+      source: 'customer',
+      appliedToInvoices: paymentDistribution
+    };
+
+    // Update customer
+    const newCreditBalance = Math.max(0, customer.creditBalance - totalAmount);
+    const fullyPaidInvoiceIds = paymentDistribution
+      .filter(pd => {
+        const inv = updatedInvoices.find(i => i.id === pd.invoiceId);
+        return inv && inv.status === 'fullpaid';
+      })
+      .map(pd => pd.invoiceId);
+
+    setCustomers(prev => prev.map(c => {
+      if (c.id === customerId) {
+        return {
+          ...c,
+          creditBalance: newCreditBalance,
+          creditStatus: newCreditBalance === 0 ? 'clear' : c.creditStatus,
+          creditInvoices: (c.creditInvoices || []).filter(id => !fullyPaidInvoiceIds.includes(id)),
+          paymentHistory: [...(c.paymentHistory || []), paymentEntry]
+        };
+      }
+      return c;
+    }));
+
+    // Update customerForStatement if it matches
+    if (customerForStatement?.id === customerId) {
+      setCustomerForStatement(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          creditBalance: newCreditBalance,
+          creditStatus: newCreditBalance === 0 ? 'clear' : prev.creditStatus,
+          creditInvoices: (prev.creditInvoices || []).filter(id => !fullyPaidInvoiceIds.includes(id)),
+          paymentHistory: [...(prev.paymentHistory || []), paymentEntry]
+        };
+      });
+    }
+
+    return paymentDistribution;
+  }, [customers, invoices, customerForStatement]);
 
   const handleSendInvoiceReminder = (invoice: Invoice, type: 'friendly' | 'urgent') => {
     if (!whatsAppSettings.enabled) {

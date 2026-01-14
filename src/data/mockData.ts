@@ -84,6 +84,8 @@ export interface Customer {
   creditStatus: 'clear' | 'active' | 'overdue'; // Credit status
   // Payment history
   paymentHistory?: CustomerPayment[];
+  // Credit-Invoice linking
+  creditInvoices?: string[]; // IDs of invoices contributing to credit balance
 }
 
 // Customer Payment History
@@ -93,6 +95,37 @@ export interface CustomerPayment {
   amount: number;
   paymentDate: string; // ISO date with time
   paymentMethod: 'cash' | 'bank' | 'card' | 'cheque';
+  notes?: string;
+  // Source tracking for bi-directional sync
+  source: 'invoice' | 'customer'; // Where payment was initiated
+  appliedToInvoices?: { invoiceId: string; amount: number }[]; // How payment was distributed
+}
+
+// Credit Payment Transaction - For tracking credit settlements between invoice and customer
+export interface CreditTransaction {
+  id: string;
+  customerId: string;
+  invoiceId?: string; // Optional: direct invoice payment
+  type: 'invoice_payment' | 'customer_payment' | 'warranty_credit' | 'adjustment';
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  transactionDate: string;
+  paymentMethod: 'cash' | 'bank' | 'card' | 'cheque';
+  notes?: string;
+  recordedBy?: string;
+}
+
+// Warranty Credit - When warranty replacement reduces customer debt
+export interface WarrantyCredit {
+  id: string;
+  warrantyClaimId: string;
+  customerId: string;
+  invoiceId: string;
+  originalAmount: number;
+  creditAmount: number; // Amount credited back to customer
+  reason: 'full_refund' | 'partial_refund' | 'replacement_discount' | 'repair_credit';
+  processedDate: string;
   notes?: string;
 }
 
@@ -118,6 +151,77 @@ export interface Supplier {
   notes?: string;
   rating: number; // 1-5 supplier rating
   categories: string[]; // Product categories they supply
+}
+
+// ==========================================
+// GRN (Goods Received Note) System
+// ==========================================
+
+// GRN Status types
+export type GRNStatus = 'pending' | 'inspecting' | 'partial' | 'completed' | 'rejected';
+export type GRNItemStatus = 'pending' | 'accepted' | 'rejected' | 'partial';
+
+// GRN Item - Individual product in a GRN
+export interface GRNItem {
+  id: string;
+  productId: string;
+  productName: string;
+  category: string;
+  orderedQuantity: number;
+  receivedQuantity: number;
+  acceptedQuantity: number;
+  rejectedQuantity: number;
+  unitPrice: number;
+  totalAmount: number; // acceptedQuantity * unitPrice
+  status: GRNItemStatus;
+  rejectionReason?: string;
+  qualityNotes?: string;
+  batchNumber?: string;
+  expiryDate?: string;
+  serialNumbers?: string[]; // For serialized items
+}
+
+// Main GRN Interface
+export interface GoodsReceivedNote {
+  id: string;
+  grnNumber: string; // GRN-2026-0001 format
+  supplierId: string;
+  supplierName: string;
+  purchaseOrderId?: string; // Reference to PO if exists
+  // Dates
+  orderDate: string;
+  expectedDeliveryDate: string;
+  receivedDate: string;
+  // Items
+  items: GRNItem[];
+  // Totals
+  totalOrderedQuantity: number;
+  totalReceivedQuantity: number;
+  totalAcceptedQuantity: number;
+  totalRejectedQuantity: number;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  // Status & Workflow
+  status: GRNStatus;
+  inspectedBy?: string;
+  inspectionDate?: string;
+  approvedBy?: string;
+  approvalDate?: string;
+  // Receiving info
+  receivedBy: string;
+  deliveryNote?: string;
+  vehicleNumber?: string;
+  driverName?: string;
+  // Payment linking
+  linkedPurchaseId?: string;
+  // Notes
+  notes?: string;
+  internalNotes?: string;
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Supplier Purchase interface for tracking products bought from suppliers
@@ -155,6 +259,17 @@ export interface SupplierPayment {
   notes?: string;
 }
 
+// Invoice Payment History - for tracking partial/credit payments
+export interface InvoicePayment {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  paymentDate: string; // ISO date with time
+  paymentMethod: 'cash' | 'card' | 'bank' | 'cheque';
+  notes?: string;
+  recordedBy?: string; // Staff who recorded the payment
+}
+
 export interface Invoice {
   id: string;
   customerId: string;
@@ -169,6 +284,13 @@ export interface Invoice {
   dueDate: string;
   paymentMethod?: 'cash' | 'card' | 'bank_transfer' | 'credit';
   salesChannel?: 'on-site' | 'online';
+  // Payment history tracking
+  payments?: InvoicePayment[];
+  lastPaymentDate?: string; // Last payment date
+  // Credit linking fields
+  creditContribution?: number; // How much of this invoice is on credit
+  creditSettlements?: { paymentId: string; amount: number; date: string }[]; // Credit payments applied to this invoice
+  warrantyCredits?: { warrantyClaimId: string; amount: number; date: string }[]; // Credits from warranty claims
 }
 
 export interface InvoiceItem {
@@ -226,6 +348,22 @@ export interface WarrantyClaim {
   notes?: string;
   attachments?: string[]; // URLs or file paths
   handledBy?: string; // Staff member who handled the claim
+  // Financial impact - Credit/Refund handling
+  financialImpact?: {
+    type: 'no_impact' | 'full_refund' | 'partial_refund' | 'credit_note' | 'free_replacement' | 'paid_replacement';
+    originalItemValue: number;
+    creditAmount?: number; // Amount credited to customer
+    additionalCharges?: number; // If paid replacement with price difference
+    creditTransactionId?: string; // Link to CreditTransaction
+    processedDate?: string;
+  };
+  // Workflow tracking
+  workflow?: {
+    stage: 'received' | 'inspecting' | 'awaiting_parts' | 'repairing' | 'testing' | 'ready' | 'completed';
+    history: { stage: string; date: string; notes?: string; updatedBy?: string }[];
+    estimatedCompletionDate?: string;
+    priorityLevel: 'normal' | 'high' | 'urgent';
+  };
 }
 
 // Helper function to generate unique 8-digit numeric serial number based on timestamp
@@ -266,16 +404,16 @@ export const mockProducts: Product[] = [
 // Export the helper function for use in other files
 export { generateSerialNumber };
 
-// Customers with credit management
+// Customers with credit management - creditInvoices links to invoices contributing to credit
 export const mockCustomers: Customer[] = [
-  { id: '1', name: 'Kasun Perera', email: 'kasun@gmail.com', phone: '078-3233760', address: 'No. 12, Galle Road, Colombo', totalSpent: 580000, totalOrders: 5, lastPurchase: '2024-01-15', creditBalance: 0, creditLimit: 100000, creditStatus: 'clear' },
-  { id: '2', name: 'Nimali Fernando', email: 'nimali@email.com', phone: '078-3233760', address: '12A, Kandy Rd, Kurunegala', totalSpent: 320000, totalOrders: 3, lastPurchase: '2024-01-10', creditBalance: 45000, creditLimit: 150000, creditDueDate: '2026-01-20', creditStatus: 'active' },
-  { id: '3', name: 'Tech Solutions Ltd', email: 'info@techsol.lk', phone: '078-3233760', address: 'No. 45, Industrial Estate, Colombo 15', totalSpent: 2500000, totalOrders: 18, lastPurchase: '2024-01-18', creditBalance: 350000, creditLimit: 500000, creditDueDate: '2026-01-05', creditStatus: 'overdue' },
-  { id: '4', name: 'Dilshan Silva', email: 'dilshan.s@hotmail.com', phone: '078-3233760', address: '78/2, Hill Street, Kandy', totalSpent: 185000, totalOrders: 2, lastPurchase: '2024-01-05', creditBalance: 0, creditLimit: 50000, creditStatus: 'clear' },
-  { id: '5', name: 'GameZone Café', email: 'contact@gamezone.lk', phone: '078-3233760', address: 'Shop 5, Arcade Mall, Colombo', totalSpent: 3200000, totalOrders: 25, lastPurchase: '2024-01-20', creditBalance: 420000, creditLimit: 800000, creditDueDate: '2026-02-15', creditStatus: 'active' },
-  { id: '6', name: 'Priya Jayawardena', email: 'priya.j@yahoo.com', phone: '078-3233760', address: 'No. 7, Lake Road, Galle', totalSpent: 95000, totalOrders: 1, lastPurchase: '2024-01-12', creditBalance: 15000, creditLimit: 30000, creditDueDate: '2026-01-08', creditStatus: 'overdue' },
-  { id: '7', name: 'Creative Studios', email: 'studio@creative.lk', phone: '078-3233760', address: 'Studio 3, Art Lane, Colombo', totalSpent: 1850000, totalOrders: 12, lastPurchase: '2024-01-16', creditBalance: 180000, creditLimit: 300000, creditDueDate: '2026-01-25', creditStatus: 'active' },
-  { id: '8', name: 'Sanjay Mendis', email: 'sanjay.m@gmail.com', phone: '078-3233760', address: 'No. 21, Thotalanga Road, Colombo', totalSpent: 420000, totalOrders: 4, lastPurchase: '2024-01-08', creditBalance: 0, creditLimit: 75000, creditStatus: 'clear' },
+  { id: '1', name: 'Kasun Perera', email: 'kasun@gmail.com', phone: '078-3233760', address: 'No. 12, Galle Road, Colombo', totalSpent: 580000, totalOrders: 5, lastPurchase: '2024-01-15', creditBalance: 0, creditLimit: 100000, creditStatus: 'clear', creditInvoices: [] },
+  { id: '2', name: 'Nimali Fernando', email: 'nimali@email.com', phone: '078-3233760', address: '12A, Kandy Rd, Kurunegala', totalSpent: 320000, totalOrders: 3, lastPurchase: '2024-01-10', creditBalance: 148500, creditLimit: 200000, creditDueDate: '2026-01-20', creditStatus: 'active', creditInvoices: ['10250012'] }, // 103500 unpaid from invoice 10250012 + 45000 previous
+  { id: '3', name: 'Tech Solutions Ltd', email: 'info@techsol.lk', phone: '078-3233760', address: 'No. 45, Industrial Estate, Colombo 15', totalSpent: 2500000, totalOrders: 18, lastPurchase: '2024-01-18', creditBalance: 488000, creditLimit: 1000000, creditDueDate: '2026-01-05', creditStatus: 'overdue', creditInvoices: ['10250010'] }, // remaining on 10250010 (1288000 - 800000)
+  { id: '4', name: 'Dilshan Silva', email: 'dilshan.s@hotmail.com', phone: '078-3233760', address: '78/2, Hill Street, Kandy', totalSpent: 185000, totalOrders: 2, lastPurchase: '2024-01-05', creditBalance: 72500, creditLimit: 100000, creditDueDate: '2026-02-01', creditStatus: 'active', creditInvoices: ['10240006'] }, // 172500 - 100000 paid = 72500
+  { id: '5', name: 'GameZone Café', email: 'contact@gamezone.lk', phone: '078-3233760', address: 'Shop 5, Arcade Mall, Colombo', totalSpent: 3200000, totalOrders: 25, lastPurchase: '2024-01-20', creditBalance: 1231250, creditLimit: 1500000, creditDueDate: '2026-02-15', creditStatus: 'active', creditInvoices: ['10240003'] }, // 2731250 - 1500000 paid = 1231250
+  { id: '6', name: 'Priya Jayawardena', email: 'priya.j@yahoo.com', phone: '078-3233760', address: 'No. 7, Lake Road, Galle', totalSpent: 95000, totalOrders: 1, lastPurchase: '2024-01-12', creditBalance: 0, creditLimit: 50000, creditStatus: 'clear', creditInvoices: [] },
+  { id: '7', name: 'Creative Studios', email: 'studio@creative.lk', phone: '078-3233760', address: 'Studio 3, Art Lane, Colombo', totalSpent: 1850000, totalOrders: 12, lastPurchase: '2024-01-16', creditBalance: 1322500, creditLimit: 1500000, creditDueDate: '2026-01-25', creditStatus: 'active', creditInvoices: ['10240005'] }, // Full invoice unpaid
+  { id: '8', name: 'Sanjay Mendis', email: 'sanjay.m@gmail.com', phone: '078-3233760', address: 'No. 21, Thotalanga Road, Colombo', totalSpent: 420000, totalOrders: 4, lastPurchase: '2024-01-08', creditBalance: 0, creditLimit: 100000, creditStatus: 'clear', creditInvoices: [] },
 ];
 
 // Suppliers with credit management
@@ -527,6 +665,1183 @@ export const mockSuppliers: Supplier[] = [
     bankDetails: 'Seylan - 4455667788',
     rating: 5,
     categories: ['Graphics Cards', 'Monitors']
+  },
+];
+
+// ==========================================
+// Mock GRN Data
+// ==========================================
+export const mockGRNs: GoodsReceivedNote[] = [
+  {
+    id: 'grn-001',
+    grnNumber: 'GRN-2026-0001',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    orderDate: '2026-01-05',
+    expectedDeliveryDate: '2026-01-08',
+    receivedDate: '2026-01-08',
+    items: [
+      {
+        id: 'grn-item-001',
+        productId: '1',
+        productName: 'AMD Ryzen 9 7950X',
+        category: 'Processors',
+        orderedQuantity: 10,
+        receivedQuantity: 10,
+        acceptedQuantity: 10,
+        rejectedQuantity: 0,
+        unitPrice: 165000,
+        totalAmount: 1650000,
+        status: 'accepted',
+        batchNumber: 'BATCH-AMD-2026-001',
+      },
+      {
+        id: 'grn-item-002',
+        productId: '8',
+        productName: 'Corsair Vengeance DDR5 32GB',
+        category: 'Memory',
+        orderedQuantity: 20,
+        receivedQuantity: 18,
+        acceptedQuantity: 18,
+        rejectedQuantity: 0,
+        unitPrice: 42000,
+        totalAmount: 756000,
+        status: 'partial',
+        qualityNotes: '2 units short delivery - supplier will send next week',
+      }
+    ],
+    totalOrderedQuantity: 30,
+    totalReceivedQuantity: 28,
+    totalAcceptedQuantity: 28,
+    totalRejectedQuantity: 0,
+    subtotal: 2406000,
+    discountAmount: 50000,
+    taxAmount: 0,
+    totalAmount: 2356000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2026-01-08',
+    approvedBy: 'Manager',
+    approvalDate: '2026-01-08',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-TZ-2026-0045',
+    vehicleNumber: 'WP CAB-1234',
+    driverName: 'Sunil Fernando',
+    linkedPurchaseId: 'sp-001',
+    notes: 'Bulk order received in good condition',
+    createdAt: '2026-01-08T09:30:00',
+    updatedAt: '2026-01-08T14:45:00',
+  },
+  {
+    id: 'grn-002',
+    grnNumber: 'GRN-2026-0002',
+    supplierId: '2',
+    supplierName: 'PC Parts Lanka',
+    orderDate: '2026-01-10',
+    expectedDeliveryDate: '2026-01-12',
+    receivedDate: '2026-01-12',
+    items: [
+      {
+        id: 'grn-item-003',
+        productId: '3',
+        productName: 'NVIDIA GeForce RTX 4090',
+        category: 'Graphics Cards',
+        orderedQuantity: 5,
+        receivedQuantity: 5,
+        acceptedQuantity: 4,
+        rejectedQuantity: 1,
+        unitPrice: 550000,
+        totalAmount: 2200000,
+        status: 'partial',
+        rejectionReason: 'Box damage - one unit has visible dent',
+        qualityNotes: 'Rejected unit returned to supplier for replacement',
+        serialNumbers: ['RTX4090-SN001', 'RTX4090-SN002', 'RTX4090-SN003', 'RTX4090-SN004'],
+      }
+    ],
+    totalOrderedQuantity: 5,
+    totalReceivedQuantity: 5,
+    totalAcceptedQuantity: 4,
+    totalRejectedQuantity: 1,
+    subtotal: 2200000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 2200000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2026-01-12',
+    approvedBy: 'Manager',
+    approvalDate: '2026-01-12',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-PPL-2026-0112',
+    notes: '1 unit rejected due to damage, replacement expected',
+    createdAt: '2026-01-12T10:15:00',
+    updatedAt: '2026-01-12T16:30:00',
+  },
+  {
+    id: 'grn-003',
+    grnNumber: 'GRN-2026-0003',
+    supplierId: '3',
+    supplierName: 'Digital Hub Pvt Ltd',
+    orderDate: '2026-01-13',
+    expectedDeliveryDate: '2026-01-14',
+    receivedDate: '',
+    items: [
+      {
+        id: 'grn-item-004',
+        productId: '5',
+        productName: 'Samsung 980 PRO 2TB NVMe SSD',
+        category: 'Storage',
+        orderedQuantity: 15,
+        receivedQuantity: 0,
+        acceptedQuantity: 0,
+        rejectedQuantity: 0,
+        unitPrice: 65000,
+        totalAmount: 0,
+        status: 'pending',
+      },
+      {
+        id: 'grn-item-005',
+        productId: '12',
+        productName: 'Corsair RM1000x 1000W PSU',
+        category: 'Power Supply',
+        orderedQuantity: 10,
+        receivedQuantity: 0,
+        acceptedQuantity: 0,
+        rejectedQuantity: 0,
+        unitPrice: 48000,
+        totalAmount: 0,
+        status: 'pending',
+      }
+    ],
+    totalOrderedQuantity: 25,
+    totalReceivedQuantity: 0,
+    totalAcceptedQuantity: 0,
+    totalRejectedQuantity: 0,
+    subtotal: 1455000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 1455000,
+    status: 'pending',
+    receivedBy: '',
+    notes: 'Awaiting delivery - expected today',
+    createdAt: '2026-01-13T11:00:00',
+    updatedAt: '2026-01-13T11:00:00',
+  },
+  {
+    id: 'grn-004',
+    grnNumber: 'GRN-2026-0004',
+    supplierId: '4',
+    supplierName: 'Memory World',
+    orderDate: '2026-01-11',
+    expectedDeliveryDate: '2026-01-13',
+    receivedDate: '2026-01-13',
+    items: [
+      {
+        id: 'grn-item-006',
+        productId: '6',
+        productName: 'G.Skill Trident Z5 RGB 64GB DDR5',
+        category: 'Memory',
+        orderedQuantity: 12,
+        receivedQuantity: 12,
+        acceptedQuantity: 0,
+        rejectedQuantity: 0,
+        unitPrice: 85000,
+        totalAmount: 0,
+        status: 'pending',
+        batchNumber: 'GSKILL-2026-B045',
+      }
+    ],
+    totalOrderedQuantity: 12,
+    totalReceivedQuantity: 12,
+    totalAcceptedQuantity: 0,
+    totalRejectedQuantity: 0,
+    subtotal: 1020000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 1020000,
+    status: 'inspecting',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-MW-2026-0089',
+    vehicleNumber: 'WP KA-5678',
+    notes: 'Quality inspection in progress',
+    createdAt: '2026-01-13T14:00:00',
+    updatedAt: '2026-01-14T09:00:00',
+  },
+  {
+    id: 'grn-005',
+    grnNumber: 'GRN-2026-0005',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    orderDate: '2025-12-28',
+    expectedDeliveryDate: '2025-12-30',
+    receivedDate: '2025-12-30',
+    items: [
+      {
+        id: 'grn-item-007',
+        productId: '2',
+        productName: 'Intel Core i9-14900K',
+        category: 'Processors',
+        orderedQuantity: 8,
+        receivedQuantity: 8,
+        acceptedQuantity: 8,
+        rejectedQuantity: 0,
+        unitPrice: 185000,
+        totalAmount: 1480000,
+        status: 'accepted',
+        batchNumber: 'INTEL-2025-B089',
+      }
+    ],
+    totalOrderedQuantity: 8,
+    totalReceivedQuantity: 8,
+    totalAcceptedQuantity: 8,
+    totalRejectedQuantity: 0,
+    subtotal: 1480000,
+    discountAmount: 30000,
+    taxAmount: 0,
+    totalAmount: 1450000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-12-30',
+    approvedBy: 'Manager',
+    approvalDate: '2025-12-30',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-TZ-2025-0298',
+    vehicleNumber: 'WP CAB-1234',
+    notes: 'Year-end stock replenishment',
+    createdAt: '2025-12-30T10:00:00',
+    updatedAt: '2025-12-30T15:30:00',
+  },
+  {
+    id: 'grn-006',
+    grnNumber: 'GRN-2026-0006',
+    supplierId: '2',
+    supplierName: 'PC Parts Lanka',
+    orderDate: '2026-01-02',
+    expectedDeliveryDate: '2026-01-04',
+    receivedDate: '2026-01-04',
+    items: [
+      {
+        id: 'grn-item-008',
+        productId: '4',
+        productName: 'AMD Radeon RX 7900 XTX',
+        category: 'Graphics Cards',
+        orderedQuantity: 6,
+        receivedQuantity: 6,
+        acceptedQuantity: 6,
+        rejectedQuantity: 0,
+        unitPrice: 385000,
+        totalAmount: 2310000,
+        status: 'accepted',
+        serialNumbers: ['RX7900-SN001', 'RX7900-SN002', 'RX7900-SN003', 'RX7900-SN004', 'RX7900-SN005', 'RX7900-SN006'],
+      }
+    ],
+    totalOrderedQuantity: 6,
+    totalReceivedQuantity: 6,
+    totalAcceptedQuantity: 6,
+    totalRejectedQuantity: 0,
+    subtotal: 2310000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 2310000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2026-01-04',
+    approvedBy: 'Manager',
+    approvalDate: '2026-01-04',
+    receivedBy: 'Sunil Fernando',
+    deliveryNote: 'DN-PPL-2026-0015',
+    vehicleNumber: 'WP KS-9876',
+    notes: 'GPU stock received in perfect condition',
+    createdAt: '2026-01-04T09:00:00',
+    updatedAt: '2026-01-04T14:00:00',
+  },
+  {
+    id: 'grn-007',
+    grnNumber: 'GRN-2026-0007',
+    supplierId: '3',
+    supplierName: 'Digital Hub Pvt Ltd',
+    orderDate: '2026-01-07',
+    expectedDeliveryDate: '2026-01-09',
+    receivedDate: '2026-01-09',
+    items: [
+      {
+        id: 'grn-item-009',
+        productId: '7',
+        productName: 'ASUS ROG Strix Z790-E Gaming',
+        category: 'Motherboards',
+        orderedQuantity: 10,
+        receivedQuantity: 10,
+        acceptedQuantity: 9,
+        rejectedQuantity: 1,
+        unitPrice: 125000,
+        totalAmount: 1125000,
+        status: 'partial',
+        rejectionReason: 'One unit has bent CPU socket pins',
+      },
+      {
+        id: 'grn-item-010',
+        productId: '9',
+        productName: 'MSI MEG Z790 ACE',
+        category: 'Motherboards',
+        orderedQuantity: 5,
+        receivedQuantity: 5,
+        acceptedQuantity: 5,
+        rejectedQuantity: 0,
+        unitPrice: 175000,
+        totalAmount: 875000,
+        status: 'accepted',
+      }
+    ],
+    totalOrderedQuantity: 15,
+    totalReceivedQuantity: 15,
+    totalAcceptedQuantity: 14,
+    totalRejectedQuantity: 1,
+    subtotal: 2000000,
+    discountAmount: 50000,
+    taxAmount: 0,
+    totalAmount: 1950000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2026-01-09',
+    approvedBy: 'Manager',
+    approvalDate: '2026-01-09',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-DH-2026-0078',
+    vehicleNumber: 'WP CAD-4567',
+    notes: 'Motherboard bulk order - 1 unit rejected',
+    createdAt: '2026-01-09T11:00:00',
+    updatedAt: '2026-01-09T16:00:00',
+  },
+  {
+    id: 'grn-008',
+    grnNumber: 'GRN-2026-0008',
+    supplierId: '4',
+    supplierName: 'Memory World',
+    orderDate: '2026-01-06',
+    expectedDeliveryDate: '2026-01-08',
+    receivedDate: '2026-01-08',
+    items: [
+      {
+        id: 'grn-item-011',
+        productId: '10',
+        productName: 'Kingston Fury Beast 32GB DDR5',
+        category: 'Memory',
+        orderedQuantity: 20,
+        receivedQuantity: 20,
+        acceptedQuantity: 20,
+        rejectedQuantity: 0,
+        unitPrice: 38000,
+        totalAmount: 760000,
+        status: 'accepted',
+        batchNumber: 'KFB-2026-001',
+      }
+    ],
+    totalOrderedQuantity: 20,
+    totalReceivedQuantity: 20,
+    totalAcceptedQuantity: 20,
+    totalRejectedQuantity: 0,
+    subtotal: 760000,
+    discountAmount: 20000,
+    taxAmount: 0,
+    totalAmount: 740000,
+    status: 'completed',
+    inspectedBy: 'Sunil Fernando',
+    inspectionDate: '2026-01-08',
+    approvedBy: 'Manager',
+    approvalDate: '2026-01-08',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-MW-2026-0056',
+    vehicleNumber: 'WP KH-2345',
+    notes: 'Memory modules - all passed quality check',
+    createdAt: '2026-01-08T10:30:00',
+    updatedAt: '2026-01-08T14:30:00',
+  },
+  {
+    id: 'grn-009',
+    grnNumber: 'GRN-2026-0009',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    orderDate: '2026-01-10',
+    expectedDeliveryDate: '2026-01-12',
+    receivedDate: '',
+    items: [
+      {
+        id: 'grn-item-012',
+        productId: '11',
+        productName: 'Seagate Barracuda 4TB HDD',
+        category: 'Storage',
+        orderedQuantity: 30,
+        receivedQuantity: 0,
+        acceptedQuantity: 0,
+        rejectedQuantity: 0,
+        unitPrice: 28000,
+        totalAmount: 0,
+        status: 'pending',
+      },
+      {
+        id: 'grn-item-013',
+        productId: '5',
+        productName: 'Samsung 980 PRO 2TB NVMe SSD',
+        category: 'Storage',
+        orderedQuantity: 25,
+        receivedQuantity: 0,
+        acceptedQuantity: 0,
+        rejectedQuantity: 0,
+        unitPrice: 65000,
+        totalAmount: 0,
+        status: 'pending',
+      }
+    ],
+    totalOrderedQuantity: 55,
+    totalReceivedQuantity: 0,
+    totalAcceptedQuantity: 0,
+    totalRejectedQuantity: 0,
+    subtotal: 2465000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 2465000,
+    status: 'pending',
+    receivedBy: '',
+    notes: 'Storage bulk order - awaiting shipment',
+    createdAt: '2026-01-10T09:00:00',
+    updatedAt: '2026-01-10T09:00:00',
+  },
+  {
+    id: 'grn-010',
+    grnNumber: 'GRN-2026-0010',
+    supplierId: '2',
+    supplierName: 'PC Parts Lanka',
+    orderDate: '2026-01-09',
+    expectedDeliveryDate: '2026-01-11',
+    receivedDate: '2026-01-11',
+    items: [
+      {
+        id: 'grn-item-014',
+        productId: '13',
+        productName: 'NZXT Kraken X73 RGB AIO',
+        category: 'Cooling',
+        orderedQuantity: 15,
+        receivedQuantity: 15,
+        acceptedQuantity: 15,
+        rejectedQuantity: 0,
+        unitPrice: 68000,
+        totalAmount: 1020000,
+        status: 'accepted',
+      },
+      {
+        id: 'grn-item-015',
+        productId: '14',
+        productName: 'Corsair iCUE H150i Elite LCD',
+        category: 'Cooling',
+        orderedQuantity: 8,
+        receivedQuantity: 8,
+        acceptedQuantity: 8,
+        rejectedQuantity: 0,
+        unitPrice: 85000,
+        totalAmount: 680000,
+        status: 'accepted',
+      }
+    ],
+    totalOrderedQuantity: 23,
+    totalReceivedQuantity: 23,
+    totalAcceptedQuantity: 23,
+    totalRejectedQuantity: 0,
+    subtotal: 1700000,
+    discountAmount: 40000,
+    taxAmount: 0,
+    totalAmount: 1660000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2026-01-11',
+    approvedBy: 'Manager',
+    approvalDate: '2026-01-11',
+    receivedBy: 'Sunil Fernando',
+    deliveryNote: 'DN-PPL-2026-0098',
+    vehicleNumber: 'WP KS-9876',
+    notes: 'AIO coolers order - all units verified',
+    createdAt: '2026-01-11T10:00:00',
+    updatedAt: '2026-01-11T15:00:00',
+  },
+  {
+    id: 'grn-011',
+    grnNumber: 'GRN-2026-0011',
+    supplierId: '3',
+    supplierName: 'Digital Hub Pvt Ltd',
+    orderDate: '2026-01-12',
+    expectedDeliveryDate: '2026-01-14',
+    receivedDate: '2026-01-14',
+    items: [
+      {
+        id: 'grn-item-016',
+        productId: '15',
+        productName: 'Lian Li O11 Dynamic EVO',
+        category: 'Cases',
+        orderedQuantity: 10,
+        receivedQuantity: 10,
+        acceptedQuantity: 0,
+        rejectedQuantity: 0,
+        unitPrice: 55000,
+        totalAmount: 0,
+        status: 'pending',
+      }
+    ],
+    totalOrderedQuantity: 10,
+    totalReceivedQuantity: 10,
+    totalAcceptedQuantity: 0,
+    totalRejectedQuantity: 0,
+    subtotal: 550000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 550000,
+    status: 'inspecting',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-DH-2026-0102',
+    vehicleNumber: 'WP CAD-4567',
+    notes: 'PC cases - inspection in progress',
+    createdAt: '2026-01-14T08:00:00',
+    updatedAt: '2026-01-14T10:00:00',
+  },
+  {
+    id: 'grn-012',
+    grnNumber: 'GRN-2026-0012',
+    supplierId: '4',
+    supplierName: 'Memory World',
+    orderDate: '2025-12-20',
+    expectedDeliveryDate: '2025-12-22',
+    receivedDate: '2025-12-22',
+    items: [
+      {
+        id: 'grn-item-017',
+        productId: '8',
+        productName: 'Corsair Vengeance DDR5 32GB',
+        category: 'Memory',
+        orderedQuantity: 30,
+        receivedQuantity: 30,
+        acceptedQuantity: 28,
+        rejectedQuantity: 2,
+        unitPrice: 42000,
+        totalAmount: 1176000,
+        status: 'partial',
+        rejectionReason: '2 units failed memory test',
+        batchNumber: 'CORS-2025-B456',
+      }
+    ],
+    totalOrderedQuantity: 30,
+    totalReceivedQuantity: 30,
+    totalAcceptedQuantity: 28,
+    totalRejectedQuantity: 2,
+    subtotal: 1176000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 1176000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-12-22',
+    approvedBy: 'Manager',
+    approvalDate: '2025-12-22',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-MW-2025-0289',
+    vehicleNumber: 'WP KH-2345',
+    notes: 'December RAM order - 2 units failed QC',
+    createdAt: '2025-12-22T09:00:00',
+    updatedAt: '2025-12-22T16:00:00',
+  },
+  {
+    id: 'grn-013',
+    grnNumber: 'GRN-2026-0013',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    orderDate: '2026-01-08',
+    expectedDeliveryDate: '2026-01-10',
+    receivedDate: '2026-01-10',
+    items: [
+      {
+        id: 'grn-item-018',
+        productId: '16',
+        productName: 'Logitech G Pro X Superlight',
+        category: 'Peripherals',
+        orderedQuantity: 25,
+        receivedQuantity: 0,
+        acceptedQuantity: 0,
+        rejectedQuantity: 25,
+        unitPrice: 42000,
+        totalAmount: 0,
+        status: 'rejected',
+        rejectionReason: 'Wrong model received - returned to supplier',
+      }
+    ],
+    totalOrderedQuantity: 25,
+    totalReceivedQuantity: 25,
+    totalAcceptedQuantity: 0,
+    totalRejectedQuantity: 25,
+    subtotal: 1050000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 0,
+    status: 'rejected',
+    inspectedBy: 'Sunil Fernando',
+    inspectionDate: '2026-01-10',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-TZ-2026-0067',
+    vehicleNumber: 'WP CAB-1234',
+    notes: 'Entire order rejected - wrong product sent',
+    createdAt: '2026-01-10T14:00:00',
+    updatedAt: '2026-01-10T16:00:00',
+  },
+  {
+    id: 'grn-014',
+    grnNumber: 'GRN-2026-0014',
+    supplierId: '2',
+    supplierName: 'PC Parts Lanka',
+    orderDate: '2026-01-13',
+    expectedDeliveryDate: '2026-01-15',
+    receivedDate: '',
+    items: [
+      {
+        id: 'grn-item-019',
+        productId: '17',
+        productName: 'EVGA SuperNOVA 1000 G6',
+        category: 'Power Supply',
+        orderedQuantity: 12,
+        receivedQuantity: 0,
+        acceptedQuantity: 0,
+        rejectedQuantity: 0,
+        unitPrice: 52000,
+        totalAmount: 0,
+        status: 'pending',
+      },
+      {
+        id: 'grn-item-020',
+        productId: '18',
+        productName: 'Seasonic Focus GX-850',
+        category: 'Power Supply',
+        orderedQuantity: 15,
+        receivedQuantity: 0,
+        acceptedQuantity: 0,
+        rejectedQuantity: 0,
+        unitPrice: 38000,
+        totalAmount: 0,
+        status: 'pending',
+      }
+    ],
+    totalOrderedQuantity: 27,
+    totalReceivedQuantity: 0,
+    totalAcceptedQuantity: 0,
+    totalRejectedQuantity: 0,
+    subtotal: 1194000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 1194000,
+    status: 'pending',
+    receivedBy: '',
+    notes: 'PSU order - expected tomorrow',
+    createdAt: '2026-01-13T16:00:00',
+    updatedAt: '2026-01-13T16:00:00',
+  },
+  {
+    id: 'grn-015',
+    grnNumber: 'GRN-2026-0015',
+    supplierId: '3',
+    supplierName: 'Digital Hub Pvt Ltd',
+    orderDate: '2025-12-15',
+    expectedDeliveryDate: '2025-12-17',
+    receivedDate: '2025-12-17',
+    items: [
+      {
+        id: 'grn-item-021',
+        productId: '3',
+        productName: 'NVIDIA GeForce RTX 4090',
+        category: 'Graphics Cards',
+        orderedQuantity: 3,
+        receivedQuantity: 3,
+        acceptedQuantity: 3,
+        rejectedQuantity: 0,
+        unitPrice: 550000,
+        totalAmount: 1650000,
+        status: 'accepted',
+        serialNumbers: ['RTX4090-DH-001', 'RTX4090-DH-002', 'RTX4090-DH-003'],
+      }
+    ],
+    totalOrderedQuantity: 3,
+    totalReceivedQuantity: 3,
+    totalAcceptedQuantity: 3,
+    totalRejectedQuantity: 0,
+    subtotal: 1650000,
+    discountAmount: 50000,
+    taxAmount: 0,
+    totalAmount: 1600000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-12-17',
+    approvedBy: 'Manager',
+    approvalDate: '2025-12-17',
+    receivedBy: 'Sunil Fernando',
+    deliveryNote: 'DN-DH-2025-0256',
+    vehicleNumber: 'WP CAD-4567',
+    notes: 'December GPU order - premium models',
+    createdAt: '2025-12-17T11:00:00',
+    updatedAt: '2025-12-17T15:00:00',
+  },
+  {
+    id: 'grn-016',
+    grnNumber: 'GRN-2025-0016',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    orderDate: '2025-12-10',
+    expectedDeliveryDate: '2025-12-12',
+    receivedDate: '2025-12-12',
+    items: [
+      {
+        id: 'grn-item-022',
+        productId: '1',
+        productName: 'AMD Ryzen 9 7950X',
+        category: 'Processors',
+        orderedQuantity: 15,
+        receivedQuantity: 15,
+        acceptedQuantity: 15,
+        rejectedQuantity: 0,
+        unitPrice: 165000,
+        totalAmount: 2475000,
+        status: 'accepted',
+        batchNumber: 'AMD-2025-B078',
+      }
+    ],
+    totalOrderedQuantity: 15,
+    totalReceivedQuantity: 15,
+    totalAcceptedQuantity: 15,
+    totalRejectedQuantity: 0,
+    subtotal: 2475000,
+    discountAmount: 75000,
+    taxAmount: 0,
+    totalAmount: 2400000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-12-12',
+    approvedBy: 'Manager',
+    approvalDate: '2025-12-12',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-TZ-2025-0234',
+    vehicleNumber: 'WP CAB-1234',
+    notes: 'Year-end processor stock',
+    createdAt: '2025-12-12T09:00:00',
+    updatedAt: '2025-12-12T14:00:00',
+  },
+  {
+    id: 'grn-017',
+    grnNumber: 'GRN-2025-0017',
+    supplierId: '2',
+    supplierName: 'PC Parts Lanka',
+    orderDate: '2025-12-05',
+    expectedDeliveryDate: '2025-12-07',
+    receivedDate: '2025-12-07',
+    items: [
+      {
+        id: 'grn-item-023',
+        productId: '4',
+        productName: 'NVIDIA GeForce RTX 4070 Ti',
+        category: 'Graphics Cards',
+        orderedQuantity: 8,
+        receivedQuantity: 8,
+        acceptedQuantity: 7,
+        rejectedQuantity: 1,
+        unitPrice: 280000,
+        totalAmount: 1960000,
+        status: 'partial',
+        rejectionReason: 'One unit has faulty fan',
+      }
+    ],
+    totalOrderedQuantity: 8,
+    totalReceivedQuantity: 8,
+    totalAcceptedQuantity: 7,
+    totalRejectedQuantity: 1,
+    subtotal: 1960000,
+    discountAmount: 0,
+    taxAmount: 0,
+    totalAmount: 1960000,
+    status: 'completed',
+    inspectedBy: 'Sunil Fernando',
+    inspectionDate: '2025-12-07',
+    approvedBy: 'Manager',
+    approvalDate: '2025-12-07',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-PPL-2025-0198',
+    vehicleNumber: 'WP KS-9876',
+    notes: 'GPU mid-range order',
+    createdAt: '2025-12-07T10:00:00',
+    updatedAt: '2025-12-07T15:00:00',
+  },
+  {
+    id: 'grn-018',
+    grnNumber: 'GRN-2025-0018',
+    supplierId: '3',
+    supplierName: 'Digital Hub Pvt Ltd',
+    orderDate: '2025-11-28',
+    expectedDeliveryDate: '2025-11-30',
+    receivedDate: '2025-11-30',
+    items: [
+      {
+        id: 'grn-item-024',
+        productId: '6',
+        productName: 'Samsung 990 Pro 2TB NVMe SSD',
+        category: 'Storage',
+        orderedQuantity: 25,
+        receivedQuantity: 25,
+        acceptedQuantity: 25,
+        rejectedQuantity: 0,
+        unitPrice: 75000,
+        totalAmount: 1875000,
+        status: 'accepted',
+        batchNumber: 'SAM-990-2025',
+      },
+      {
+        id: 'grn-item-025',
+        productId: '7',
+        productName: 'WD Black SN850X 1TB',
+        category: 'Storage',
+        orderedQuantity: 30,
+        receivedQuantity: 30,
+        acceptedQuantity: 30,
+        rejectedQuantity: 0,
+        unitPrice: 42000,
+        totalAmount: 1260000,
+        status: 'accepted',
+      }
+    ],
+    totalOrderedQuantity: 55,
+    totalReceivedQuantity: 55,
+    totalAcceptedQuantity: 55,
+    totalRejectedQuantity: 0,
+    subtotal: 3135000,
+    discountAmount: 135000,
+    taxAmount: 0,
+    totalAmount: 3000000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-11-30',
+    approvedBy: 'Manager',
+    approvalDate: '2025-11-30',
+    receivedBy: 'Sunil Fernando',
+    deliveryNote: 'DN-DH-2025-0189',
+    vehicleNumber: 'WP CAD-4567',
+    notes: 'November SSD bulk order',
+    createdAt: '2025-11-30T08:30:00',
+    updatedAt: '2025-11-30T14:00:00',
+  },
+  {
+    id: 'grn-019',
+    grnNumber: 'GRN-2025-0019',
+    supplierId: '4',
+    supplierName: 'Memory World',
+    orderDate: '2025-11-20',
+    expectedDeliveryDate: '2025-11-22',
+    receivedDate: '2025-11-22',
+    items: [
+      {
+        id: 'grn-item-026',
+        productId: '9',
+        productName: 'G.Skill Trident Z5 64GB DDR5',
+        category: 'Memory',
+        orderedQuantity: 10,
+        receivedQuantity: 10,
+        acceptedQuantity: 10,
+        rejectedQuantity: 0,
+        unitPrice: 95000,
+        totalAmount: 950000,
+        status: 'accepted',
+      }
+    ],
+    totalOrderedQuantity: 10,
+    totalReceivedQuantity: 10,
+    totalAcceptedQuantity: 10,
+    totalRejectedQuantity: 0,
+    subtotal: 950000,
+    discountAmount: 50000,
+    taxAmount: 0,
+    totalAmount: 900000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-11-22',
+    approvedBy: 'Manager',
+    approvalDate: '2025-11-22',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-MW-2025-0167',
+    vehicleNumber: 'WP KH-2345',
+    notes: 'High-end memory order',
+    createdAt: '2025-11-22T09:00:00',
+    updatedAt: '2025-11-22T13:00:00',
+  },
+  {
+    id: 'grn-020',
+    grnNumber: 'GRN-2025-0020',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    orderDate: '2025-11-15',
+    expectedDeliveryDate: '2025-11-17',
+    receivedDate: '2025-11-17',
+    items: [
+      {
+        id: 'grn-item-027',
+        productId: '10',
+        productName: 'ASUS ROG Maximus Z790 Hero',
+        category: 'Motherboards',
+        orderedQuantity: 5,
+        receivedQuantity: 5,
+        acceptedQuantity: 5,
+        rejectedQuantity: 0,
+        unitPrice: 185000,
+        totalAmount: 925000,
+        status: 'accepted',
+      },
+      {
+        id: 'grn-item-028',
+        productId: '11',
+        productName: 'MSI MEG Z790 ACE',
+        category: 'Motherboards',
+        orderedQuantity: 6,
+        receivedQuantity: 6,
+        acceptedQuantity: 6,
+        rejectedQuantity: 0,
+        unitPrice: 165000,
+        totalAmount: 990000,
+        status: 'accepted',
+      }
+    ],
+    totalOrderedQuantity: 11,
+    totalReceivedQuantity: 11,
+    totalAcceptedQuantity: 11,
+    totalRejectedQuantity: 0,
+    subtotal: 1915000,
+    discountAmount: 65000,
+    taxAmount: 0,
+    totalAmount: 1850000,
+    status: 'completed',
+    inspectedBy: 'Sunil Fernando',
+    inspectionDate: '2025-11-17',
+    approvedBy: 'Manager',
+    approvalDate: '2025-11-17',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-TZ-2025-0145',
+    vehicleNumber: 'WP CAB-1234',
+    notes: 'Premium motherboard stock',
+    createdAt: '2025-11-17T10:00:00',
+    updatedAt: '2025-11-17T15:00:00',
+  },
+  {
+    id: 'grn-021',
+    grnNumber: 'GRN-2025-0021',
+    supplierId: '2',
+    supplierName: 'PC Parts Lanka',
+    orderDate: '2025-11-10',
+    expectedDeliveryDate: '2025-11-12',
+    receivedDate: '2025-11-12',
+    items: [
+      {
+        id: 'grn-item-029',
+        productId: '12',
+        productName: 'Corsair RM1000x 1000W PSU',
+        category: 'Power Supply',
+        orderedQuantity: 15,
+        receivedQuantity: 15,
+        acceptedQuantity: 15,
+        rejectedQuantity: 0,
+        unitPrice: 55000,
+        totalAmount: 825000,
+        status: 'accepted',
+      }
+    ],
+    totalOrderedQuantity: 15,
+    totalReceivedQuantity: 15,
+    totalAcceptedQuantity: 15,
+    totalRejectedQuantity: 0,
+    subtotal: 825000,
+    discountAmount: 25000,
+    taxAmount: 0,
+    totalAmount: 800000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-11-12',
+    approvedBy: 'Manager',
+    approvalDate: '2025-11-12',
+    receivedBy: 'Sunil Fernando',
+    deliveryNote: 'DN-PPL-2025-0134',
+    vehicleNumber: 'WP KS-9876',
+    notes: 'PSU stock replenishment',
+    createdAt: '2025-11-12T11:00:00',
+    updatedAt: '2025-11-12T16:00:00',
+  },
+  {
+    id: 'grn-022',
+    grnNumber: 'GRN-2025-0022',
+    supplierId: '3',
+    supplierName: 'Digital Hub Pvt Ltd',
+    orderDate: '2025-11-05',
+    expectedDeliveryDate: '2025-11-07',
+    receivedDate: '2025-11-07',
+    items: [
+      {
+        id: 'grn-item-030',
+        productId: '15',
+        productName: 'LG UltraGear 27GP950-B 4K Monitor',
+        category: 'Monitors',
+        orderedQuantity: 8,
+        receivedQuantity: 8,
+        acceptedQuantity: 8,
+        rejectedQuantity: 0,
+        unitPrice: 195000,
+        totalAmount: 1560000,
+        status: 'accepted',
+      }
+    ],
+    totalOrderedQuantity: 8,
+    totalReceivedQuantity: 8,
+    totalAcceptedQuantity: 8,
+    totalRejectedQuantity: 0,
+    subtotal: 1560000,
+    discountAmount: 60000,
+    taxAmount: 0,
+    totalAmount: 1500000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-11-07',
+    approvedBy: 'Manager',
+    approvalDate: '2025-11-07',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-DH-2025-0112',
+    vehicleNumber: 'WP CAD-4567',
+    notes: '4K gaming monitors',
+    createdAt: '2025-11-07T09:30:00',
+    updatedAt: '2025-11-07T14:30:00',
+  },
+  {
+    id: 'grn-023',
+    grnNumber: 'GRN-2025-0023',
+    supplierId: '4',
+    supplierName: 'Memory World',
+    orderDate: '2025-10-28',
+    expectedDeliveryDate: '2025-10-30',
+    receivedDate: '2025-10-30',
+    items: [
+      {
+        id: 'grn-item-031',
+        productId: '8',
+        productName: 'Corsair Vengeance DDR5 32GB (2x16GB)',
+        category: 'Memory',
+        orderedQuantity: 40,
+        receivedQuantity: 40,
+        acceptedQuantity: 38,
+        rejectedQuantity: 2,
+        unitPrice: 48000,
+        totalAmount: 1824000,
+        status: 'partial',
+        rejectionReason: '2 kits failed XMP profile test',
+        batchNumber: 'CORS-VEN-2025',
+      }
+    ],
+    totalOrderedQuantity: 40,
+    totalReceivedQuantity: 40,
+    totalAcceptedQuantity: 38,
+    totalRejectedQuantity: 2,
+    subtotal: 1824000,
+    discountAmount: 24000,
+    taxAmount: 0,
+    totalAmount: 1800000,
+    status: 'completed',
+    inspectedBy: 'Sunil Fernando',
+    inspectionDate: '2025-10-30',
+    approvedBy: 'Manager',
+    approvalDate: '2025-10-30',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-MW-2025-0098',
+    vehicleNumber: 'WP KH-2345',
+    notes: 'October DDR5 bulk order',
+    createdAt: '2025-10-30T08:00:00',
+    updatedAt: '2025-10-30T15:00:00',
+  },
+  {
+    id: 'grn-024',
+    grnNumber: 'GRN-2025-0024',
+    supplierId: '1',
+    supplierName: 'TechZone Distributors',
+    orderDate: '2025-10-20',
+    expectedDeliveryDate: '2025-10-22',
+    receivedDate: '2025-10-22',
+    items: [
+      {
+        id: 'grn-item-032',
+        productId: '2',
+        productName: 'Intel Core i9-14900K',
+        category: 'Processors',
+        orderedQuantity: 10,
+        receivedQuantity: 10,
+        acceptedQuantity: 10,
+        rejectedQuantity: 0,
+        unitPrice: 195000,
+        totalAmount: 1950000,
+        status: 'accepted',
+      }
+    ],
+    totalOrderedQuantity: 10,
+    totalReceivedQuantity: 10,
+    totalAcceptedQuantity: 10,
+    totalRejectedQuantity: 0,
+    subtotal: 1950000,
+    discountAmount: 50000,
+    taxAmount: 0,
+    totalAmount: 1900000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-10-22',
+    approvedBy: 'Manager',
+    approvalDate: '2025-10-22',
+    receivedBy: 'Sunil Fernando',
+    deliveryNote: 'DN-TZ-2025-0089',
+    vehicleNumber: 'WP CAB-1234',
+    notes: 'Intel 14th gen stock',
+    createdAt: '2025-10-22T10:00:00',
+    updatedAt: '2025-10-22T14:00:00',
+  },
+  {
+    id: 'grn-025',
+    grnNumber: 'GRN-2025-0025',
+    supplierId: '2',
+    supplierName: 'PC Parts Lanka',
+    orderDate: '2025-10-15',
+    expectedDeliveryDate: '2025-10-17',
+    receivedDate: '2025-10-17',
+    items: [
+      {
+        id: 'grn-item-033',
+        productId: '5',
+        productName: 'AMD Radeon RX 7900 XTX',
+        category: 'Graphics Cards',
+        orderedQuantity: 5,
+        receivedQuantity: 5,
+        acceptedQuantity: 5,
+        rejectedQuantity: 0,
+        unitPrice: 350000,
+        totalAmount: 1750000,
+        status: 'accepted',
+      }
+    ],
+    totalOrderedQuantity: 5,
+    totalReceivedQuantity: 5,
+    totalAcceptedQuantity: 5,
+    totalRejectedQuantity: 0,
+    subtotal: 1750000,
+    discountAmount: 50000,
+    taxAmount: 0,
+    totalAmount: 1700000,
+    status: 'completed',
+    inspectedBy: 'Kamal Perera',
+    inspectionDate: '2025-10-17',
+    approvedBy: 'Manager',
+    approvalDate: '2025-10-17',
+    receivedBy: 'Nimal Silva',
+    deliveryNote: 'DN-PPL-2025-0076',
+    vehicleNumber: 'WP KS-9876',
+    notes: 'AMD flagship GPU order',
+    createdAt: '2025-10-17T09:00:00',
+    updatedAt: '2025-10-17T14:00:00',
   },
 ];
 
@@ -851,6 +2166,13 @@ export const mockInvoices: Invoice[] = [
     dueDate: '2024-02-04',
     paymentMethod: 'credit',
     salesChannel: 'online',
+    // Payment history for tracking partial payments
+    payments: [
+      { id: 'invpay-001', invoiceId: '10240003', amount: 500000, paymentDate: '2024-01-20T10:30:00', paymentMethod: 'cash', notes: 'Initial deposit payment' },
+      { id: 'invpay-002', invoiceId: '10240003', amount: 500000, paymentDate: '2024-01-25T14:15:00', paymentMethod: 'bank', notes: 'Second installment' },
+      { id: 'invpay-003', invoiceId: '10240003', amount: 500000, paymentDate: '2024-01-30T11:00:00', paymentMethod: 'card', notes: 'Third payment via credit card' },
+    ],
+    lastPaymentDate: '2024-01-30T11:00:00'
   },
   {
     id: '10240004',
@@ -905,6 +2227,12 @@ export const mockInvoices: Invoice[] = [
     dueDate: '2024-01-20',
     paymentMethod: 'cash',
     salesChannel: 'on-site',
+    // Payment history tracking
+    payments: [
+      { id: 'invpay-004', invoiceId: '10240006', amount: 50000, paymentDate: '2024-01-05T09:00:00', paymentMethod: 'cash', notes: 'Down payment at purchase' },
+      { id: 'invpay-005', invoiceId: '10240006', amount: 50000, paymentDate: '2024-01-12T15:30:00', paymentMethod: 'bank', notes: 'Bank transfer installment' },
+    ],
+    lastPaymentDate: '2024-01-12T15:30:00'
   },
   // More invoices with warranty data for testing
   {
@@ -1418,6 +2746,23 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     replacementDate: '2025-11-22T11:00:00',
     notes: 'Lifetime warranty - no questions asked replacement.',
     handledBy: 'Chamara Fernando',
+    financialImpact: {
+      type: 'free_replacement',
+      originalItemValue: 96000,
+      creditAmount: 0, // No credit - direct replacement
+      processedDate: '2025-11-22T11:00:00'
+    },
+    workflow: {
+      stage: 'completed',
+      history: [
+        { stage: 'received', date: '2025-11-20T14:00:00', notes: 'Claim received at store', updatedBy: 'Chamara Fernando' },
+        { stage: 'inspecting', date: '2025-11-20T15:30:00', notes: 'Running memtest86', updatedBy: 'Chamara Fernando' },
+        { stage: 'ready', date: '2025-11-22T10:00:00', notes: 'Replacement kit prepared', updatedBy: 'Chamara Fernando' },
+        { stage: 'completed', date: '2025-11-22T11:00:00', notes: 'Delivered to customer', updatedBy: 'Chamara Fernando' }
+      ],
+      estimatedCompletionDate: '2025-11-22',
+      priorityLevel: 'high'
+    }
   },
   {
     id: '25010010',
@@ -1436,5 +2781,393 @@ export const mockWarrantyClaims: WarrantyClaim[] = [
     isReplacement: false,
     notes: 'Warranty expiring soon. Prioritized for quick evaluation.',
     handledBy: 'Nuwan Silva',
+    workflow: {
+      stage: 'inspecting',
+      history: [
+        { stage: 'received', date: '2025-12-01T09:45:00', notes: 'Customer brought headset with original box', updatedBy: 'Nuwan Silva' },
+        { stage: 'inspecting', date: '2025-12-01T11:00:00', notes: 'Testing audio channels and connections', updatedBy: 'Nuwan Silva' }
+      ],
+      estimatedCompletionDate: '2025-12-05',
+      priorityLevel: 'urgent'
+    }
   },
 ];
+
+// =====================================================
+// Credit Transaction History - Tracks all credit movements
+// =====================================================
+export const mockCreditTransactions: CreditTransaction[] = [
+  // GameZone Café payments on invoice 10240003
+  {
+    id: 'CT-001',
+    customerId: '5',
+    invoiceId: '10240003',
+    type: 'invoice_payment',
+    amount: 500000,
+    balanceBefore: 2731250,
+    balanceAfter: 2231250,
+    transactionDate: '2024-01-20T10:30:00',
+    paymentMethod: 'cash',
+    notes: 'Initial deposit payment',
+    recordedBy: 'Admin'
+  },
+  {
+    id: 'CT-002',
+    customerId: '5',
+    invoiceId: '10240003',
+    type: 'invoice_payment',
+    amount: 500000,
+    balanceBefore: 2231250,
+    balanceAfter: 1731250,
+    transactionDate: '2024-01-25T14:15:00',
+    paymentMethod: 'bank',
+    notes: 'Second installment',
+    recordedBy: 'Admin'
+  },
+  {
+    id: 'CT-003',
+    customerId: '5',
+    invoiceId: '10240003',
+    type: 'invoice_payment',
+    amount: 500000,
+    balanceBefore: 1731250,
+    balanceAfter: 1231250,
+    transactionDate: '2024-01-30T11:00:00',
+    paymentMethod: 'card',
+    notes: 'Third payment via credit card',
+    recordedBy: 'Admin'
+  },
+  // Dilshan Silva payment on invoice 10240006
+  {
+    id: 'CT-004',
+    customerId: '4',
+    invoiceId: '10240006',
+    type: 'invoice_payment',
+    amount: 50000,
+    balanceBefore: 172500,
+    balanceAfter: 122500,
+    transactionDate: '2024-01-05T09:00:00',
+    paymentMethod: 'cash',
+    notes: 'Down payment at purchase',
+    recordedBy: 'Admin'
+  },
+  {
+    id: 'CT-005',
+    customerId: '4',
+    invoiceId: '10240006',
+    type: 'invoice_payment',
+    amount: 50000,
+    balanceBefore: 122500,
+    balanceAfter: 72500,
+    transactionDate: '2024-01-12T15:30:00',
+    paymentMethod: 'bank',
+    notes: 'Bank transfer installment',
+    recordedBy: 'Admin'
+  },
+  // Tech Solutions Ltd partial payment
+  {
+    id: 'CT-006',
+    customerId: '3',
+    invoiceId: '10250010',
+    type: 'invoice_payment',
+    amount: 800000,
+    balanceBefore: 1288000,
+    balanceAfter: 488000,
+    transactionDate: '2025-04-25T10:00:00',
+    paymentMethod: 'bank',
+    notes: 'Partial payment on high-value order',
+    recordedBy: 'Admin'
+  },
+];
+
+// =====================================================
+// Warranty Credits - Credits applied from warranty claims
+// =====================================================
+export const mockWarrantyCredits: WarrantyCredit[] = [
+  {
+    id: 'WC-001',
+    warrantyClaimId: '25010004', // Rejected claim but offered discount
+    customerId: '2',
+    invoiceId: '10240004',
+    originalAmount: 52000,
+    creditAmount: 5000, // Goodwill gesture for repair
+    reason: 'repair_credit',
+    processedDate: '2025-07-10T14:00:00',
+    notes: 'Goodwill credit offered for repair service despite rejected claim'
+  }
+];
+
+// =====================================================
+// HELPER FUNCTIONS FOR CREDIT-INVOICE MANAGEMENT
+// =====================================================
+
+/**
+ * Calculate customer credit balance from linked invoices
+ * This ensures consistency between invoice balances and customer credit
+ */
+export const calculateCustomerCreditFromInvoices = (customerId: string, invoices: Invoice[]): number => {
+  const customerInvoices = invoices.filter(inv => inv.customerId === customerId);
+  return customerInvoices.reduce((total, inv) => {
+    const remaining = inv.total - (inv.paidAmount || 0);
+    return total + (remaining > 0 ? remaining : 0);
+  }, 0);
+};
+
+/**
+ * Get all unpaid/partially paid invoices for a customer
+ */
+export const getCustomerCreditInvoices = (customerId: string, invoices: Invoice[]): Invoice[] => {
+  return invoices.filter(inv => 
+    inv.customerId === customerId && 
+    inv.status !== 'fullpaid' &&
+    (inv.total - (inv.paidAmount || 0)) > 0
+  );
+};
+
+/**
+ * Apply payment to invoices - Distributes payment across unpaid invoices
+ * Returns updated invoices and payment distribution
+ */
+export const applyPaymentToInvoices = (
+  customerId: string,
+  paymentAmount: number,
+  invoices: Invoice[],
+  paymentMethod: 'cash' | 'bank' | 'card' | 'cheque',
+  notes?: string
+): { 
+  updatedInvoices: Invoice[]; 
+  distribution: { invoiceId: string; amount: number }[];
+  remainingPayment: number;
+} => {
+  const creditInvoices = getCustomerCreditInvoices(customerId, invoices)
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()); // Pay oldest first
+  
+  let remaining = paymentAmount;
+  const distribution: { invoiceId: string; amount: number }[] = [];
+  const updatedInvoices = [...invoices];
+  
+  for (const invoice of creditInvoices) {
+    if (remaining <= 0) break;
+    
+    const invoiceBalance = invoice.total - (invoice.paidAmount || 0);
+    const paymentForThis = Math.min(remaining, invoiceBalance);
+    
+    if (paymentForThis > 0) {
+      distribution.push({ invoiceId: invoice.id, amount: paymentForThis });
+      remaining -= paymentForThis;
+      
+      // Update the invoice in our array
+      const idx = updatedInvoices.findIndex(i => i.id === invoice.id);
+      if (idx >= 0) {
+        const newPaidAmount = (updatedInvoices[idx].paidAmount || 0) + paymentForThis;
+        const newStatus = newPaidAmount >= updatedInvoices[idx].total ? 'fullpaid' : 'halfpay';
+        
+        updatedInvoices[idx] = {
+          ...updatedInvoices[idx],
+          paidAmount: newPaidAmount,
+          status: newStatus,
+          lastPaymentDate: new Date().toISOString(),
+          payments: [
+            ...(updatedInvoices[idx].payments || []),
+            {
+              id: `pay-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+              invoiceId: invoice.id,
+              amount: paymentForThis,
+              paymentDate: new Date().toISOString(),
+              paymentMethod,
+              notes
+            }
+          ],
+          creditSettlements: [
+            ...(updatedInvoices[idx].creditSettlements || []),
+            {
+              paymentId: `pay-${Date.now()}`,
+              amount: paymentForThis,
+              date: new Date().toISOString()
+            }
+          ]
+        };
+      }
+    }
+  }
+  
+  return { updatedInvoices, distribution, remainingPayment: remaining };
+};
+
+/**
+ * Apply invoice payment to customer credit
+ * When invoice payment is made, reduce customer credit balance
+ */
+export const applyInvoicePaymentToCustomerCredit = (
+  customer: Customer,
+  invoiceId: string,
+  paymentAmount: number,
+  paymentMethod: 'cash' | 'bank' | 'card' | 'cheque',
+  notes?: string
+): Customer => {
+  const newCreditBalance = Math.max(0, customer.creditBalance - paymentAmount);
+  const newStatus: 'clear' | 'active' | 'overdue' = newCreditBalance === 0 ? 'clear' : customer.creditStatus;
+  
+  const paymentEntry: CustomerPayment = {
+    id: `CP-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    invoiceId,
+    amount: paymentAmount,
+    paymentDate: new Date().toISOString(),
+    paymentMethod,
+    notes,
+    source: 'invoice',
+    appliedToInvoices: [{ invoiceId, amount: paymentAmount }]
+  };
+  
+  return {
+    ...customer,
+    creditBalance: newCreditBalance,
+    creditStatus: newStatus,
+    paymentHistory: [...(customer.paymentHistory || []), paymentEntry],
+    // Remove invoice from creditInvoices if fully paid
+    creditInvoices: customer.creditInvoices?.filter(id => id !== invoiceId) || []
+  };
+};
+
+/**
+ * Apply warranty credit to customer and invoice
+ * Reduces credit balance when warranty claim results in credit
+ */
+export const applyWarrantyCreditToCustomer = (
+  customer: Customer,
+  invoice: Invoice,
+  warrantyClaim: WarrantyClaim,
+  creditAmount: number
+): { updatedCustomer: Customer; updatedInvoice: Invoice; warrantyCredit: WarrantyCredit } => {
+  const warrantyCredit: WarrantyCredit = {
+    id: `WC-${Date.now()}`,
+    warrantyClaimId: warrantyClaim.id,
+    customerId: customer.id,
+    invoiceId: invoice.id,
+    originalAmount: warrantyClaim.financialImpact?.originalItemValue || 0,
+    creditAmount,
+    reason: warrantyClaim.financialImpact?.type === 'full_refund' ? 'full_refund' : 'partial_refund',
+    processedDate: new Date().toISOString(),
+    notes: `Credit from warranty claim ${warrantyClaim.id}`
+  };
+  
+  const updatedCustomer: Customer = {
+    ...customer,
+    creditBalance: Math.max(0, customer.creditBalance - creditAmount),
+    creditStatus: customer.creditBalance - creditAmount <= 0 ? 'clear' : customer.creditStatus
+  };
+  
+  const updatedInvoice: Invoice = {
+    ...invoice,
+    warrantyCredits: [
+      ...(invoice.warrantyCredits || []),
+      {
+        warrantyClaimId: warrantyClaim.id,
+        amount: creditAmount,
+        date: new Date().toISOString()
+      }
+    ]
+  };
+  
+  return { updatedCustomer, updatedInvoice, warrantyCredit };
+};
+
+/**
+ * Get credit summary for a customer
+ */
+export const getCustomerCreditSummary = (customerId: string, invoices: Invoice[], transactions: CreditTransaction[]) => {
+  const customerInvoices = invoices.filter(inv => inv.customerId === customerId);
+  const customerTransactions = transactions.filter(t => t.customerId === customerId);
+  
+  const totalCreditUsed = customerInvoices.reduce((sum, inv) => sum + inv.total, 0);
+  const totalPaid = customerInvoices.reduce((sum, inv) => sum + (inv.paidAmount || 0), 0);
+  const currentBalance = totalCreditUsed - totalPaid;
+  
+  const unpaidInvoices = customerInvoices.filter(inv => inv.status !== 'fullpaid');
+  const overdueInvoices = unpaidInvoices.filter(inv => new Date(inv.dueDate) < new Date());
+  
+  return {
+    totalCreditUsed,
+    totalPaid,
+    currentBalance,
+    unpaidInvoiceCount: unpaidInvoices.length,
+    overdueInvoiceCount: overdueInvoices.length,
+    totalTransactions: customerTransactions.length,
+    lastTransaction: customerTransactions.sort((a, b) => 
+      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+    )[0] || null
+  };
+};
+
+/**
+ * Update customer credit status based on due dates
+ */
+export const updateCustomerCreditStatus = (customer: Customer, invoices: Invoice[]): Customer => {
+  const creditInvoices = getCustomerCreditInvoices(customer.id, invoices);
+  
+  if (creditInvoices.length === 0) {
+    return { ...customer, creditStatus: 'clear', creditBalance: 0 };
+  }
+  
+  const hasOverdue = creditInvoices.some(inv => new Date(inv.dueDate) < new Date());
+  const totalBalance = creditInvoices.reduce((sum, inv) => sum + (inv.total - (inv.paidAmount || 0)), 0);
+  
+  // Get earliest due date from unpaid invoices
+  const earliestDueDate = creditInvoices
+    .map(inv => inv.dueDate)
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
+  
+  return {
+    ...customer,
+    creditBalance: totalBalance,
+    creditStatus: hasOverdue ? 'overdue' : 'active',
+    creditDueDate: earliestDueDate,
+    creditInvoices: creditInvoices.map(inv => inv.id)
+  };
+};
+
+/**
+ * Get warranty workflow stage info
+ */
+export const getWarrantyWorkflowStageInfo = (stage: string): { label: string; color: string; icon: string } => {
+  const stageInfo: Record<string, { label: string; color: string; icon: string }> = {
+    'received': { label: 'Received', color: 'blue', icon: '📥' },
+    'inspecting': { label: 'Inspecting', color: 'yellow', icon: '🔍' },
+    'awaiting_parts': { label: 'Awaiting Parts', color: 'orange', icon: '📦' },
+    'repairing': { label: 'Repairing', color: 'purple', icon: '🔧' },
+    'testing': { label: 'Testing', color: 'cyan', icon: '🧪' },
+    'ready': { label: 'Ready for Pickup', color: 'green', icon: '✅' },
+    'completed': { label: 'Completed', color: 'emerald', icon: '🎉' }
+  };
+  return stageInfo[stage] || { label: stage, color: 'gray', icon: '❓' };
+};
+
+/**
+ * Calculate financial impact options for warranty claim
+ */
+export const calculateWarrantyFinancialOptions = (
+  warrantyClaim: WarrantyClaim,
+  invoice: Invoice
+): { type: string; amount: number; description: string }[] => {
+  const invoiceItem = invoice.items[warrantyClaim.invoiceItemIndex || 0];
+  const itemValue = invoiceItem?.total || 0;
+  const invoiceBalance = invoice.total - (invoice.paidAmount || 0);
+  
+  const options = [
+    { type: 'no_impact', amount: 0, description: 'No financial adjustment' },
+    { type: 'full_refund', amount: itemValue, description: `Full refund: Rs. ${itemValue.toLocaleString()}` },
+    { type: 'credit_note', amount: itemValue, description: `Credit note for future purchase: Rs. ${itemValue.toLocaleString()}` },
+    { type: 'free_replacement', amount: 0, description: 'Free replacement (no credit adjustment)' },
+  ];
+  
+  // Only show options up to invoice balance
+  if (invoiceBalance > 0) {
+    options.push({
+      type: 'partial_refund',
+      amount: Math.min(itemValue, invoiceBalance),
+      description: `Apply to outstanding balance: Rs. ${Math.min(itemValue, invoiceBalance).toLocaleString()}`
+    });
+  }
+  
+  return options;
+};

@@ -23,6 +23,8 @@ const Customers = lazy(() => import('./pages/Customers').then(m => ({ default: m
 const Suppliers = lazy(() => import('./pages/Suppliers').then(m => ({ default: m.Suppliers })));
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Warranties = lazy(() => import('./pages/Warranties').then(m => ({ default: m.Warranties })));
+const GoodsReceived = lazy(() => import('./pages/GoodsReceived').then(m => ({ default: m.GoodsReceived })));
+const CreateGRN = lazy(() => import('./pages/CreateGRN').then(m => ({ default: m.CreateGRN })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -59,6 +61,8 @@ function App() {
                   <Route path="/brands" element={<Brands />} />
                   <Route path="/customers" element={<Customers />} />
                   <Route path="/suppliers" element={<Suppliers />} />
+                  <Route path="/grn" element={<GoodsReceived />} />
+                  <Route path="/grn/create" element={<CreateGRN />} />
                   <Route path="/warranties" element={<Warranties />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />

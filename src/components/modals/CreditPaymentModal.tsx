@@ -69,8 +69,8 @@ export const CreditPaymentModal: React.FC<CreditPaymentModalProps> = ({
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-md max-h-[calc(100vh-2rem)] overflow-hidden rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col ${
+      {/* Modal - Full scroll */}
+      <div className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 ${
         theme === 'dark' ? 'bg-slate-900' : 'bg-white'
       }`}>
         {/* Success Overlay */}
@@ -132,8 +132,8 @@ export const CreditPaymentModal: React.FC<CreditPaymentModalProps> = ({
           </div>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        {/* Content */}
+        <div className="p-6 space-y-5">
           {/* Quick Amount Buttons */}
           <div>
             <label className={`block text-sm font-medium mb-3 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>

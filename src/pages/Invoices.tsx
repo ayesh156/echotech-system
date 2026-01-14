@@ -1,18 +1,24 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { mockInvoices as initialMockInvoices, mockCustomers, mockProducts, mockWhatsAppSettings } from '../data/mockData';
-import type { Invoice } from '../data/mockData';
+import { 
+  mockInvoices as initialMockInvoices, 
+  mockCustomers as initialMockCustomers, 
+  mockProducts, 
+  mockWhatsAppSettings 
+} from '../data/mockData';
+import type { Invoice, InvoicePayment, Customer, CustomerPayment } from '../data/mockData';
 import { 
   FileText, Search, Plus, Eye, Edit, Trash2, 
   CheckCircle, Filter,
   List, SortAsc, SortDesc, RefreshCw, LayoutGrid,
   Calendar, User, Building2, XCircle, CircleDollarSign, DollarSign,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Shield, AlertTriangle, MessageCircle
+  Shield, AlertTriangle, MessageCircle, Clock
 } from 'lucide-react';
 import { DeleteConfirmationModal } from '../components/modals/DeleteConfirmationModal';
 import { InvoiceEditModal } from '../components/modals/InvoiceEditModal';
+import { InvoicePaymentModal } from '../components/modals/InvoicePaymentModal';
 import { SearchableSelect } from '../components/ui/searchable-select';
 
 type ViewMode = 'grid' | 'table';
@@ -21,6 +27,7 @@ export const Invoices: React.FC = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>(initialMockInvoices);
+  const [customers, setCustomers] = useState<Customer[]>(initialMockCustomers);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [customerFilter, setCustomerFilter] = useState<string>('all');
@@ -52,6 +59,7 @@ export const Invoices: React.FC = () => {
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   // Close calendar when clicking outside
@@ -71,8 +79,8 @@ export const Invoices: React.FC = () => {
   // Get unique customers from invoices
   const invoiceCustomers = useMemo(() => {
     const customerIds = [...new Set(invoices.map(inv => inv.customerId))];
-    return mockCustomers.filter(c => customerIds.includes(c.id));
-  }, [invoices]);
+    return customers.filter(c => customerIds.includes(c.id));
+  }, [invoices, customers]);
 
   // Check invoice warranty status
   const getInvoiceWarrantyStatus = (invoice: Invoice): { hasExpired: boolean; hasExpiringSoon: boolean; expiredCount: number; expiringSoonCount: number } => {
@@ -233,7 +241,7 @@ export const Invoices: React.FC = () => {
 
   // WhatsApp payment reminder function
   const sendWhatsAppReminder = (invoice: Invoice) => {
-    const customer = mockCustomers.find(c => c.id === invoice.customerId);
+    const customer = customers.find(c => c.id === invoice.customerId);
     if (!customer?.phone) {
       alert('Customer phone number not found!');
       return;
@@ -450,6 +458,11 @@ export const Invoices: React.FC = () => {
     setShowEditModal(true);
   };
 
+  const handleOpenPaymentModal = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setShowPaymentModal(true);
+  };
+
   const handleSaveEdit = (updatedInvoice: Invoice) => {
     setInvoices(invoices.map(inv => inv.id === updatedInvoice.id ? updatedInvoice : inv));
   };
@@ -465,6 +478,96 @@ export const Invoices: React.FC = () => {
       setShowDeleteModal(false);
       setSelectedInvoice(null);
     }
+  };
+
+  /**
+   * Handle invoice payment with bi-directional customer credit sync
+   * When invoice payment is made, it also reduces the customer's credit balance
+   */
+  const handlePayment = (invoiceId: string, amount: number, paymentMethod: string, notes?: string) => {
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return;
+
+    const newPayment: InvoicePayment = {
+      id: `pay-${Date.now()}`,
+      invoiceId: invoiceId,
+      amount: amount,
+      paymentDate: new Date().toISOString(),
+      paymentMethod: paymentMethod as 'cash' | 'card' | 'bank' | 'cheque',
+      notes: notes
+    };
+
+    // Update invoice
+    setInvoices(prevInvoices => 
+      prevInvoices.map(inv => {
+        if (inv.id === invoiceId) {
+          const newPaidAmount = (inv.paidAmount || 0) + amount;
+          
+          // Determine new status
+          let newStatus: 'unpaid' | 'fullpaid' | 'halfpay' = 'halfpay';
+          if (newPaidAmount >= inv.total) {
+            newStatus = 'fullpaid';
+          } else if (newPaidAmount <= 0) {
+            newStatus = 'unpaid';
+          }
+          
+          return {
+            ...inv,
+            paidAmount: Math.min(newPaidAmount, inv.total),
+            status: newStatus,
+            payments: [...(inv.payments || []), newPayment],
+            lastPaymentDate: new Date().toISOString(),
+            // Track credit settlement for bi-directional sync
+            creditSettlements: [...(inv.creditSettlements || []), {
+              paymentId: newPayment.id,
+              amount: amount,
+              date: new Date().toISOString()
+            }]
+          };
+        }
+        return inv;
+      })
+    );
+
+    // Bi-directional sync: Update customer credit balance
+    const customerId = invoice.customerId;
+    setCustomers(prevCustomers =>
+      prevCustomers.map(customer => {
+        if (customer.id === customerId) {
+          const newCreditBalance = Math.max(0, customer.creditBalance - amount);
+          
+          // Create payment entry for customer history
+          const customerPayment: CustomerPayment = {
+            id: `CP-${Date.now()}`,
+            invoiceId,
+            amount,
+            paymentDate: new Date().toISOString(),
+            paymentMethod: paymentMethod as 'cash' | 'bank' | 'card' | 'cheque',
+            notes: notes || `Payment on invoice #${invoiceId}`,
+            source: 'invoice',
+            appliedToInvoices: [{ invoiceId, amount }]
+          };
+
+          // Check if invoice is now fully paid
+          const isNowFullyPaid = (invoice.paidAmount || 0) + amount >= invoice.total;
+          const newCreditInvoices = isNowFullyPaid
+            ? (customer.creditInvoices || []).filter(id => id !== invoiceId)
+            : customer.creditInvoices || [];
+
+          return {
+            ...customer,
+            creditBalance: newCreditBalance,
+            creditStatus: newCreditBalance === 0 ? 'clear' : customer.creditStatus,
+            creditInvoices: newCreditInvoices,
+            paymentHistory: [...(customer.paymentHistory || []), customerPayment]
+          };
+        }
+        return customer;
+      })
+    );
+
+    setShowPaymentModal(false);
+    setSelectedInvoice(null);
   };
 
   return (
@@ -839,63 +942,167 @@ export const Invoices: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    {/* Amount */}
-                    <div className={`p-3 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'}`}>
-                      <div className="flex items-center justify-between">
+                    {/* Amount Section - Enhanced for payment tracking with consistent height */}
+                    <div className={`p-3 rounded-xl min-h-[90px] flex flex-col justify-between ${
+                      invoice.status === 'fullpaid'
+                        ? theme === 'dark' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'
+                        : invoice.status === 'halfpay'
+                          ? theme === 'dark' ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200'
+                          : theme === 'dark' ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1">
                         <span className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Total</span>
-                        <span className="text-lg font-bold text-emerald-500">{formatCurrency(invoice.total)}</span>
+                        <span className={`text-lg font-bold ${
+                          invoice.status === 'fullpaid' ? 'text-emerald-500' : 
+                          invoice.status === 'halfpay' ? 'text-amber-500' : 'text-red-500'
+                        }`}>{formatCurrency(invoice.total)}</span>
                       </div>
-                    </div>
-                    {/* Actions */}
-                    <div className={`flex flex-wrap gap-2 pt-3 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-                      <button 
-                        onClick={() => handleViewClick(invoice)}
-                        className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium ${
-                          theme === 'dark' ? 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                        }`}
-                      >
-                        <Eye className="w-4 h-4" /> View
-                      </button>
-                      <button 
-                        onClick={() => handleEditClick(invoice)}
-                        className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium ${
-                          theme === 'dark' ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-                        }`}
-                      >
-                        <Edit className="w-4 h-4" /> Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteClick(invoice)}
-                        className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium ${
-                          theme === 'dark' ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-red-50 text-red-600 hover:bg-red-100'
-                        }`}
-                      >
-                        <Trash2 className="w-4 h-4" /> Delete
-                      </button>
-                      {/* WhatsApp Reminder Button - Only show for unpaid/partial invoices */}
-                      {needsReminder(invoice) ? (
-                        <button 
-                          onClick={() => sendWhatsAppReminder(invoice)}
-                          className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                            isOverdue(invoice)
-                              ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 shadow-lg'
-                              : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600'
-                          }`}
-                          title={isOverdue(invoice) ? 'Send Overdue Reminder via WhatsApp' : 'Send Payment Reminder via WhatsApp'}
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          {isOverdue(invoice) ? '⚠️ Send Overdue Reminder' : '💬 WhatsApp Reminder'}
-                        </button>
+                      {/* Payment details - Show different content based on status */}
+                      {invoice.status !== 'fullpaid' ? (
+                        <>
+                          <div className="flex items-center justify-between text-xs mt-2">
+                            <span className={theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}>
+                              ✓ Paid: {formatCurrency(invoice.paidAmount || 0)}
+                            </span>
+                            <span className={theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}>
+                              ⏳ Due: {formatCurrency(invoice.total - (invoice.paidAmount || 0))}
+                            </span>
+                          </div>
+                          {/* Progress bar */}
+                          <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 mt-2 overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all ${
+                                invoice.status === 'halfpay' 
+                                  ? 'bg-gradient-to-r from-amber-400 to-orange-400' 
+                                  : 'bg-gradient-to-r from-red-400 to-rose-400'
+                              }`}
+                              style={{ width: `${((invoice.paidAmount || 0) / invoice.total) * 100}%` }}
+                            />
+                          </div>
+                        </>
                       ) : (
-                        <div className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium ${
-                          theme === 'dark' 
-                            ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' 
-                            : 'bg-emerald-50 border border-emerald-200 text-emerald-600'
-                        }`}>
-                          <CheckCircle className="w-4 h-4" />
-                          ✨ Payment Complete
-                        </div>
+                        /* Fully paid - show completion status */
+                        <>
+                          <div className="flex items-center justify-between text-xs mt-2">
+                            <span className={theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}>
+                              ✓ Paid: {formatCurrency(invoice.total)}
+                            </span>
+                            <span className={theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}>
+                              ⏳ Due: Rs. 0
+                            </span>
+                          </div>
+                          {/* Full progress bar */}
+                          <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 mt-2 overflow-hidden">
+                            <div className="h-full w-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400" />
+                          </div>
+                        </>
                       )}
+                    </div>
+                    {/* Actions - Fixed height container for consistent card sizes */}
+                    <div className={`flex flex-col gap-2 pt-3 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                      {/* Primary Action Buttons Row */}
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handleViewClick(invoice)}
+                          className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium ${
+                            theme === 'dark' ? 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                          }`}
+                        >
+                          <Eye className="w-4 h-4" /> View
+                        </button>
+                        <button 
+                          onClick={() => handleEditClick(invoice)}
+                          className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium ${
+                            theme === 'dark' ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                          }`}
+                        >
+                          <Edit className="w-4 h-4" /> Edit
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteClick(invoice)}
+                          className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium ${
+                            theme === 'dark' ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-red-50 text-red-600 hover:bg-red-100'
+                          }`}
+                        >
+                          <Trash2 className="w-4 h-4" /> Delete
+                        </button>
+                      </div>
+                      
+                      {/* Payment/Status Section - Always takes same space */}
+                      <div className="min-h-[88px] flex flex-col gap-2">
+                        {invoice.status !== 'fullpaid' ? (
+                          <>
+                            {/* Overdue - Record Payment Button */}
+                            {isOverdue(invoice) ? (
+                              <>
+                                <button 
+                                  onClick={() => handleOpenPaymentModal(invoice)}
+                                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                                    theme === 'dark' 
+                                      ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-500/25' 
+                                      : 'bg-gradient-to-r from-red-500 to-rose-500 text-white hover:from-red-600 hover:to-rose-600 shadow-lg shadow-red-500/25'
+                                  }`}
+                                  title="Record Payment - Overdue Invoice"
+                                >
+                                  <DollarSign className="w-4 h-4" />
+                                  💰 Record Payment
+                                </button>
+                                <button 
+                                  onClick={() => sendWhatsAppReminder(invoice)}
+                                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold transition-all bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25"
+                                  title="Send Urgent Overdue Reminder via WhatsApp"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                  🚨 Send Urgent Reminder
+                                </button>
+                              </>
+                            ) : (
+                              /* Not Overdue - Friendly Reminder */
+                              <>
+                                <div className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl ${
+                                  theme === 'dark' 
+                                    ? 'bg-amber-500/10 border border-amber-500/20' 
+                                    : 'bg-amber-50 border border-amber-200'
+                                }`}>
+                                  <Clock className="w-4 h-4 text-amber-500" />
+                                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}`}>
+                                    💳 Payment Pending
+                                  </span>
+                                </div>
+                                <button 
+                                  onClick={() => sendWhatsAppReminder(invoice)}
+                                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold transition-all bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg shadow-emerald-500/25"
+                                  title="Send Payment Reminder via WhatsApp"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                  💬 Send Reminder
+                                </button>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          /* Full Paid - Thank You Design */
+                          <div className={`flex-1 flex flex-col items-center justify-center gap-2 py-3 rounded-xl ${
+                            theme === 'dark' 
+                              ? 'bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/20' 
+                              : 'bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200'
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'
+                              }`}>
+                                <CheckCircle className="w-5 h-5 text-emerald-500" />
+                              </div>
+                              <span className={`text-lg font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                                Fully Paid
+                              </span>
+                            </div>
+                            <span className={`text-xs ${theme === 'dark' ? 'text-emerald-500/70' : 'text-emerald-500'}`}>
+                              🎉 Thank you for your payment!
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1371,6 +1578,26 @@ export const Invoices: React.FC = () => {
           setShowDeleteModal(false);
           setSelectedInvoice(null);
         }}
+      />
+
+      {/* Invoice Payment Modal - For managing half payments and credit */}
+      <InvoicePaymentModal
+        isOpen={showPaymentModal}
+        invoice={selectedInvoice}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setSelectedInvoice(null);
+        }}
+        onPayment={handlePayment}
+        paymentHistory={selectedInvoice?.payments?.map(p => ({
+          id: p.id,
+          invoiceId: p.invoiceId,
+          amount: p.amount,
+          paymentDate: p.paymentDate,
+          paymentMethod: p.paymentMethod,
+          notes: p.notes,
+          source: 'invoice' as const
+        })) || []}
       />
     </div>
   );

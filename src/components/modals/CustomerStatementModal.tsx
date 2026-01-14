@@ -165,8 +165,8 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
         onClick={onClose}
       />
       
-      {/* Modal */}
-      <div className={`relative w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden ${
+      {/* Modal - Full scroll */}
+      <div className={`relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
         theme === 'dark' ? 'bg-slate-900' : 'bg-white'
       }`}>
         {/* Header */}
@@ -237,7 +237,7 @@ export const CustomerStatementModal: React.FC<CustomerStatementModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-280px)] p-6">
+        <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
               <FileText className="w-5 h-5 inline mr-2" />
