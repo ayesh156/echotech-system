@@ -7,10 +7,11 @@ import PrintableGRN from '../components/PrintableGRN';
 import {
   ClipboardCheck, Truck, Package, CheckCircle, ChevronRight, ChevronLeft,
   Search, Plus, Trash2, ArrowLeft, Calendar,
-  Building2, Receipt, Printer, X, Minus, GripVertical, FileText, Hash
+  Building2, Receipt, Printer, X, Minus, GripVertical, FileText, Hash,
+  CreditCard, Banknote, Wallet, Tag
 } from 'lucide-react';
 
-type Step = 1 | 2;
+type Step = 1 | 2 | 3;
 
 export const CreateGRN: React.FC = () => {
   const { theme } = useTheme();
@@ -33,6 +34,26 @@ export const CreateGRN: React.FC = () => {
   const [receivedBy, setReceivedBy] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [notes] = useState('');
+
+  // Payment & Discount state
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank' | 'card' | 'credit' | 'cheque'>('cash');
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid' | 'partial'>('unpaid');
+  const [paidAmount, setPaidAmount] = useState<number>(0);
+  const [overallDiscountType, setOverallDiscountType] = useState<'percentage' | 'fixed'>('fixed');
+  const [overallDiscountValue, setOverallDiscountValue] = useState<number>(0);
+
+  // Editing item state
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingPrice, setEditingPrice] = useState<number>(0);
+  const priceInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (editingItemId && priceInputRef.current) {
+      priceInputRef.current.focus();
+      priceInputRef.current.select();
+    }
+  }, [editingItemId]);
 
   // Resizable panels state
   const [leftPanelWidth, setLeftPanelWidth] = useState(55);
@@ -137,6 +158,8 @@ export const CreateGRN: React.FC = () => {
         )
       );
     } else {
+      const costPrice = product.costPrice || product.price;
+      const sellingPrice = product.sellingPrice || product.price;
       const newItem: GRNItem = {
         id: `grn-item-${Date.now()}`,
         productId: product.id,
@@ -146,8 +169,12 @@ export const CreateGRN: React.FC = () => {
         receivedQuantity: 1,
         acceptedQuantity: 1,
         rejectedQuantity: 0,
-        unitPrice: product.price,
-        totalAmount: product.price,
+        unitPrice: costPrice,
+        originalUnitPrice: costPrice,
+        discountType: 'fixed',
+        discountValue: 0,
+        sellingPrice: sellingPrice,
+        totalAmount: costPrice,
         status: 'accepted',
       };
       setItems([...items, newItem]);
@@ -192,20 +219,40 @@ export const CreateGRN: React.FC = () => {
 
   // Calculations
   const totals = useMemo(() => {
-    return items.reduce((acc, item) => ({
+    const itemTotals = items.reduce((acc, item) => ({
       orderedQuantity: acc.orderedQuantity + item.orderedQuantity,
       receivedQuantity: acc.receivedQuantity + item.receivedQuantity,
       acceptedQuantity: acc.acceptedQuantity + item.acceptedQuantity,
       rejectedQuantity: acc.rejectedQuantity + item.rejectedQuantity,
       totalAmount: acc.totalAmount + item.totalAmount,
+      itemDiscountTotal: acc.itemDiscountTotal + (
+        (item.originalUnitPrice || item.unitPrice) - item.unitPrice
+      ) * item.acceptedQuantity,
     }), {
       orderedQuantity: 0,
       receivedQuantity: 0,
       acceptedQuantity: 0,
       rejectedQuantity: 0,
       totalAmount: 0,
+      itemDiscountTotal: 0,
     });
-  }, [items]);
+    
+    // Calculate overall discount
+    let overallDiscount = 0;
+    if (overallDiscountType === 'percentage') {
+      overallDiscount = (itemTotals.totalAmount * overallDiscountValue) / 100;
+    } else {
+      overallDiscount = overallDiscountValue;
+    }
+    
+    const finalAmount = Math.max(0, itemTotals.totalAmount - overallDiscount);
+    
+    return {
+      ...itemTotals,
+      overallDiscount,
+      finalAmount,
+    };
+  }, [items, overallDiscountType, overallDiscountValue]);
 
   // Generate GRN number
   const generateGRNNumber = () => {
@@ -231,9 +278,10 @@ export const CreateGRN: React.FC = () => {
       status = 'partial';
     }
 
+    const grnNumber = generateGRNNumber();
     const grn: GoodsReceivedNote = {
       id: `grn-${Date.now()}`,
-      grnNumber: generateGRNNumber(),
+      grnNumber,
       supplierId: selectedSupplier,
       supplierName: currentSupplier?.company || '',
       orderDate,
@@ -245,20 +293,57 @@ export const CreateGRN: React.FC = () => {
       totalAcceptedQuantity: totals.acceptedQuantity,
       totalRejectedQuantity: totals.rejectedQuantity,
       subtotal: totals.totalAmount,
-      discountAmount: 0,
+      discountAmount: totals.overallDiscount,
+      totalDiscount: totals.itemDiscountTotal + totals.overallDiscount,
       taxAmount: 0,
-      totalAmount: totals.totalAmount,
+      totalAmount: totals.finalAmount,
       status,
       receivedBy,
       deliveryNote,
       vehicleNumber,
       notes,
+      paymentMethod,
+      paymentStatus,
+      paidAmount: paymentStatus === 'paid' ? totals.finalAmount : paidAmount,
       createdAt: now,
       updatedAt: now,
     };
 
     // Add to mockGRNs
     mockGRNs.unshift(grn);
+    
+    // Update product stock and cost prices based on accepted items
+    items.forEach(item => {
+      if (item.acceptedQuantity > 0) {
+        const productIndex = mockProducts.findIndex(p => p.id === item.productId);
+        if (productIndex !== -1) {
+          const product = mockProducts[productIndex];
+          
+          // Update stock
+          product.stock = (product.stock || 0) + item.acceptedQuantity;
+          
+          // Update cost price (use GRN unit price as new cost)
+          product.lastCostPrice = product.costPrice;
+          product.costPrice = item.unitPrice;
+          
+          // Update selling price if set in GRN
+          if (item.sellingPrice) {
+            product.sellingPrice = item.sellingPrice;
+            product.price = item.sellingPrice;
+          }
+          
+          // Update profit margin
+          const sellingPrice = item.sellingPrice || product.sellingPrice || product.price;
+          product.profitMargin = ((sellingPrice - item.unitPrice) / sellingPrice) * 100;
+          
+          // Update tracking fields
+          product.lastGRNId = grn.id;
+          product.lastGRNDate = receivedDate;
+          product.totalPurchased = (product.totalPurchased || 0) + item.acceptedQuantity;
+          product.updatedAt = now;
+        }
+      }
+    });
     
     // Show print preview
     setCreatedGRN(grn);
@@ -353,7 +438,7 @@ export const CreateGRN: React.FC = () => {
     }
 
     return (
-      <div className={`absolute z-50 mt-2 p-4 rounded-2xl shadow-2xl border ${
+      <div className={`absolute z-50 bottom-full mb-2 p-4 rounded-2xl shadow-2xl border ${
         theme === 'dark' 
           ? 'bg-slate-800 border-slate-700' 
           : 'bg-white border-emerald-100'
@@ -522,15 +607,15 @@ export const CreateGRN: React.FC = () => {
 
         {/* Inline Step Indicator */}
         <div className="flex items-center gap-1 ml-auto">
-          {[1, 2].map((s) => (
+          {[1, 2, 3].map((s) => (
             <React.Fragment key={s}>
               <button
                 onClick={() => {
-                  if (s === 1 || (s === 2 && canProceedToStep2)) {
-                    setStep(s as Step);
-                  }
+                  if (s === 1) setStep(1);
+                  else if (s === 2 && canProceedToStep2) setStep(2);
+                  else if (s === 3 && items.length > 0) setStep(3);
                 }}
-                disabled={s === 2 && !canProceedToStep2}
+                disabled={(s === 2 && !canProceedToStep2) || (s === 3 && items.length === 0)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${
                   s === step
                     ? 'bg-emerald-500 text-white'
@@ -543,13 +628,14 @@ export const CreateGRN: React.FC = () => {
               >
                 {s < step ? <CheckCircle className="w-3.5 h-3.5" /> : (
                   s === 1 ? <Truck className="w-3.5 h-3.5" /> :
-                  <Package className="w-3.5 h-3.5" />
+                  s === 2 ? <Package className="w-3.5 h-3.5" /> :
+                  <Wallet className="w-3.5 h-3.5" />
                 )}
                 <span className="hidden sm:inline">
-                  {s === 1 ? 'Supplier & Details' : 'Products'}
+                  {s === 1 ? 'Supplier' : s === 2 ? 'Products' : 'Payment'}
                 </span>
               </button>
-              {s < 2 && (
+              {s < 3 && (
                 <ChevronRight className={`w-4 h-4 ${theme === 'dark' ? 'text-slate-600' : 'text-slate-300'}`} />
               )}
             </React.Fragment>
@@ -809,6 +895,247 @@ export const CreateGRN: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Step 3: Payment & Finalization */}
+          {step === 3 && (
+            <div className="flex-1 flex flex-col p-4 overflow-hidden">
+              <div className="flex items-center gap-2 mb-4">
+                <Wallet className="w-5 h-5 text-purple-500" />
+                <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  Payment & Finalization
+                </span>
+              </div>
+
+              <div className="space-y-4 overflow-y-auto">
+                {/* Order Summary Card */}
+                <div className={`p-4 rounded-xl ${
+                  theme === 'dark' ? 'bg-slate-700/50' : 'bg-slate-50'
+                }`}>
+                  <h3 className={`text-sm font-medium mb-3 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Order Summary
+                  </h3>
+                  <div className="grid grid-cols-4 gap-3 text-center">
+                    <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-600/50' : 'bg-white'}`}>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Items</p>
+                      <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{items.length}</p>
+                    </div>
+                    <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-600/50' : 'bg-white'}`}>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Ordered</p>
+                      <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{totals.orderedQuantity}</p>
+                    </div>
+                    <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-600/50' : 'bg-white'}`}>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>Accepted</p>
+                      <p className="font-bold text-emerald-500">{totals.acceptedQuantity}</p>
+                    </div>
+                    <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-600/50' : 'bg-white'}`}>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-red-400' : 'text-red-500'}`}>Rejected</p>
+                      <p className="font-bold text-red-500">{totals.rejectedQuantity}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Overall Discount */}
+                <div className={`p-4 rounded-xl ${
+                  theme === 'dark' ? 'bg-slate-700/50' : 'bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Tag className="w-4 h-4 text-orange-500" />
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Overall Discount
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {/* Modern Toggle Buttons for Discount Type */}
+                    <div className={`flex rounded-lg overflow-hidden ${
+                      theme === 'dark' ? 'bg-slate-600' : 'bg-slate-200'
+                    }`}>
+                      <button
+                        onClick={() => setOverallDiscountType('fixed')}
+                        className={`px-3 py-2 text-xs font-medium transition-all ${
+                          overallDiscountType === 'fixed'
+                            ? 'bg-emerald-500 text-white'
+                            : theme === 'dark' 
+                              ? 'text-slate-300 hover:bg-slate-500' 
+                              : 'text-slate-600 hover:bg-slate-300'
+                        }`}
+                      >
+                        Rs.
+                      </button>
+                      <button
+                        onClick={() => setOverallDiscountType('percentage')}
+                        className={`px-3 py-2 text-xs font-medium transition-all ${
+                          overallDiscountType === 'percentage'
+                            ? 'bg-emerald-500 text-white'
+                            : theme === 'dark' 
+                              ? 'text-slate-300 hover:bg-slate-500' 
+                              : 'text-slate-600 hover:bg-slate-300'
+                        }`}
+                      >
+                        %
+                      </button>
+                    </div>
+                    <div className="relative flex-1">
+                      <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {overallDiscountType === 'percentage' ? '%' : 'Rs.'}
+                      </span>
+                      <input
+                        type="number"
+                        value={overallDiscountValue}
+                        onChange={(e) => setOverallDiscountValue(parseFloat(e.target.value) || 0)}
+                        className={`w-full pl-10 pr-3 py-2 text-sm rounded-lg ${
+                          theme === 'dark' 
+                            ? 'bg-slate-600 border-slate-500 text-white' 
+                            : 'bg-white border-slate-200 text-slate-900'
+                        } border focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  {totals.overallDiscount > 0 && (
+                    <p className="text-xs text-orange-500 mt-2">
+                      You save Rs.{totals.overallDiscount.toLocaleString()}
+                    </p>
+                  )}
+                </div>
+
+                {/* Payment Method */}
+                <div className={`p-4 rounded-xl ${
+                  theme === 'dark' ? 'bg-slate-700/50' : 'bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <CreditCard className="w-4 h-4 text-blue-500" />
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Payment Method
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[
+                      { value: 'cash' as const, label: 'Cash', icon: Banknote },
+                      { value: 'bank' as const, label: 'Bank', icon: Building2 },
+                      { value: 'card' as const, label: 'Card', icon: CreditCard },
+                      { value: 'credit' as const, label: 'Credit', icon: Receipt },
+                      { value: 'cheque' as const, label: 'Cheque', icon: FileText },
+                    ].map(method => (
+                      <button
+                        key={method.value}
+                        onClick={() => setPaymentMethod(method.value)}
+                        className={`p-3 rounded-xl text-sm font-medium flex flex-col items-center gap-1 transition-all ${
+                          paymentMethod === method.value
+                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                            : theme === 'dark'
+                              ? 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                        }`}
+                      >
+                        <method.icon className="w-5 h-5" />
+                        {method.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Payment Status */}
+                <div className={`p-4 rounded-xl ${
+                  theme === 'dark' ? 'bg-slate-700/50' : 'bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Wallet className="w-4 h-4 text-purple-500" />
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Payment Status
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 'paid' as const, label: 'Paid', color: 'emerald', icon: CheckCircle },
+                      { value: 'partial' as const, label: 'Partial', color: 'amber', icon: Receipt },
+                      { value: 'unpaid' as const, label: 'Unpaid', color: 'red', icon: X },
+                    ].map(status => (
+                      <button
+                        key={status.value}
+                        onClick={() => setPaymentStatus(status.value)}
+                        className={`p-3 rounded-xl text-sm font-medium flex flex-col items-center gap-1 transition-all ${
+                          paymentStatus === status.value
+                            ? status.color === 'emerald' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                              : status.color === 'amber' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/25'
+                              : 'bg-red-500 text-white shadow-lg shadow-red-500/25'
+                            : theme === 'dark'
+                              ? 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                        }`}
+                      >
+                        <status.icon className="w-5 h-5" />
+                        {status.label}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Paid Amount for partial payments */}
+                  {paymentStatus === 'partial' && (
+                    <div className="mt-3">
+                      <label className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Paid Amount
+                      </label>
+                      <div className="relative mt-1">
+                        <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                          Rs.
+                        </span>
+                        <input
+                          type="number"
+                          value={paidAmount}
+                          onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                          max={totals.finalAmount}
+                          className={`w-full pl-10 pr-3 py-2 text-sm rounded-lg ${
+                            theme === 'dark' 
+                              ? 'bg-slate-600 border-slate-500 text-white' 
+                              : 'bg-white border-slate-200 text-slate-900'
+                          } border focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                        />
+                      </div>
+                      <p className="text-xs text-amber-500 mt-1">
+                        Balance: Rs.{(totals.finalAmount - paidAmount).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Final Totals Summary */}
+                <div className={`p-4 rounded-xl ${
+                  theme === 'dark' ? 'bg-gradient-to-br from-emerald-900/50 to-teal-900/50' : 'bg-gradient-to-br from-emerald-50 to-teal-50'
+                }`}>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Subtotal</span>
+                      <span className={theme === 'dark' ? 'text-white' : 'text-slate-900'}>
+                        Rs.{totals.totalAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    {totals.itemDiscountTotal > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-orange-500">Item Discounts</span>
+                        <span className="text-orange-500">-Rs.{totals.itemDiscountTotal.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {totals.overallDiscount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-orange-500">Overall Discount</span>
+                        <span className="text-orange-500">-Rs.{totals.overallDiscount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className={`flex justify-between items-center pt-2 border-t ${
+                      theme === 'dark' ? 'border-slate-600' : 'border-emerald-200'
+                    }`}>
+                      <span className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        Final Total
+                      </span>
+                      <span className="text-2xl font-bold text-emerald-500">
+                        Rs.{totals.finalAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Resizer */}
@@ -892,18 +1219,106 @@ export const CreateGRN: React.FC = () => {
                         <p className={`font-medium text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                           {item.productName}
                         </p>
-                        <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                          Rs.{item.unitPrice.toLocaleString()} each
-                        </p>
+                        {/* Inline Price Editor - Double-click to edit */}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {editingItemId === item.productId ? (
+                            <div className="flex items-center gap-1">
+                              <span className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Rs.</span>
+                              <input
+                                ref={priceInputRef}
+                                type="number"
+                                value={editingPrice}
+                                onChange={(e) => setEditingPrice(parseFloat(e.target.value) || 0)}
+                                onBlur={() => {
+                                  if (editingPrice > 0) {
+                                    const originalPrice = item.originalUnitPrice || item.unitPrice;
+                                    const discount = originalPrice - editingPrice;
+                                    setItems(prev => prev.map(i => 
+                                      i.productId === item.productId
+                                        ? {
+                                            ...i,
+                                            unitPrice: editingPrice,
+                                            originalUnitPrice: originalPrice,
+                                            discountType: 'fixed' as const,
+                                            discountValue: discount > 0 ? discount : 0,
+                                            totalAmount: i.acceptedQuantity * editingPrice
+                                          }
+                                        : i
+                                    ));
+                                  }
+                                  setEditingItemId(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    if (editingPrice > 0) {
+                                      const originalPrice = item.originalUnitPrice || item.unitPrice;
+                                      const discount = originalPrice - editingPrice;
+                                      setItems(prev => prev.map(i => 
+                                        i.productId === item.productId
+                                          ? {
+                                              ...i,
+                                              unitPrice: editingPrice,
+                                              originalUnitPrice: originalPrice,
+                                              discountType: 'fixed' as const,
+                                              discountValue: discount > 0 ? discount : 0,
+                                              totalAmount: i.acceptedQuantity * editingPrice
+                                            }
+                                          : i
+                                      ));
+                                    }
+                                    setEditingItemId(null);
+                                  } else if (e.key === 'Escape') {
+                                    setEditingItemId(null);
+                                  }
+                                }}
+                                className={`w-24 px-2 py-0.5 text-xs rounded border ${
+                                  theme === 'dark'
+                                    ? 'border-emerald-500 bg-slate-700 text-white'
+                                    : 'border-emerald-500 bg-white text-slate-900'
+                                } focus:outline-none focus:ring-1 focus:ring-emerald-500`}
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              onDoubleClick={() => {
+                                setEditingItemId(item.productId);
+                                setEditingPrice(item.unitPrice);
+                                setTimeout(() => priceInputRef.current?.focus(), 0);
+                              }}
+                              className={`flex items-center gap-1 px-1 py-0.5 -ml-1 rounded transition-colors cursor-pointer ${
+                                theme === 'dark' ? 'hover:bg-slate-600' : 'hover:bg-slate-200'
+                              }`}
+                              title="Double-click to edit price"
+                            >
+                              {(item.discountValue || 0) > 0 ? (
+                                <>
+                                  <span className={`text-xs line-through ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                                    Rs.{(item.originalUnitPrice || item.unitPrice).toLocaleString()}
+                                  </span>
+                                  <span className={`text-xs font-semibold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                                    Rs.{item.unitPrice.toLocaleString()}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  Rs.{item.unitPrice.toLocaleString()} each
+                                </span>
+                              )}
+                              <Tag className={`w-3 h-3 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        onClick={() => removeItem(item.productId)}
-                        className={`p-1 rounded-lg transition-colors ${
-                          theme === 'dark' ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-50 text-red-500'
-                        }`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => removeItem(item.productId)}
+                          className={`p-1 rounded-lg transition-colors ${
+                            theme === 'dark' ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-50 text-red-500'
+                          }`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     
                     {/* Quantity Controls */}
@@ -992,38 +1407,23 @@ export const CreateGRN: React.FC = () => {
               )}
             </div>
 
-            {/* Totals */}
+            {/* Totals - Subtotal only */}
             {items.length > 0 && (
-              <div className={`p-3 rounded-xl space-y-2 ${
+              <div className={`p-3 rounded-xl ${
                 theme === 'dark' ? 'bg-slate-700/50' : 'bg-slate-100'
               }`}>
-                <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                  <div>
-                    <p className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Ordered</p>
-                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{totals.orderedQuantity}</p>
-                  </div>
-                  <div>
-                    <p className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Received</p>
-                    <p className={`font-bold ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>{totals.receivedQuantity}</p>
-                  </div>
-                  <div>
-                    <p className={theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}>Accepted</p>
-                    <p className="font-bold text-emerald-500">{totals.acceptedQuantity}</p>
-                  </div>
-                  <div>
-                    <p className={theme === 'dark' ? 'text-red-400' : 'text-red-500'}>Rejected</p>
-                    <p className="font-bold text-red-500">{totals.rejectedQuantity}</p>
-                  </div>
-                </div>
-                
-                <div className={`pt-2 border-t flex justify-between items-center ${
-                  theme === 'dark' ? 'border-slate-600' : 'border-slate-200'
-                }`}>
-                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Total Value</span>
-                  <span className="text-lg font-bold text-emerald-500">
+                <div className="flex justify-between text-sm">
+                  <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Subtotal</span>
+                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                     Rs.{totals.totalAmount.toLocaleString()}
                   </span>
                 </div>
+                {(totals.itemDiscountTotal > 0 || totals.overallDiscount > 0) && (
+                  <div className="flex justify-between text-xs mt-1">
+                    <span className="text-orange-500">Discounts Applied</span>
+                    <span className="text-orange-500">-Rs.{(totals.itemDiscountTotal + totals.overallDiscount).toLocaleString()}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1040,10 +1440,21 @@ export const CreateGRN: React.FC = () => {
                 </button>
               )}
               
-              {step === 2 && (
+              {step === 2 && items.length > 0 && (
+                <button
+                  onClick={() => setStep(3)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/25"
+                >
+                  <Wallet className="w-5 h-5" />
+                  Payment & Finalize
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              )}
+
+              {step === 3 && (
                 <>
                   <button
-                    onClick={() => setStep(1)}
+                    onClick={() => setStep(2)}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium ${
                       theme === 'dark'
                         ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -1051,7 +1462,7 @@ export const CreateGRN: React.FC = () => {
                     }`}
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    Back to Details
+                    Back to Products
                   </button>
                   
                   <button

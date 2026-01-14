@@ -57,15 +57,64 @@ export interface Product {
   name: string;
   category: string;
   brand: string;
-  price: number;
+  // Pricing - Enhanced for GRN integration
+  price: number; // Current selling price (for backward compatibility)
+  sellingPrice?: number; // Current selling price (optional, defaults to price)
+  costPrice?: number; // Current cost/purchase price from latest GRN
+  lastCostPrice?: number; // Previous cost price for comparison
+  profitMargin?: number; // Calculated profit margin percentage
+  // Stock management
   stock: number;
+  reservedStock?: number; // Stock reserved for pending orders
+  availableStock?: number; // stock - reservedStock
+  // Identifiers
   serialNumber: string;
   barcode?: string;
   description?: string;
   createdAt: string;
+  updatedAt?: string;
   image?: string; // Base64 or URL of product image
   warranty?: string; // Warranty period (e.g., "6 months", "1 year")
   lowStockThreshold?: number; // Custom low stock threshold (default: 10)
+  // Stock & Price History
+  stockMovements?: StockMovement[];
+  priceHistory?: PriceHistory[];
+  // GRN & Invoice References
+  lastGRNId?: string; // Last GRN that updated this product
+  lastGRNDate?: string;
+  totalPurchased?: number; // Total quantity ever purchased via GRN
+  totalSold?: number; // Total quantity sold via invoices
+}
+
+// Stock Movement - Track all stock in/out movements
+export interface StockMovement {
+  id: string;
+  productId: string;
+  type: 'grn_in' | 'invoice_out' | 'adjustment' | 'return' | 'damaged';
+  quantity: number; // Positive for in, negative for out
+  previousStock: number;
+  newStock: number;
+  referenceId?: string; // GRN ID or Invoice ID
+  referenceNumber?: string; // GRN-2026-0001 or INV-2026-0001
+  unitPrice?: number; // Price at the time of movement
+  notes?: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
+// Price History - Track all price changes
+export interface PriceHistory {
+  id: string;
+  productId: string;
+  changeType: 'cost_update' | 'selling_update' | 'both';
+  previousCostPrice?: number;
+  newCostPrice?: number;
+  previousSellingPrice?: number;
+  newSellingPrice?: number;
+  reason?: string; // 'grn_purchase' | 'manual_adjustment' | 'promotion'
+  referenceId?: string; // GRN ID if from GRN
+  createdAt: string;
+  createdBy?: string;
 }
 
 export interface Customer {
@@ -171,7 +220,11 @@ export interface GRNItem {
   receivedQuantity: number;
   acceptedQuantity: number;
   rejectedQuantity: number;
-  unitPrice: number;
+  unitPrice: number; // Cost price (what we're paying)
+  originalUnitPrice?: number; // Original price before discount
+  discountType?: 'percentage' | 'fixed'; // Type of discount
+  discountValue?: number; // Discount amount/percentage
+  sellingPrice?: number; // Retail price we'll sell at
   totalAmount: number; // acceptedQuantity * unitPrice
   status: GRNItemStatus;
   rejectionReason?: string;
@@ -199,10 +252,15 @@ export interface GoodsReceivedNote {
   totalReceivedQuantity: number;
   totalAcceptedQuantity: number;
   totalRejectedQuantity: number;
-  subtotal: number;
-  discountAmount: number;
+  subtotal: number; // Before discounts
+  totalDiscount?: number; // Item-level discounts total (optional for backward compatibility)
+  discountAmount: number; // Additional overall discount
   taxAmount: number;
-  totalAmount: number;
+  totalAmount: number; // Final amount to pay
+  // Payment
+  paymentMethod?: 'cash' | 'bank' | 'card' | 'credit' | 'cheque';
+  paymentStatus?: 'paid' | 'unpaid' | 'partial';
+  paidAmount?: number;
   // Status & Workflow
   status: GRNStatus;
   inspectedBy?: string;
@@ -379,26 +437,26 @@ export const generateInvoiceNumber = () => {
 
 // Computer Shop Products
 export const mockProducts: Product[] = [
-  { id: '1', name: 'AMD Ryzen 9 7950X', category: 'Processors', brand: 'AMD', price: 185000, stock: 12, serialNumber: '70451234', barcode: '4938271650123', createdAt: '2026-01-01T08:00:00', image: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 8 },
-  { id: '2', name: 'Intel Core i9-14900K', category: 'Processors', brand: 'Intel', price: 195000, stock: 8, serialNumber: '70452345', barcode: '4938271650124', createdAt: '2026-01-02T09:30:00', warranty: '3 years', lowStockThreshold: 6 },
-  { id: '3', name: 'NVIDIA GeForce RTX 4090', category: 'Graphics Cards', brand: 'NVIDIA', price: 620000, stock: 5, serialNumber: '70453456', barcode: '4938271650125', createdAt: '2026-01-03T10:15:00', image: 'https://images.unsplash.com/photo-1591488320449-011701bb6704?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 3 },
-  { id: '4', name: 'NVIDIA GeForce RTX 4070 Ti', category: 'Graphics Cards', brand: 'NVIDIA', price: 280000, stock: 15, serialNumber: '70454567', barcode: '4938271650126', createdAt: '2026-01-04T11:45:00', image: 'https://images.unsplash.com/photo-1624705002806-5d72df19c3ad?auto=format&fit=crop&w=500&q=60', warranty: '3 years' },
-  { id: '5', name: 'AMD Radeon RX 7900 XTX', category: 'Graphics Cards', brand: 'AMD', price: 350000, stock: 7, serialNumber: '70455678', barcode: '4938271650127', createdAt: '2026-01-05T12:20:00', image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=500&q=60', warranty: '2 years', lowStockThreshold: 5 },
-  { id: '6', name: 'Samsung 990 Pro 2TB NVMe SSD', category: 'Storage', brand: 'Samsung', price: 75000, stock: 30, serialNumber: '70456789', barcode: '4938271650128', createdAt: '2026-01-06T13:30:00', warranty: '5 years' },
-  { id: '7', name: 'WD Black SN850X 1TB', category: 'Storage', brand: 'Western Digital', price: 42000, stock: 45, serialNumber: '70457890', barcode: '4938271650129', createdAt: '2026-01-07T14:00:00', warranty: '5 years' },
-  { id: '8', name: 'Corsair Vengeance DDR5 32GB (2x16GB)', category: 'Memory', brand: 'Corsair', price: 48000, stock: 25, serialNumber: '70458901', barcode: '4938271650130', createdAt: '2026-01-08T15:15:00', image: 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=500&q=60', warranty: 'Lifetime' },
-  { id: '9', name: 'G.Skill Trident Z5 64GB DDR5', category: 'Memory', brand: 'G.Skill', price: 95000, stock: 10, serialNumber: '70459012', barcode: '4938271650131', createdAt: '2026-01-09T16:45:00', image: 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=500&q=60', warranty: 'Lifetime' },
-  { id: '10', name: 'ASUS ROG Maximus Z790 Hero', category: 'Motherboards', brand: 'ASUS', price: 185000, stock: 6, serialNumber: '70460123', barcode: '4938271650132', createdAt: '2026-01-10T17:00:00', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 4 },
-  { id: '11', name: 'MSI MEG Z790 ACE', category: 'Motherboards', brand: 'MSI', price: 165000, stock: 8, serialNumber: '70461234', barcode: '4938271650133', createdAt: '2026-01-15T08:30:00', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=500&q=60', warranty: '3 years' },
-  { id: '12', name: 'Corsair RM1000x 1000W PSU', category: 'Power Supply', brand: 'Corsair', price: 55000, stock: 20, serialNumber: '70462345', barcode: '4938271650134', createdAt: '2026-01-16T09:00:00', image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=500&q=60', warranty: '10 years' },
-  { id: '13', name: 'NZXT Kraken X73 RGB', category: 'Cooling', brand: 'NZXT', price: 75000, stock: 18, serialNumber: '70463456', barcode: '4938271650135', createdAt: '2026-01-17T10:15:00', image: 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=60', warranty: '6 years' },
-  { id: '14', name: 'Lian Li O11 Dynamic EVO', category: 'Cases', brand: 'Lian Li', price: 58000, stock: 12, serialNumber: '70464567', barcode: '4938271650136', createdAt: '2026-01-20T11:30:00', image: 'https://images.unsplash.com/photo-1624705002806-5d72df19c3ad?auto=format&fit=crop&w=500&q=60', warranty: '2 years' },
-  { id: '15', name: 'LG UltraGear 27GP950-B 4K Monitor', category: 'Monitors', brand: 'LG', price: 195000, stock: 6, serialNumber: '70465678', barcode: '4938271650137', createdAt: '2026-01-22T12:45:00', image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 4 },
-  { id: '16', name: 'Samsung Odyssey G9 49" Monitor', category: 'Monitors', brand: 'Samsung', price: 380000, stock: 3, serialNumber: '70466789', barcode: '4938271650138', createdAt: '2026-01-24T13:20:00', image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 2 },
-  { id: '17', name: 'Logitech G Pro X Superlight 2', category: 'Peripherals', brand: 'Logitech', price: 52000, stock: 35, serialNumber: '70467890', barcode: '4938271650139', createdAt: '2026-01-25T14:00:00', image: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=500&q=60', warranty: '2 years' },
-  { id: '18', name: 'Razer Huntsman V3 Pro', category: 'Peripherals', brand: 'Razer', price: 68000, stock: 20, serialNumber: '70468901', barcode: '4938271650140', createdAt: '2026-01-27T15:00:00', warranty: '2 years' },
-  { id: '19', name: 'SteelSeries Arctis Nova Pro', category: 'Peripherals', brand: 'SteelSeries', price: 95000, stock: 15, serialNumber: '70469012', barcode: '4938271650141', createdAt: '2026-01-28T16:30:00', image: 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&w=500&q=60', warranty: '1 year' },
-  { id: '20', name: 'Seagate Exos 18TB HDD', category: 'Storage', brand: 'Seagate', price: 125000, stock: 8, serialNumber: '70470123', barcode: '4938271650142', createdAt: '2026-01-31T17:15:00', warranty: '5 years' },
+  { id: '1', name: 'AMD Ryzen 9 7950X', category: 'Processors', brand: 'AMD', price: 185000, sellingPrice: 185000, costPrice: 155000, profitMargin: 16.2, stock: 12, serialNumber: '70451234', barcode: '4938271650123', createdAt: '2026-01-01T08:00:00', image: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 8, totalPurchased: 25, totalSold: 13 },
+  { id: '2', name: 'Intel Core i9-14900K', category: 'Processors', brand: 'Intel', price: 195000, sellingPrice: 195000, costPrice: 165000, profitMargin: 15.4, stock: 8, serialNumber: '70452345', barcode: '4938271650124', createdAt: '2026-01-02T09:30:00', warranty: '3 years', lowStockThreshold: 6, totalPurchased: 18, totalSold: 10 },
+  { id: '3', name: 'NVIDIA GeForce RTX 4090', category: 'Graphics Cards', brand: 'NVIDIA', price: 620000, sellingPrice: 620000, costPrice: 520000, profitMargin: 16.1, stock: 5, serialNumber: '70453456', barcode: '4938271650125', createdAt: '2026-01-03T10:15:00', image: 'https://images.unsplash.com/photo-1591488320449-011701bb6704?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 3, totalPurchased: 10, totalSold: 5 },
+  { id: '4', name: 'NVIDIA GeForce RTX 4070 Ti', category: 'Graphics Cards', brand: 'NVIDIA', price: 280000, sellingPrice: 280000, costPrice: 235000, profitMargin: 16.1, stock: 15, serialNumber: '70454567', barcode: '4938271650126', createdAt: '2026-01-04T11:45:00', image: 'https://images.unsplash.com/photo-1624705002806-5d72df19c3ad?auto=format&fit=crop&w=500&q=60', warranty: '3 years', totalPurchased: 30, totalSold: 15 },
+  { id: '5', name: 'AMD Radeon RX 7900 XTX', category: 'Graphics Cards', brand: 'AMD', price: 350000, sellingPrice: 350000, costPrice: 295000, profitMargin: 15.7, stock: 7, serialNumber: '70455678', barcode: '4938271650127', createdAt: '2026-01-05T12:20:00', image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=500&q=60', warranty: '2 years', lowStockThreshold: 5, totalPurchased: 15, totalSold: 8 },
+  { id: '6', name: 'Samsung 990 Pro 2TB NVMe SSD', category: 'Storage', brand: 'Samsung', price: 75000, sellingPrice: 75000, costPrice: 62000, profitMargin: 17.3, stock: 30, serialNumber: '70456789', barcode: '4938271650128', createdAt: '2026-01-06T13:30:00', warranty: '5 years', totalPurchased: 60, totalSold: 30 },
+  { id: '7', name: 'WD Black SN850X 1TB', category: 'Storage', brand: 'Western Digital', price: 42000, sellingPrice: 42000, costPrice: 34000, profitMargin: 19.0, stock: 45, serialNumber: '70457890', barcode: '4938271650129', createdAt: '2026-01-07T14:00:00', warranty: '5 years', totalPurchased: 80, totalSold: 35 },
+  { id: '8', name: 'Corsair Vengeance DDR5 32GB (2x16GB)', category: 'Memory', brand: 'Corsair', price: 48000, sellingPrice: 48000, costPrice: 40000, profitMargin: 16.7, stock: 25, serialNumber: '70458901', barcode: '4938271650130', createdAt: '2026-01-08T15:15:00', image: 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=500&q=60', warranty: 'Lifetime', totalPurchased: 50, totalSold: 25 },
+  { id: '9', name: 'G.Skill Trident Z5 64GB DDR5', category: 'Memory', brand: 'G.Skill', price: 95000, sellingPrice: 95000, costPrice: 78000, profitMargin: 17.9, stock: 10, serialNumber: '70459012', barcode: '4938271650131', createdAt: '2026-01-09T16:45:00', image: 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=500&q=60', warranty: 'Lifetime', totalPurchased: 20, totalSold: 10 },
+  { id: '10', name: 'ASUS ROG Maximus Z790 Hero', category: 'Motherboards', brand: 'ASUS', price: 185000, sellingPrice: 185000, costPrice: 155000, profitMargin: 16.2, stock: 6, serialNumber: '70460123', barcode: '4938271650132', createdAt: '2026-01-10T17:00:00', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 4, totalPurchased: 12, totalSold: 6 },
+  { id: '11', name: 'MSI MEG Z790 ACE', category: 'Motherboards', brand: 'MSI', price: 165000, sellingPrice: 165000, costPrice: 138000, profitMargin: 16.4, stock: 8, serialNumber: '70461234', barcode: '4938271650133', createdAt: '2026-01-15T08:30:00', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=500&q=60', warranty: '3 years', totalPurchased: 15, totalSold: 7 },
+  { id: '12', name: 'Corsair RM1000x 1000W PSU', category: 'Power Supply', brand: 'Corsair', price: 55000, sellingPrice: 55000, costPrice: 45000, profitMargin: 18.2, stock: 20, serialNumber: '70462345', barcode: '4938271650134', createdAt: '2026-01-16T09:00:00', image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=500&q=60', warranty: '10 years', totalPurchased: 35, totalSold: 15 },
+  { id: '13', name: 'NZXT Kraken X73 RGB', category: 'Cooling', brand: 'NZXT', price: 75000, sellingPrice: 75000, costPrice: 62000, profitMargin: 17.3, stock: 18, serialNumber: '70463456', barcode: '4938271650135', createdAt: '2026-01-17T10:15:00', image: 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=60', warranty: '6 years', totalPurchased: 30, totalSold: 12 },
+  { id: '14', name: 'Lian Li O11 Dynamic EVO', category: 'Cases', brand: 'Lian Li', price: 58000, sellingPrice: 58000, costPrice: 48000, profitMargin: 17.2, stock: 12, serialNumber: '70464567', barcode: '4938271650136', createdAt: '2026-01-20T11:30:00', image: 'https://images.unsplash.com/photo-1624705002806-5d72df19c3ad?auto=format&fit=crop&w=500&q=60', warranty: '2 years', totalPurchased: 22, totalSold: 10 },
+  { id: '15', name: 'LG UltraGear 27GP950-B 4K Monitor', category: 'Monitors', brand: 'LG', price: 195000, sellingPrice: 195000, costPrice: 165000, profitMargin: 15.4, stock: 6, serialNumber: '70465678', barcode: '4938271650137', createdAt: '2026-01-22T12:45:00', image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 4, totalPurchased: 14, totalSold: 8 },
+  { id: '16', name: 'Samsung Odyssey G9 49" Monitor', category: 'Monitors', brand: 'Samsung', price: 380000, sellingPrice: 380000, costPrice: 320000, profitMargin: 15.8, stock: 3, serialNumber: '70466789', barcode: '4938271650138', createdAt: '2026-01-24T13:20:00', image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=500&q=60', warranty: '3 years', lowStockThreshold: 2, totalPurchased: 6, totalSold: 3 },
+  { id: '17', name: 'Logitech G Pro X Superlight 2', category: 'Peripherals', brand: 'Logitech', price: 52000, sellingPrice: 52000, costPrice: 42000, profitMargin: 19.2, stock: 35, serialNumber: '70467890', barcode: '4938271650139', createdAt: '2026-01-25T14:00:00', image: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=500&q=60', warranty: '2 years', totalPurchased: 60, totalSold: 25 },
+  { id: '18', name: 'Razer Huntsman V3 Pro', category: 'Peripherals', brand: 'Razer', price: 68000, sellingPrice: 68000, costPrice: 55000, profitMargin: 19.1, stock: 20, serialNumber: '70468901', barcode: '4938271650140', createdAt: '2026-01-27T15:00:00', warranty: '2 years', totalPurchased: 35, totalSold: 15 },
+  { id: '19', name: 'SteelSeries Arctis Nova Pro', category: 'Peripherals', brand: 'SteelSeries', price: 95000, sellingPrice: 95000, costPrice: 78000, profitMargin: 17.9, stock: 15, serialNumber: '70469012', barcode: '4938271650141', createdAt: '2026-01-28T16:30:00', image: 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&w=500&q=60', warranty: '1 year', totalPurchased: 28, totalSold: 13 },
+  { id: '20', name: 'Seagate Exos 18TB HDD', category: 'Storage', brand: 'Seagate', price: 125000, sellingPrice: 125000, costPrice: 105000, profitMargin: 16.0, stock: 8, serialNumber: '70470123', barcode: '4938271650142', createdAt: '2026-01-31T17:15:00', warranty: '5 years', totalPurchased: 15, totalSold: 7 },
 ];
 
 // Export the helper function for use in other files
@@ -690,7 +748,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 10,
         acceptedQuantity: 10,
         rejectedQuantity: 0,
+        originalUnitPrice: 170000,
         unitPrice: 165000,
+        discountType: 'fixed',
+        discountValue: 5000,
         totalAmount: 1650000,
         status: 'accepted',
         batchNumber: 'BATCH-AMD-2026-001',
@@ -704,7 +765,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 18,
         acceptedQuantity: 18,
         rejectedQuantity: 0,
+        originalUnitPrice: 45000,
         unitPrice: 42000,
+        discountType: 'percentage',
+        discountValue: 6.67,
         totalAmount: 756000,
         status: 'partial',
         qualityNotes: '2 units short delivery - supplier will send next week',
@@ -714,10 +778,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 28,
     totalAcceptedQuantity: 28,
     totalRejectedQuantity: 0,
-    subtotal: 2406000,
+    subtotal: 2460000,
+    totalDiscount: 104000,
     discountAmount: 50000,
     taxAmount: 0,
     totalAmount: 2356000,
+    paymentMethod: 'bank',
+    paymentStatus: 'paid',
+    paidAmount: 2356000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2026-01-08',
@@ -766,6 +834,9 @@ export const mockGRNs: GoodsReceivedNote[] = [
     discountAmount: 0,
     taxAmount: 0,
     totalAmount: 2200000,
+    paymentMethod: 'credit',
+    paymentStatus: 'unpaid',
+    paidAmount: 0,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2026-01-12',
@@ -885,7 +956,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 8,
         acceptedQuantity: 8,
         rejectedQuantity: 0,
+        originalUnitPrice: 190000,
         unitPrice: 185000,
+        discountType: 'fixed',
+        discountValue: 5000,
         totalAmount: 1480000,
         status: 'accepted',
         batchNumber: 'INTEL-2025-B089',
@@ -895,10 +969,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 8,
     totalAcceptedQuantity: 8,
     totalRejectedQuantity: 0,
-    subtotal: 1480000,
+    subtotal: 1520000,
+    totalDiscount: 70000,
     discountAmount: 30000,
     taxAmount: 0,
     totalAmount: 1450000,
+    paymentMethod: 'cash',
+    paymentStatus: 'paid',
+    paidAmount: 1450000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2025-12-30',
@@ -943,6 +1021,9 @@ export const mockGRNs: GoodsReceivedNote[] = [
     discountAmount: 0,
     taxAmount: 0,
     totalAmount: 2310000,
+    paymentMethod: 'cheque',
+    paymentStatus: 'partial',
+    paidAmount: 1500000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2026-01-04',
@@ -973,7 +1054,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 10,
         acceptedQuantity: 9,
         rejectedQuantity: 1,
+        originalUnitPrice: 130000,
         unitPrice: 125000,
+        discountType: 'percentage',
+        discountValue: 3.85,
         totalAmount: 1125000,
         status: 'partial',
         rejectionReason: 'One unit has bent CPU socket pins',
@@ -987,7 +1071,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 5,
         acceptedQuantity: 5,
         rejectedQuantity: 0,
+        originalUnitPrice: 180000,
         unitPrice: 175000,
+        discountType: 'fixed',
+        discountValue: 5000,
         totalAmount: 875000,
         status: 'accepted',
       }
@@ -996,10 +1083,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 15,
     totalAcceptedQuantity: 14,
     totalRejectedQuantity: 1,
-    subtotal: 2000000,
+    subtotal: 2070000,
+    totalDiscount: 120000,
     discountAmount: 50000,
     taxAmount: 0,
     totalAmount: 1950000,
+    paymentMethod: 'bank',
+    paymentStatus: 'paid',
+    paidAmount: 1950000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2026-01-09',
@@ -1030,7 +1121,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 20,
         acceptedQuantity: 20,
         rejectedQuantity: 0,
+        originalUnitPrice: 40000,
         unitPrice: 38000,
+        discountType: 'percentage',
+        discountValue: 5,
         totalAmount: 760000,
         status: 'accepted',
         batchNumber: 'KFB-2026-001',
@@ -1040,10 +1134,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 20,
     totalAcceptedQuantity: 20,
     totalRejectedQuantity: 0,
-    subtotal: 760000,
+    subtotal: 800000,
+    totalDiscount: 60000,
     discountAmount: 20000,
     taxAmount: 0,
     totalAmount: 740000,
+    paymentMethod: 'card',
+    paymentStatus: 'paid',
+    paidAmount: 740000,
     status: 'completed',
     inspectedBy: 'Sunil Fernando',
     inspectionDate: '2026-01-08',
@@ -1124,7 +1222,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 15,
         acceptedQuantity: 15,
         rejectedQuantity: 0,
+        originalUnitPrice: 70000,
         unitPrice: 68000,
+        discountType: 'fixed',
+        discountValue: 2000,
         totalAmount: 1020000,
         status: 'accepted',
       },
@@ -1137,7 +1238,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 8,
         acceptedQuantity: 8,
         rejectedQuantity: 0,
+        originalUnitPrice: 90000,
         unitPrice: 85000,
+        discountType: 'percentage',
+        discountValue: 5.56,
         totalAmount: 680000,
         status: 'accepted',
       }
@@ -1146,10 +1250,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 23,
     totalAcceptedQuantity: 23,
     totalRejectedQuantity: 0,
-    subtotal: 1700000,
+    subtotal: 1770000,
+    totalDiscount: 110000,
     discountAmount: 40000,
     taxAmount: 0,
     totalAmount: 1660000,
+    paymentMethod: 'credit',
+    paymentStatus: 'partial',
+    paidAmount: 1000000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2026-01-11',
@@ -1356,7 +1464,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 3,
         acceptedQuantity: 3,
         rejectedQuantity: 0,
+        originalUnitPrice: 570000,
         unitPrice: 550000,
+        discountType: 'fixed',
+        discountValue: 20000,
         totalAmount: 1650000,
         status: 'accepted',
         serialNumbers: ['RTX4090-DH-001', 'RTX4090-DH-002', 'RTX4090-DH-003'],
@@ -1366,10 +1477,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 3,
     totalAcceptedQuantity: 3,
     totalRejectedQuantity: 0,
-    subtotal: 1650000,
+    subtotal: 1710000,
+    totalDiscount: 110000,
     discountAmount: 50000,
     taxAmount: 0,
     totalAmount: 1600000,
+    paymentMethod: 'bank',
+    paymentStatus: 'paid',
+    paidAmount: 1600000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2025-12-17',
@@ -1400,7 +1515,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 15,
         acceptedQuantity: 15,
         rejectedQuantity: 0,
+        originalUnitPrice: 170000,
         unitPrice: 165000,
+        discountType: 'percentage',
+        discountValue: 2.94,
         totalAmount: 2475000,
         status: 'accepted',
         batchNumber: 'AMD-2025-B078',
@@ -1410,10 +1528,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 15,
     totalAcceptedQuantity: 15,
     totalRejectedQuantity: 0,
-    subtotal: 2475000,
+    subtotal: 2550000,
+    totalDiscount: 150000,
     discountAmount: 75000,
     taxAmount: 0,
     totalAmount: 2400000,
+    paymentMethod: 'cheque',
+    paymentStatus: 'paid',
+    paidAmount: 2400000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2025-12-12',
@@ -1458,6 +1580,9 @@ export const mockGRNs: GoodsReceivedNote[] = [
     discountAmount: 0,
     taxAmount: 0,
     totalAmount: 1960000,
+    paymentMethod: 'credit',
+    paymentStatus: 'unpaid',
+    paidAmount: 0,
     status: 'completed',
     inspectedBy: 'Sunil Fernando',
     inspectionDate: '2025-12-07',
@@ -1488,7 +1613,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 25,
         acceptedQuantity: 25,
         rejectedQuantity: 0,
+        originalUnitPrice: 78000,
         unitPrice: 75000,
+        discountType: 'fixed',
+        discountValue: 3000,
         totalAmount: 1875000,
         status: 'accepted',
         batchNumber: 'SAM-990-2025',
@@ -1502,7 +1630,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 30,
         acceptedQuantity: 30,
         rejectedQuantity: 0,
+        originalUnitPrice: 45000,
         unitPrice: 42000,
+        discountType: 'percentage',
+        discountValue: 6.67,
         totalAmount: 1260000,
         status: 'accepted',
       }
@@ -1511,10 +1642,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 55,
     totalAcceptedQuantity: 55,
     totalRejectedQuantity: 0,
-    subtotal: 3135000,
+    subtotal: 3300000,
+    totalDiscount: 300000,
     discountAmount: 135000,
     taxAmount: 0,
     totalAmount: 3000000,
+    paymentMethod: 'bank',
+    paymentStatus: 'paid',
+    paidAmount: 3000000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2025-11-30',
@@ -1545,7 +1680,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 10,
         acceptedQuantity: 10,
         rejectedQuantity: 0,
+        originalUnitPrice: 100000,
         unitPrice: 95000,
+        discountType: 'percentage',
+        discountValue: 5,
         totalAmount: 950000,
         status: 'accepted',
       }
@@ -1554,10 +1692,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 10,
     totalAcceptedQuantity: 10,
     totalRejectedQuantity: 0,
-    subtotal: 950000,
+    subtotal: 1000000,
+    totalDiscount: 100000,
     discountAmount: 50000,
     taxAmount: 0,
     totalAmount: 900000,
+    paymentMethod: 'card',
+    paymentStatus: 'paid',
+    paidAmount: 900000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2025-11-22',
@@ -1588,7 +1730,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 5,
         acceptedQuantity: 5,
         rejectedQuantity: 0,
+        originalUnitPrice: 195000,
         unitPrice: 185000,
+        discountType: 'fixed',
+        discountValue: 10000,
         totalAmount: 925000,
         status: 'accepted',
       },
@@ -1601,7 +1746,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 6,
         acceptedQuantity: 6,
         rejectedQuantity: 0,
+        originalUnitPrice: 175000,
         unitPrice: 165000,
+        discountType: 'percentage',
+        discountValue: 5.71,
         totalAmount: 990000,
         status: 'accepted',
       }
@@ -1610,10 +1758,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 11,
     totalAcceptedQuantity: 11,
     totalRejectedQuantity: 0,
-    subtotal: 1915000,
+    subtotal: 2025000,
+    totalDiscount: 175000,
     discountAmount: 65000,
     taxAmount: 0,
     totalAmount: 1850000,
+    paymentMethod: 'cheque',
+    paymentStatus: 'partial',
+    paidAmount: 1200000,
     status: 'completed',
     inspectedBy: 'Sunil Fernando',
     inspectionDate: '2025-11-17',
@@ -1644,7 +1796,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 15,
         acceptedQuantity: 15,
         rejectedQuantity: 0,
+        originalUnitPrice: 58000,
         unitPrice: 55000,
+        discountType: 'fixed',
+        discountValue: 3000,
         totalAmount: 825000,
         status: 'accepted',
       }
@@ -1653,10 +1808,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 15,
     totalAcceptedQuantity: 15,
     totalRejectedQuantity: 0,
-    subtotal: 825000,
+    subtotal: 870000,
+    totalDiscount: 70000,
     discountAmount: 25000,
     taxAmount: 0,
     totalAmount: 800000,
+    paymentMethod: 'bank',
+    paymentStatus: 'paid',
+    paidAmount: 800000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2025-11-12',
@@ -1687,7 +1846,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 8,
         acceptedQuantity: 8,
         rejectedQuantity: 0,
+        originalUnitPrice: 205000,
         unitPrice: 195000,
+        discountType: 'percentage',
+        discountValue: 4.88,
         totalAmount: 1560000,
         status: 'accepted',
       }
@@ -1696,10 +1858,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 8,
     totalAcceptedQuantity: 8,
     totalRejectedQuantity: 0,
-    subtotal: 1560000,
+    subtotal: 1640000,
+    totalDiscount: 140000,
     discountAmount: 60000,
     taxAmount: 0,
     totalAmount: 1500000,
+    paymentMethod: 'credit',
+    paymentStatus: 'partial',
+    paidAmount: 1000000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2025-11-07',
@@ -1730,7 +1896,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 40,
         acceptedQuantity: 38,
         rejectedQuantity: 2,
+        originalUnitPrice: 50000,
         unitPrice: 48000,
+        discountType: 'fixed',
+        discountValue: 2000,
         totalAmount: 1824000,
         status: 'partial',
         rejectionReason: '2 kits failed XMP profile test',
@@ -1741,10 +1910,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 40,
     totalAcceptedQuantity: 38,
     totalRejectedQuantity: 2,
-    subtotal: 1824000,
+    subtotal: 1900000,
+    totalDiscount: 100000,
     discountAmount: 24000,
     taxAmount: 0,
     totalAmount: 1800000,
+    paymentMethod: 'bank',
+    paymentStatus: 'paid',
+    paidAmount: 1800000,
     status: 'completed',
     inspectedBy: 'Sunil Fernando',
     inspectionDate: '2025-10-30',
@@ -1775,7 +1948,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 10,
         acceptedQuantity: 10,
         rejectedQuantity: 0,
+        originalUnitPrice: 200000,
         unitPrice: 195000,
+        discountType: 'percentage',
+        discountValue: 2.5,
         totalAmount: 1950000,
         status: 'accepted',
       }
@@ -1784,10 +1960,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 10,
     totalAcceptedQuantity: 10,
     totalRejectedQuantity: 0,
-    subtotal: 1950000,
+    subtotal: 2000000,
+    totalDiscount: 100000,
     discountAmount: 50000,
     taxAmount: 0,
     totalAmount: 1900000,
+    paymentMethod: 'card',
+    paymentStatus: 'paid',
+    paidAmount: 1900000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2025-10-22',
@@ -1818,7 +1998,10 @@ export const mockGRNs: GoodsReceivedNote[] = [
         receivedQuantity: 5,
         acceptedQuantity: 5,
         rejectedQuantity: 0,
+        originalUnitPrice: 360000,
         unitPrice: 350000,
+        discountType: 'fixed',
+        discountValue: 10000,
         totalAmount: 1750000,
         status: 'accepted',
       }
@@ -1827,10 +2010,14 @@ export const mockGRNs: GoodsReceivedNote[] = [
     totalReceivedQuantity: 5,
     totalAcceptedQuantity: 5,
     totalRejectedQuantity: 0,
-    subtotal: 1750000,
+    subtotal: 1800000,
+    totalDiscount: 100000,
     discountAmount: 50000,
     taxAmount: 0,
     totalAmount: 1700000,
+    paymentMethod: 'cheque',
+    paymentStatus: 'paid',
+    paidAmount: 1700000,
     status: 'completed',
     inspectedBy: 'Kamal Perera',
     inspectionDate: '2025-10-17',

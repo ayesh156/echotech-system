@@ -13,7 +13,8 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileText, Truck, Filter, RefreshCw, List, LayoutGrid,
   SortAsc, SortDesc, Building2, DollarSign,
-  BarChart3, TrendingUp, Trash2
+  BarChart3, TrendingUp, Trash2,
+  CreditCard, Banknote, Wallet, Receipt, BadgePercent
 } from 'lucide-react';
 
 // GRN Status config for badges (removed 'inspecting')
@@ -23,6 +24,22 @@ const grnStatusConfig: Record<GRNStatus, { label: string; color: string; bgColor
   partial: { label: 'Partial', color: 'text-orange-500', bgColor: 'bg-orange-500/10', borderColor: 'border-orange-500/30', icon: AlertTriangle },
   completed: { label: 'Completed', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/30', icon: CheckCircle },
   rejected: { label: 'Rejected', color: 'text-red-500', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/30', icon: XCircle },
+};
+
+// Payment method config for icons
+const paymentMethodIcons: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
+  cash: { icon: Banknote, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+  bank: { icon: Building2, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+  card: { icon: CreditCard, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
+  credit: { icon: Wallet, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
+  cheque: { icon: Receipt, color: 'text-cyan-500', bgColor: 'bg-cyan-500/10' },
+};
+
+// Payment status config
+const paymentStatusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
+  paid: { label: 'Paid', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+  partial: { label: 'Partial', color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
+  unpaid: { label: 'Unpaid', color: 'text-red-500', bgColor: 'bg-red-500/10' },
 };
 
 type ViewMode = 'grid' | 'table';
@@ -796,6 +813,43 @@ export const GoodsReceived: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Payment & Discount Row */}
+                {(grn.paymentMethod || grn.totalDiscount || grn.discountAmount) && (
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    {/* Payment Method & Status */}
+                    {grn.paymentMethod && (
+                      <div className="flex items-center gap-1.5">
+                        {(() => {
+                          const config = paymentMethodIcons[grn.paymentMethod];
+                          const Icon = config?.icon || CreditCard;
+                          return (
+                            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${config?.bgColor || 'bg-slate-500/10'}`}>
+                              <Icon className={`w-3.5 h-3.5 ${config?.color || 'text-slate-500'}`} />
+                              <span className={`text-xs font-medium capitalize ${config?.color || 'text-slate-500'}`}>
+                                {grn.paymentMethod}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                        {grn.paymentStatus && (
+                          <span className={`text-xs px-2 py-1 rounded-lg font-medium ${paymentStatusConfig[grn.paymentStatus]?.bgColor || 'bg-slate-500/10'} ${paymentStatusConfig[grn.paymentStatus]?.color || 'text-slate-500'}`}>
+                            {paymentStatusConfig[grn.paymentStatus]?.label || grn.paymentStatus}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {/* Discount Badge */}
+                    {((grn.totalDiscount || 0) + (grn.discountAmount || 0)) > 0 && (
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${theme === 'dark' ? 'bg-orange-500/10' : 'bg-orange-50'}`}>
+                        <BadgePercent className="w-3.5 h-3.5 text-orange-500" />
+                        <span className="text-xs font-medium text-orange-500">
+                          -{formatCurrency((grn.totalDiscount || 0) + (grn.discountAmount || 0))}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Footer */}
                 <div className="flex items-center justify-between pt-3 border-t border-slate-700/30">
                   <div className={`flex items-center gap-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -867,8 +921,9 @@ export const GoodsReceived: React.FC = () => {
                   <th className={`text-left px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>GRN Number</th>
                   <th className={`text-left px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Supplier</th>
                   <th className={`text-left px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Order Date</th>
-                  <th className={`text-center px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Ordered</th>
-                  <th className={`text-center px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Accepted</th>
+                  <th className={`text-center px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Qty</th>
+                  <th className={`text-center px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Payment</th>
+                  <th className={`text-center px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Discount</th>
                   <th className={`text-left px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Status</th>
                   <th className={`text-right px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Amount</th>
                   <th className={`text-center px-4 py-3 text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Actions</th>
@@ -904,11 +959,52 @@ export const GoodsReceived: React.FC = () => {
                       <td className={`px-4 py-3 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                         {formatDate(grn.orderDate)}
                       </td>
-                      <td className={`px-4 py-3 text-center font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                        {grn.totalOrderedQuantity}
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                            {grn.totalOrderedQuantity}
+                          </span>
+                          <span className="text-xs text-emerald-500">
+                            {grn.totalAcceptedQuantity} acc
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-center font-medium text-emerald-500">
-                        {grn.totalAcceptedQuantity}
+                      <td className="px-4 py-3 text-center">
+                        {grn.paymentMethod ? (
+                          <div className="flex flex-col items-center gap-1">
+                            {(() => {
+                              const config = paymentMethodIcons[grn.paymentMethod];
+                              const Icon = config?.icon || CreditCard;
+                              return (
+                                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${config?.bgColor || 'bg-slate-500/10'}`}>
+                                  <Icon className={`w-3.5 h-3.5 ${config?.color || 'text-slate-500'}`} />
+                                  <span className={`text-xs font-medium capitalize ${config?.color || 'text-slate-500'}`}>
+                                    {grn.paymentMethod}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                            {grn.paymentStatus && (
+                              <span className={`text-xs px-2 py-0.5 rounded font-medium ${paymentStatusConfig[grn.paymentStatus]?.bgColor || 'bg-slate-500/10'} ${paymentStatusConfig[grn.paymentStatus]?.color || 'text-slate-500'}`}>
+                                {paymentStatusConfig[grn.paymentStatus]?.label || grn.paymentStatus}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {((grn.totalDiscount || 0) + (grn.discountAmount || 0)) > 0 ? (
+                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg ${theme === 'dark' ? 'bg-orange-500/10' : 'bg-orange-50'}`}>
+                            <BadgePercent className="w-3.5 h-3.5 text-orange-500" />
+                            <span className="text-xs font-medium text-orange-500">
+                              {formatCurrency((grn.totalDiscount || 0) + (grn.discountAmount || 0))}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${grnStatusConfig[grn.status].bgColor} ${grnStatusConfig[grn.status].color}`}>

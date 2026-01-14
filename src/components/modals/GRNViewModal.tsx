@@ -17,6 +17,13 @@ import {
   Printer,
   Edit,
   Building2,
+  CreditCard,
+  Banknote,
+  Receipt,
+  Wallet,
+  Tag,
+  Percent,
+  BadgePercent,
 } from 'lucide-react';
 
 interface GRNViewModalProps {
@@ -39,6 +46,22 @@ const itemStatusConfig: Record<GRNItemStatus, { label: string; color: string; bg
   accepted: { label: 'Accepted', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
   rejected: { label: 'Rejected', color: 'text-red-500', bgColor: 'bg-red-500/10' },
   partial: { label: 'Partial', color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
+};
+
+// Payment method config
+const paymentMethodConfig: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string }> = {
+  cash: { label: 'Cash', icon: Banknote, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+  bank: { label: 'Bank Transfer', icon: Building2, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+  card: { label: 'Card', icon: CreditCard, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
+  credit: { label: 'Credit', icon: Wallet, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
+  cheque: { label: 'Cheque', icon: Receipt, color: 'text-cyan-500', bgColor: 'bg-cyan-500/10' },
+};
+
+// Payment status config
+const paymentStatusConfig: Record<string, { label: string; color: string; bgColor: string; borderColor: string }> = {
+  paid: { label: 'Paid', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/30' },
+  partial: { label: 'Partial', color: 'text-amber-500', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/30' },
+  unpaid: { label: 'Unpaid', color: 'text-red-500', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/30' },
 };
 
 export const GRNViewModal: React.FC<GRNViewModalProps> = ({
@@ -253,6 +276,109 @@ export const GRNViewModal: React.FC<GRNViewModalProps> = ({
             </div>
           </div>
 
+          {/* Payment & Discount Summary */}
+          {(grn.paymentMethod || grn.totalDiscount || grn.discountAmount) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Payment Info */}
+              {grn.paymentMethod && (
+                <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700' : 'bg-white border-slate-200'}`}>
+                  <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <CreditCard className="w-4 h-4" />
+                    Payment Information
+                  </h3>
+                  <div className="space-y-3">
+                    {/* Payment Method */}
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Method:</span>
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${paymentMethodConfig[grn.paymentMethod]?.bgColor || 'bg-slate-500/10'}`}>
+                        {(() => {
+                          const config = paymentMethodConfig[grn.paymentMethod];
+                          const Icon = config?.icon || CreditCard;
+                          return <Icon className={`w-4 h-4 ${config?.color || 'text-slate-500'}`} />;
+                        })()}
+                        <span className={`text-sm font-medium ${paymentMethodConfig[grn.paymentMethod]?.color || 'text-slate-500'}`}>
+                          {paymentMethodConfig[grn.paymentMethod]?.label || grn.paymentMethod}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Payment Status */}
+                    {grn.paymentStatus && (
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Status:</span>
+                        <span className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${paymentStatusConfig[grn.paymentStatus]?.bgColor || 'bg-slate-500/10'} ${paymentStatusConfig[grn.paymentStatus]?.color || 'text-slate-500'} ${paymentStatusConfig[grn.paymentStatus]?.borderColor || 'border-slate-500/30'}`}>
+                          {paymentStatusConfig[grn.paymentStatus]?.label || grn.paymentStatus}
+                        </span>
+                      </div>
+                    )}
+                    {/* Paid Amount */}
+                    {grn.paidAmount !== undefined && grn.paymentStatus !== 'unpaid' && (
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Paid:</span>
+                        <span className={`text-sm font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                          Rs.{grn.paidAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {/* Balance */}
+                    {grn.paymentStatus === 'partial' && grn.paidAmount !== undefined && (
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-700/30">
+                        <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Balance:</span>
+                        <span className={`text-sm font-bold ${theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}`}>
+                          Rs.{(grn.totalAmount - grn.paidAmount).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Discount Info */}
+              {(grn.totalDiscount || grn.discountAmount) && (
+                <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-gradient-to-br from-orange-900/20 to-amber-900/20 border-orange-500/30' : 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200'}`}>
+                  <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-700'}`}>
+                    <BadgePercent className="w-4 h-4" />
+                    Discount Summary
+                  </h3>
+                  <div className="space-y-3">
+                    {/* Item Discounts */}
+                    {grn.totalDiscount && grn.totalDiscount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Tag className={`w-3.5 h-3.5 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`} />
+                          <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Item Discounts:</span>
+                        </div>
+                        <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                          -Rs.{grn.totalDiscount.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {/* Overall Discount */}
+                    {grn.discountAmount > 0 && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Percent className={`w-3.5 h-3.5 ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`} />
+                          <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Overall Discount:</span>
+                        </div>
+                        <span className={`text-sm font-semibold ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                          -Rs.{grn.discountAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {/* Total Savings */}
+                    {((grn.totalDiscount || 0) + (grn.discountAmount || 0)) > 0 && (
+                      <div className="flex items-center justify-between pt-2 border-t border-orange-500/20">
+                        <span className={`text-sm font-medium ${theme === 'dark' ? 'text-orange-300' : 'text-orange-700'}`}>Total Savings:</span>
+                        <span className={`text-lg font-bold ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>
+                          Rs.{((grn.totalDiscount || 0) + grn.discountAmount).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Items Table */}
           <div className={`rounded-xl border overflow-hidden ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
             <div className={`px-4 py-3 border-b ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
@@ -301,8 +427,26 @@ export const GRNViewModal: React.FC<GRNViewModalProps> = ({
                       <td className="px-4 py-3 text-center text-red-500 font-medium">
                         {item.rejectedQuantity}
                       </td>
-                      <td className={`px-4 py-3 text-right ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                        Rs.{item.unitPrice.toLocaleString()}
+                      <td className={`px-4 py-3 text-right`}>
+                        <div className="flex flex-col items-end">
+                          {item.originalUnitPrice && item.originalUnitPrice !== item.unitPrice ? (
+                            <>
+                              <span className={`text-xs line-through ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                                Rs.{item.originalUnitPrice.toLocaleString()}
+                              </span>
+                              <span className={`font-medium ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                                Rs.{item.unitPrice.toLocaleString()}
+                              </span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded mt-0.5 ${theme === 'dark' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'}`}>
+                                {item.discountType === 'percentage' ? `${item.discountValue}% off` : `-Rs.${item.discountValue?.toLocaleString()}`}
+                              </span>
+                            </>
+                          ) : (
+                            <span className={theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}>
+                              Rs.{item.unitPrice.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className={`px-4 py-3 text-right font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                         Rs.{item.totalAmount.toLocaleString()}

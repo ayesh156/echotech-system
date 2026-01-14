@@ -11,7 +11,8 @@ import {
   Calendar, DollarSign, X, Filter, ChevronLeft, ChevronRight,
   LayoutGrid, List, ChevronsLeft, ChevronsRight, History, Clock,
   User, Receipt, Percent, TrendingUp, AlertTriangle, SortAsc, SortDesc,
-  Barcode
+  Barcode, ArrowUpCircle, ArrowDownCircle, ShoppingCart, Eye,
+  BadgeDollarSign, PieChart
 } from 'lucide-react';
 
 export const Products: React.FC = () => {
@@ -55,6 +56,10 @@ export const Products: React.FC = () => {
   // Modal states
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  
+  // Stock & Pricing Details Modal states
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
+  const [selectedProductForPricing, setSelectedProductForPricing] = useState<Product | null>(null);
   
   // Sales History Modal states
   const [isSalesHistoryOpen, setIsSalesHistoryOpen] = useState(false);
@@ -621,64 +626,130 @@ export const Products: React.FC = () => {
         </div>
       </div>
 
-      {/* Analytics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Total Products */}
-        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
-              <Package className="w-5 h-5 text-blue-500" />
+      {/* Enhanced Analytics Cards - 2 Rows */}
+      <div className="space-y-4">
+        {/* Row 1: Main Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Total Products */}
+          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+                <Package className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  {products.length}
+                </p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total Products</p>
+              </div>
             </div>
-            <div>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                {products.length}
-              </p>
-              <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total Products</p>
+          </div>
+
+          {/* Stock Value (at Cost) */}
+          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
+                <BadgeDollarSign className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <p className={`text-xl font-bold text-amber-500`}>
+                  {formatCurrency(products.reduce((sum, p) => sum + ((p.costPrice || p.price * 0.85) * p.stock), 0))}
+                </p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Cost Value</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Stock Value (at Selling) */}
+          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                <DollarSign className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className={`text-xl font-bold text-emerald-500`}>
+                  {formatCurrency(products.reduce((sum, p) => sum + ((p.sellingPrice || p.price) * p.stock), 0))}
+                </p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Retail Value</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Potential Profit */}
+          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
+                <TrendingUp className="w-5 h-5 text-purple-500" />
+              </div>
+              <div>
+                <p className={`text-xl font-bold text-purple-500`}>
+                  {formatCurrency(products.reduce((sum, p) => sum + (((p.sellingPrice || p.price) - (p.costPrice || p.price * 0.85)) * p.stock), 0))}
+                </p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Potential Profit</p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Total Stock Value */}
-        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
-              <DollarSign className="w-5 h-5 text-emerald-500" />
-            </div>
-            <div>
-              <p className={`text-2xl font-bold text-emerald-500`}>
-                {formatCurrency(products.reduce((sum, p) => sum + (p.price * p.stock), 0))}
-              </p>
-              <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Stock Value</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Low Stock Items */}
-        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-            </div>
-            <div>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                {lowStockCount}
-              </p>
-              <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Low Stock</p>
+        {/* Row 2: Stock & Performance Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Total Stock Units */}
+          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-cyan-500/10' : 'bg-cyan-50'}`}>
+                <ShoppingCart className="w-5 h-5 text-cyan-500" />
+              </div>
+              <div>
+                <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  {products.reduce((sum, p) => sum + p.stock, 0)}
+                </p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total Units</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Total Items in Stock */}
-        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
-              <TrendingUp className="w-5 h-5 text-purple-500" />
+          {/* Low Stock Items */}
+          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  {lowStockCount}
+                </p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Low Stock</p>
+              </div>
             </div>
-            <div>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                {products.reduce((sum, p) => sum + p.stock, 0)}
-              </p>
-              <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total Stock</p>
+          </div>
+
+          {/* Avg Profit Margin */}
+          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-indigo-500/10' : 'bg-indigo-50'}`}>
+                <PieChart className="w-5 h-5 text-indigo-500" />
+              </div>
+              <div>
+                <p className={`text-2xl font-bold text-indigo-500`}>
+                  {(products.reduce((sum, p) => sum + (p.profitMargin || 16.5), 0) / products.length).toFixed(1)}%
+                </p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Avg Margin</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Categories */}
+          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-lg ${theme === 'dark' ? 'bg-pink-500/10' : 'bg-pink-50'}`}>
+                <LayoutGrid className="w-5 h-5 text-pink-500" />
+              </div>
+              <div>
+                <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  {new Set(products.map(p => p.category)).size}
+                </p>
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Categories</p>
+              </div>
             </div>
           </div>
         </div>
@@ -934,32 +1005,32 @@ export const Products: React.FC = () => {
             : 'bg-white border-slate-200'
         }`}>
           {/* Desktop Table */}
-          <div className="hidden md:block">
-            <table className="w-full table-fixed">
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full min-w-[1100px]">
               <thead>
                 <tr className={`border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-                  <th className={`text-left px-3 py-3 text-xs font-semibold w-[25%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <th className={`text-left px-3 py-3 text-xs font-semibold w-[20%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                     Product
                   </th>
                   <th className={`text-left px-3 py-3 text-xs font-semibold w-[10%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                    S/N
-                  </th>
-                  <th className={`text-left px-3 py-3 text-xs font-semibold w-[12%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                     Category
                   </th>
-                  <th className={`text-left px-3 py-3 text-xs font-semibold w-[10%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                    Brand
+                  <th className={`text-right px-3 py-3 text-xs font-semibold w-[10%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Cost Price
                   </th>
-                  <th className={`text-right px-3 py-3 text-xs font-semibold w-[12%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                    Price
+                  <th className={`text-right px-3 py-3 text-xs font-semibold w-[10%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Sell Price
                   </th>
                   <th className={`text-center px-3 py-3 text-xs font-semibold w-[8%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Margin
+                  </th>
+                  <th className={`text-center px-3 py-3 text-xs font-semibold w-[7%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                     Stock
                   </th>
-                  <th className={`text-left px-3 py-3 text-xs font-semibold w-[10%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                    Created
+                  <th className={`text-right px-3 py-3 text-xs font-semibold w-[10%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Stock Value
                   </th>
-                  <th className={`text-right px-3 py-3 text-xs font-semibold w-[13%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <th className={`text-right px-3 py-3 text-xs font-semibold w-[12%] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
                     Actions
                   </th>
                 </tr>
@@ -990,16 +1061,11 @@ export const Products: React.FC = () => {
                               <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
                             )}
                           </div>
-                          {product.barcode && (
-                            <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                              Barcode: {product.barcode}
-                            </span>
-                          )}
+                          <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                            {product.brand} • S/N: {product.serialNumber}
+                          </span>
                         </div>
                       </div>
-                    </td>
-                    <td className={`px-3 py-3 text-xs font-mono truncate ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {product.serialNumber}
                     </td>
                     <td className="px-3 py-3">
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full truncate block ${
@@ -1010,11 +1076,22 @@ export const Products: React.FC = () => {
                         {product.category}
                       </span>
                     </td>
-                    <td className={`px-3 py-3 text-xs truncate ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {product.brand}
+                    <td className={`px-3 py-3 text-right text-sm ${theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}`}>
+                      {formatCurrency(product.costPrice || product.price * 0.85)}
                     </td>
-                    <td className={`px-3 py-3 text-right font-medium text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                      {formatCurrency(product.price)}
+                    <td className={`px-3 py-3 text-right font-medium text-sm ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                      {formatCurrency(product.sellingPrice || product.price)}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                        (product.profitMargin || 16.5) >= 18
+                          ? theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+                          : (product.profitMargin || 16.5) >= 15
+                            ? theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
+                            : theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {(product.profitMargin || ((((product.sellingPrice || product.price) - (product.costPrice || product.price * 0.85)) / (product.sellingPrice || product.price)) * 100)).toFixed(1)}%
+                      </span>
                     </td>
                     <td className="px-3 py-3 text-center">
                       <div className="flex flex-col items-center gap-1">
@@ -1031,20 +1108,35 @@ export const Products: React.FC = () => {
                         </span>
                         {isLowStock(product) && (
                           <span className="text-[10px] text-red-500 font-medium whitespace-nowrap">
-                            Low Stock!
+                            Low!
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className={`px-3 py-3 text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {new Date(product.createdAt).toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: '2-digit'
-                      })}
+                    <td className={`px-3 py-3 text-right text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <div>
+                        <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                          {formatCurrency((product.sellingPrice || product.price) * product.stock)}
+                        </span>
+                        <span className="block text-[10px] mt-0.5 text-slate-500">
+                          Profit: {formatCurrency(((product.sellingPrice || product.price) - (product.costPrice || product.price * 0.85)) * product.stock)}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => {
+                            setSelectedProductForPricing(product);
+                            setIsPricingModalOpen(true);
+                          }}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            theme === 'dark' ? 'hover:bg-purple-500/10 text-purple-400' : 'hover:bg-purple-50 text-purple-600'
+                          }`}
+                          title="Stock & Pricing Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         <button 
                           onClick={() => handleViewSalesHistory(product)}
                           className={`p-1.5 rounded-lg transition-colors ${
@@ -1219,6 +1311,18 @@ export const Products: React.FC = () => {
                       <History className="w-4 h-4" />
                     </button>
                     <button 
+                      onClick={() => {
+                        setSelectedProductForPricing(product);
+                        setIsPricingModalOpen(true);
+                      }}
+                      className={`p-2 rounded-lg transition-colors ${
+                        theme === 'dark' ? 'hover:bg-purple-500/10 text-purple-400' : 'hover:bg-purple-50 text-purple-600'
+                      }`}
+                      title="Stock & Pricing"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button 
                       onClick={() => handleEditProduct(product)}
                       className={`p-2 rounded-lg transition-colors ${
                         theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-200 text-slate-600'
@@ -1238,7 +1342,7 @@ export const Products: React.FC = () => {
                 </div>
               </div>
               
-              {/* Card Content */}
+              {/* Card Content with Pricing */}
               <div className="p-4 space-y-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -1269,23 +1373,46 @@ export const Products: React.FC = () => {
                   }`}>
                     {product.brand}
                   </span>
-                  {product.warranty && (
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      theme === 'dark' 
-                        ? 'bg-blue-500/10 text-blue-400' 
-                        : 'bg-blue-50 text-blue-600'
-                    }`}>
-                      {product.warranty}
-                    </span>
-                  )}
+                  <span className={`px-2 py-1 text-xs font-bold rounded-full ${
+                    (product.profitMargin || 16.5) >= 18
+                      ? theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+                      : (product.profitMargin || 16.5) >= 15
+                        ? theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
+                        : theme === 'dark' ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {(product.profitMargin || 16.5).toFixed(1)}% margin
+                  </span>
+                </div>
+
+                {/* Pricing Details */}
+                <div className={`grid grid-cols-2 gap-2 p-2 rounded-lg ${
+                  theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'
+                }`}>
+                  <div className="text-center">
+                    <p className={`text-[10px] uppercase tracking-wider font-medium ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Cost</p>
+                    <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}`}>
+                      {formatCurrency(product.costPrice || product.price * 0.85)}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className={`text-[10px] uppercase tracking-wider font-medium ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Selling</p>
+                    <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                      {formatCurrency(product.sellingPrice || product.price)}
+                    </p>
+                  </div>
                 </div>
                 
                 <div className={`pt-3 border-t flex items-center justify-between ${
                   theme === 'dark' ? 'border-slate-700/50' : 'border-slate-100'
                 }`}>
-                  <span className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {formatCurrency(product.price)}
-                  </span>
+                  <div>
+                    <span className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      {formatCurrency((product.sellingPrice || product.price) * product.stock)}
+                    </span>
+                    <p className={`text-[10px] ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
+                      Profit: {formatCurrency(((product.sellingPrice || product.price) - (product.costPrice || product.price * 0.85)) * product.stock)}
+                    </p>
+                  </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       isLowStock(product)
@@ -1793,6 +1920,233 @@ export const Products: React.FC = () => {
         onConfirm={handleConfirmDelete}
         onCancel={() => setIsDeleteModalOpen(false)}
       />
+
+      {/* Stock & Pricing Details Modal */}
+      {isPricingModalOpen && selectedProductForPricing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsPricingModalOpen(false)}
+          />
+          
+          {/* Modal Content */}
+          <div className={`relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl ${
+            theme === 'dark' ? 'bg-slate-900' : 'bg-white'
+          }`}>
+            {/* Modal Header */}
+            <div className={`px-6 py-4 border-b ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {selectedProductForPricing.image ? (
+                    <img 
+                      src={selectedProductForPricing.image} 
+                      alt={selectedProductForPricing.name}
+                      className="w-12 h-12 rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
+                    }`}>
+                      {getProductIcon(selectedProductForPricing.category)}
+                    </div>
+                  )}
+                  <div>
+                    <h2 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      {selectedProductForPricing.name}
+                    </h2>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {selectedProductForPricing.brand} • {selectedProductForPricing.category}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsPricingModalOpen(false)}
+                  className={`p-2 rounded-xl transition-colors ${
+                    theme === 'dark' ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              {/* Pricing Overview Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {/* Cost Price */}
+                <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-amber-50 border-amber-200'}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <ArrowDownCircle className="w-4 h-4 text-amber-500" />
+                    <span className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-amber-700'}`}>Cost Price</span>
+                  </div>
+                  <p className={`text-xl font-bold ${theme === 'dark' ? 'text-amber-400' : 'text-amber-700'}`}>
+                    {formatCurrency(selectedProductForPricing.costPrice || selectedProductForPricing.price * 0.85)}
+                  </p>
+                </div>
+
+                {/* Selling Price */}
+                <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-emerald-50 border-emerald-200'}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <ArrowUpCircle className="w-4 h-4 text-emerald-500" />
+                    <span className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-emerald-700'}`}>Selling Price</span>
+                  </div>
+                  <p className={`text-xl font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                    {formatCurrency(selectedProductForPricing.sellingPrice || selectedProductForPricing.price)}
+                  </p>
+                </div>
+
+                {/* Profit Per Unit */}
+                <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-purple-50 border-purple-200'}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="w-4 h-4 text-purple-500" />
+                    <span className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-purple-700'}`}>Profit/Unit</span>
+                  </div>
+                  <p className={`text-xl font-bold ${theme === 'dark' ? 'text-purple-400' : 'text-purple-700'}`}>
+                    {formatCurrency((selectedProductForPricing.sellingPrice || selectedProductForPricing.price) - (selectedProductForPricing.costPrice || selectedProductForPricing.price * 0.85))}
+                  </p>
+                </div>
+
+                {/* Margin */}
+                <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-blue-50 border-blue-200'}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Percent className="w-4 h-4 text-blue-500" />
+                    <span className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-blue-700'}`}>Margin</span>
+                  </div>
+                  <p className={`text-xl font-bold ${theme === 'dark' ? 'text-blue-400' : 'text-blue-700'}`}>
+                    {(selectedProductForPricing.profitMargin || 16.5).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+
+              {/* Stock Information */}
+              <div className={`p-4 rounded-xl border mb-6 ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <h3 className={`text-sm font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  📦 Stock Information
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <p className={`text-2xl font-bold ${
+                      isLowStock(selectedProductForPricing) ? 'text-red-500' : theme === 'dark' ? 'text-white' : 'text-slate-900'
+                    }`}>
+                      {selectedProductForPricing.stock}
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Current Stock</p>
+                  </div>
+                  <div className="text-center">
+                    <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                      {selectedProductForPricing.totalPurchased || 0}
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Total Purchased</p>
+                  </div>
+                  <div className="text-center">
+                    <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                      {selectedProductForPricing.totalSold || 0}
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Total Sold</p>
+                  </div>
+                  <div className="text-center">
+                    <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}`}>
+                      {selectedProductForPricing.lowStockThreshold || 10}
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Low Stock Alert</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stock Value Summary */}
+              <div className={`p-4 rounded-xl border mb-6 ${theme === 'dark' ? 'bg-gradient-to-r from-slate-800/50 to-emerald-900/20 border-slate-700' : 'bg-gradient-to-r from-slate-50 to-emerald-50 border-slate-200'}`}>
+                <h3 className={`text-sm font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  💰 Stock Value Summary
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-3 rounded-lg bg-white/10">
+                    <p className={`text-lg font-bold ${theme === 'dark' ? 'text-amber-400' : 'text-amber-700'}`}>
+                      {formatCurrency((selectedProductForPricing.costPrice || selectedProductForPricing.price * 0.85) * selectedProductForPricing.stock)}
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Cost Value</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-white/10">
+                    <p className={`text-lg font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                      {formatCurrency((selectedProductForPricing.sellingPrice || selectedProductForPricing.price) * selectedProductForPricing.stock)}
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Retail Value</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-white/10">
+                    <p className={`text-lg font-bold ${theme === 'dark' ? 'text-purple-400' : 'text-purple-700'}`}>
+                      {formatCurrency(((selectedProductForPricing.sellingPrice || selectedProductForPricing.price) - (selectedProductForPricing.costPrice || selectedProductForPricing.price * 0.85)) * selectedProductForPricing.stock)}
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Potential Profit</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Details */}
+              <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <h3 className={`text-sm font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  📋 Product Details
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className={`${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Serial Number:</span>
+                    <span className={`ml-2 font-mono ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{selectedProductForPricing.serialNumber}</span>
+                  </div>
+                  {selectedProductForPricing.barcode && (
+                    <div>
+                      <span className={`${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Barcode:</span>
+                      <span className={`ml-2 font-mono ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{selectedProductForPricing.barcode}</span>
+                    </div>
+                  )}
+                  {selectedProductForPricing.warranty && (
+                    <div>
+                      <span className={`${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Warranty:</span>
+                      <span className={`ml-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{selectedProductForPricing.warranty}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className={`${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Added:</span>
+                    <span className={`ml-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      {new Date(selectedProductForPricing.createdAt).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`px-6 py-4 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleViewSalesHistory(selectedProductForPricing)}
+                  className={`flex-1 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
+                    theme === 'dark'
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                  }`}
+                >
+                  <History className="w-4 h-4" />
+                  View Sales History
+                </button>
+                <button
+                  onClick={() => setIsPricingModalOpen(false)}
+                  className={`flex-1 py-2.5 rounded-xl font-medium transition-colors ${
+                    theme === 'dark'
+                      ? 'bg-slate-700 hover:bg-slate-600 text-white'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

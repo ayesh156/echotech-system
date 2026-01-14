@@ -361,6 +361,84 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
             font-weight: 600;
           }
 
+          .items-table tbody td .price-original {
+            text-decoration: line-through;
+            color: #999;
+            font-size: 7pt;
+            margin-right: 4px;
+          }
+
+          .items-table tbody td .price-discounted {
+            color: #000;
+            font-weight: 600;
+          }
+
+          .items-table tbody td .discount-badge {
+            display: inline-block;
+            background: #e5e5e5;
+            color: #000;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 6pt;
+            font-weight: 600;
+            margin-left: 4px;
+            border: 1px solid #999;
+          }
+
+          .items-table tbody td .selling-price-info {
+            font-size: 7pt;
+            color: #666;
+            margin-top: 2px;
+          }
+
+          /* Payment Info */
+          .payment-info {
+            margin-top: 8px;
+            padding: 8px 10px;
+            background: #f5f5f5;
+            border: 1px solid #333;
+            border-radius: 4px;
+          }
+
+          .payment-info .payment-label {
+            font-size: 7pt;
+            color: #000;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+          }
+
+          .payment-info .payment-detail {
+            font-size: 9pt;
+            color: #000;
+            font-weight: 600;
+          }
+
+          .payment-info .payment-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 8pt;
+            font-weight: 600;
+            margin-left: 8px;
+            border: 1px solid #333;
+          }
+
+          .payment-info .payment-status.paid {
+            background: #e5e5e5;
+            color: #000;
+          }
+
+          .payment-info .payment-status.unpaid {
+            background: #e5e5e5;
+            color: #000;
+          }
+
+          .payment-info .payment-status.partial {
+            background: #e5e5e5;
+            color: #000;
+          }
+
           /* SUMMARY SECTION */
           .summary-section {
             display: flex;
@@ -636,32 +714,56 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
         <table className="items-table">
           <thead>
             <tr>
-              <th style={{ width: '35%' }}>Product</th>
-              <th style={{ width: '12%', textAlign: 'center' }}>Ordered</th>
-              <th style={{ width: '12%', textAlign: 'center' }}>Received</th>
-              <th style={{ width: '12%', textAlign: 'center' }}>Accepted</th>
-              <th style={{ width: '12%', textAlign: 'center' }}>Rejected</th>
-              <th style={{ width: '17%', textAlign: 'right' }}>Amount</th>
+              <th style={{ width: '30%' }}>Product</th>
+              <th style={{ width: '12%', textAlign: 'right' }}>Unit Price</th>
+              <th style={{ width: '10%', textAlign: 'center' }}>Ordered</th>
+              <th style={{ width: '10%', textAlign: 'center' }}>Received</th>
+              <th style={{ width: '10%', textAlign: 'center' }}>Accepted</th>
+              <th style={{ width: '10%', textAlign: 'center' }}>Rejected</th>
+              <th style={{ width: '18%', textAlign: 'right' }}>Amount</th>
             </tr>
           </thead>
           <tbody>
-            {grn.items.map((item, index) => (
-              <tr key={index}>
-                <td>
-                  <div className="product-name">{item.productName}</div>
-                  <div className="product-category">{item.category}</div>
-                </td>
-                <td className="text-center">{item.orderedQuantity}</td>
-                <td className="text-center">{item.receivedQuantity}</td>
-                <td className="text-center">
-                  <span className="qty-accepted">{item.acceptedQuantity}</span>
-                </td>
-                <td className="text-center">
-                  <span className="qty-rejected">{item.rejectedQuantity}</span>
-                </td>
-                <td className="text-right">{formatCurrency(item.totalAmount)}</td>
-              </tr>
-            ))}
+            {grn.items.map((item, index) => {
+              const hasDiscount = (item.discountValue || 0) > 0;
+              const originalPrice = item.originalUnitPrice || item.unitPrice;
+              
+              return (
+                <tr key={index}>
+                  <td>
+                    <div className="product-name">{item.productName}</div>
+                    <div className="product-category">{item.category}</div>
+                    {item.sellingPrice && (
+                      <div className="selling-price-info">
+                        Sell @ {formatCurrency(item.sellingPrice)}
+                      </div>
+                    )}
+                  </td>
+                  <td className="text-right">
+                    {hasDiscount ? (
+                      <div>
+                        <span className="price-original">{formatCurrency(originalPrice)}</span>
+                        <span className="price-discounted">{formatCurrency(item.unitPrice)}</span>
+                        <span className="discount-badge">
+                          -{item.discountType === 'percentage' ? `${item.discountValue}%` : formatCurrency(item.discountValue || 0)}
+                        </span>
+                      </div>
+                    ) : (
+                      formatCurrency(item.unitPrice)
+                    )}
+                  </td>
+                  <td className="text-center">{item.orderedQuantity}</td>
+                  <td className="text-center">{item.receivedQuantity}</td>
+                  <td className="text-center">
+                    <span className="qty-accepted">{item.acceptedQuantity}</span>
+                  </td>
+                  <td className="text-center">
+                    <span className="qty-rejected">{item.rejectedQuantity}</span>
+                  </td>
+                  <td className="text-right">{formatCurrency(item.totalAmount)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
@@ -690,7 +792,13 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
               <span className="label">Sub Total:</span>
               <span className="value">{formatCurrency(grn.subtotal)}</span>
             </div>
-            {grn.discountAmount > 0 && (
+            {(grn.totalDiscount || 0) > 0 && (
+              <div className="totals-row">
+                <span className="label">Total Discount:</span>
+                <span className="value">-{formatCurrency(grn.totalDiscount || 0)}</span>
+              </div>
+            )}
+            {grn.discountAmount > 0 && !(grn.totalDiscount) && (
               <div className="totals-row">
                 <span className="label">Discount:</span>
                 <span className="value">-{formatCurrency(grn.discountAmount)}</span>
@@ -706,6 +814,25 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
               <span className="label">Grand Total:</span>
               <span className="value">{formatCurrency(grn.totalAmount)}</span>
             </div>
+            
+            {/* Payment Info */}
+            {grn.paymentMethod && (
+              <div className="payment-info">
+                <div className="payment-label">Payment Details</div>
+                <div className="payment-detail">
+                  {grn.paymentMethod.charAt(0).toUpperCase() + grn.paymentMethod.slice(1)}
+                  <span className={`payment-status ${grn.paymentStatus || 'unpaid'}`}>
+                    {grn.paymentStatus === 'paid' ? 'PAID' : grn.paymentStatus === 'partial' ? 'PARTIAL' : 'UNPAID'}
+                  </span>
+                </div>
+                {grn.paymentStatus === 'partial' && grn.paidAmount && (
+                  <div style={{ fontSize: '8pt', marginTop: '4px', color: '#666' }}>
+                    Paid: {formatCurrency(grn.paidAmount)} | 
+                    Balance: {formatCurrency(grn.totalAmount - grn.paidAmount)}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

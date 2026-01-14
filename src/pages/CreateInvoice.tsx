@@ -288,6 +288,7 @@ export const CreateInvoice: React.FC = () => {
 
     const customerName = isWalkIn ? 'Walk-in Customer' : (currentCustomer?.name || 'Unknown');
     const customerId = isWalkIn ? 'walk-in' : selectedCustomer;
+    const now = new Date().toISOString();
 
     const invoice: Invoice & { buyingDate: string } = {
       id: generateInvoiceNumber(),
@@ -316,6 +317,21 @@ export const CreateInvoice: React.FC = () => {
 
     // Add to mockInvoices
     mockInvoices.unshift(invoice);
+    
+    // Update product stock - decrease stock for sold items
+    items.forEach(item => {
+      const productIndex = mockProducts.findIndex(p => p.id === item.productId);
+      if (productIndex !== -1) {
+        const product = mockProducts[productIndex];
+        
+        // Decrease stock
+        product.stock = Math.max(0, (product.stock || 0) - item.quantity);
+        
+        // Update total sold tracking
+        product.totalSold = (product.totalSold || 0) + item.quantity;
+        product.updatedAt = now;
+      }
+    });
     
     // Show print preview
     setCreatedInvoice(invoice);

@@ -96,6 +96,8 @@ interface ProductFormData {
   category: string;
   brand: string;
   price: number;
+  costPrice: number;
+  sellingPrice: number;
   stock: number;
   description: string;
   image: string;
@@ -123,6 +125,8 @@ export const ProductForm: React.FC = () => {
     category: '',
     brand: '',
     price: 0,
+    costPrice: 0,
+    sellingPrice: 0,
     stock: 0,
     description: '',
     image: '',
@@ -145,6 +149,8 @@ export const ProductForm: React.FC = () => {
         category: existingProduct.category,
         brand: existingProduct.brand,
         price: existingProduct.price,
+        costPrice: existingProduct.costPrice || 0,
+        sellingPrice: existingProduct.sellingPrice || existingProduct.price,
         stock: existingProduct.stock,
         description: existingProduct.description || '',
         image: existingProduct.image || '',
@@ -277,8 +283,14 @@ export const ProductForm: React.FC = () => {
     if (!formData.brand) {
       newErrors.brand = 'Brand is required';
     }
-    if (formData.price <= 0) {
-      newErrors.price = 'Price must be greater than 0';
+    if (formData.costPrice < 0) {
+      newErrors.costPrice = 'Cost price cannot be negative';
+    }
+    if (formData.sellingPrice <= 0) {
+      newErrors.sellingPrice = 'Selling price must be greater than 0';
+    }
+    if (formData.sellingPrice < formData.costPrice) {
+      newErrors.sellingPrice = 'Selling price should be greater than cost price';
     }
     if (formData.stock < 0) {
       newErrors.stock = 'Stock cannot be negative';
@@ -482,32 +494,100 @@ export const ProductForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Price & Stock Row */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            {/* Price */}
+          {/* Cost Price & Selling Price Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            {/* Cost Price */}
             <div className="space-y-2">
-              <Label htmlFor="price" className={`flex items-center gap-2 text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                <DollarSign className="w-4 h-4" />
-                <span className="hidden sm:inline">Price (LKR)</span>
-                <span className="sm:hidden">Price</span>
+              <Label htmlFor="costPrice" className={`flex items-center gap-2 text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                <DollarSign className="w-4 h-4 text-amber-500" />
+                <span>Cost Price (LKR)</span>
+              </Label>
+              <Input
+                id="costPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.costPrice}
+                onChange={(e) => handleChange('costPrice', parseFloat(e.target.value) || 0)}
+                placeholder="Enter cost price"
+                className={`w-full ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800 border-slate-700 text-amber-400 placeholder:text-slate-500' 
+                    : 'bg-white border-slate-200 text-amber-600'
+                } ${errors.costPrice ? 'border-red-500' : ''}`}
+              />
+              {errors.costPrice && <p className="text-xs text-red-500">{errors.costPrice}</p>}
+            </div>
+
+            {/* Selling Price */}
+            <div className="space-y-2">
+              <Label htmlFor="sellingPrice" className={`flex items-center gap-2 text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                <DollarSign className="w-4 h-4 text-emerald-500" />
+                <span>Selling Price (LKR)</span>
                 <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="price"
+                id="sellingPrice"
                 type="number"
                 min="0"
-                value={formData.price}
-                onChange={(e) => handleChange('price', parseFloat(e.target.value) || 0)}
-                placeholder="Enter price"
-                className={`${
+                step="0.01"
+                value={formData.sellingPrice}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value) || 0;
+                  handleChange('sellingPrice', value);
+                  handleChange('price', value); // Keep price in sync for backward compatibility
+                }}
+                placeholder="Enter selling price"
+                className={`w-full ${
                   theme === 'dark' 
-                    ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500' 
-                    : 'bg-white border-slate-200'
-                } ${errors.price ? 'border-red-500' : ''}`}
+                    ? 'bg-slate-800 border-slate-700 text-emerald-400 placeholder:text-slate-500' 
+                    : 'bg-white border-slate-200 text-emerald-600'
+                } ${errors.sellingPrice ? 'border-red-500' : ''}`}
               />
-              {errors.price && <p className="text-xs text-red-500">{errors.price}</p>}
+              {errors.sellingPrice && <p className="text-xs text-red-500">{errors.sellingPrice}</p>}
             </div>
+          </div>
 
+          {/* Profit Margin Display */}
+          {formData.costPrice > 0 && formData.sellingPrice > 0 && (
+            <div className={`p-3 rounded-xl border ${
+              theme === 'dark' 
+                ? 'bg-gradient-to-r from-emerald-900/20 to-teal-900/20 border-emerald-500/30' 
+                : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Profit Margin
+                </span>
+                <div className="flex items-center gap-4">
+                  <span className={`font-semibold ${
+                    formData.sellingPrice >= formData.costPrice 
+                      ? 'text-emerald-500' 
+                      : 'text-red-500'
+                  }`}>
+                    Rs. {(formData.sellingPrice - formData.costPrice).toLocaleString()}
+                  </span>
+                  <span className={`px-2 py-1 rounded-lg text-sm font-bold ${
+                    formData.sellingPrice >= formData.costPrice 
+                      ? theme === 'dark' 
+                        ? 'bg-emerald-500/20 text-emerald-400' 
+                        : 'bg-emerald-100 text-emerald-600'
+                      : theme === 'dark'
+                        ? 'bg-red-500/20 text-red-400'
+                        : 'bg-red-100 text-red-600'
+                  }`}>
+                    {formData.costPrice > 0 
+                      ? `${(((formData.sellingPrice - formData.costPrice) / formData.costPrice) * 100).toFixed(1)}%`
+                      : '0%'
+                    }
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Stock Row */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {/* Stock */}
             <div className="space-y-2">
               <Label htmlFor="stock" className={`flex items-center gap-2 text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -531,9 +611,31 @@ export const ProductForm: React.FC = () => {
               />
               {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
             </div>
+
+            {/* Low Stock Threshold - Moved here for better layout */}
+            <div className="space-y-2">
+              <Label htmlFor="lowStockThreshold" className={`flex items-center gap-2 text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                <AlertCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">Low Stock Alert</span>
+                <span className="sm:hidden">Alert</span>
+              </Label>
+              <Input
+                id="lowStockThreshold"
+                type="number"
+                min="1"
+                value={formData.lowStockThreshold}
+                onChange={(e) => handleChange('lowStockThreshold', parseInt(e.target.value) || 10)}
+                placeholder="Alert threshold"
+                className={`${
+                  theme === 'dark' 
+                    ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500' 
+                    : 'bg-white border-slate-200'
+                }`}
+              />
+            </div>
           </div>
 
-          {/* Warranty & Low Stock Threshold Row */}
+          {/* Warranty Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Warranty */}
             <div className="space-y-2">
@@ -550,30 +652,6 @@ export const ProductForm: React.FC = () => {
                 emptyMessage="No options found"
                 theme={theme}
               />
-            </div>
-
-            {/* Low Stock Threshold */}
-            <div className="space-y-2">
-              <Label htmlFor="lowStockThreshold" className={`flex items-center gap-2 text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                <AlertCircle className="w-4 h-4" />
-                Low Stock Alert
-              </Label>
-              <Input
-                id="lowStockThreshold"
-                type="number"
-                min="0"
-                value={formData.lowStockThreshold}
-                onChange={(e) => handleChange('lowStockThreshold', parseInt(e.target.value) || 10)}
-                placeholder="Alert when stock below..."
-                className={`${
-                  theme === 'dark' 
-                    ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500' 
-                    : 'bg-white border-slate-200'
-                }`}
-              />
-              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                Show warning when stock falls below this number
-              </p>
             </div>
           </div>
 
