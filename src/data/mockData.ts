@@ -178,6 +178,456 @@ export interface WarrantyCredit {
   notes?: string;
 }
 
+// ==========================================
+// SERVICES SYSTEM - Computer Shop Services
+// ==========================================
+
+// Service Status Types
+export type ServiceStatus = 'active' | 'inactive' | 'discontinued';
+
+// Service Category Types for Sri Lankan Computer Shops
+export type ServiceCategory = 
+  | 'repair' 
+  | 'maintenance' 
+  | 'installation' 
+  | 'upgrade' 
+  | 'data_recovery' 
+  | 'networking' 
+  | 'software' 
+  | 'consultation' 
+  | 'cleaning' 
+  | 'other';
+
+// Service Interface
+export interface Service {
+  id: string;
+  name: string;
+  category: ServiceCategory;
+  description: string;
+  // Pricing
+  basePrice: number; // Base service charge
+  minPrice?: number; // Minimum price (for variable pricing)
+  maxPrice?: number; // Maximum price (for variable pricing)
+  priceType: 'fixed' | 'variable' | 'hourly' | 'quote'; // Pricing model
+  hourlyRate?: number; // For hourly services
+  // Timing
+  estimatedDuration: string; // e.g., "1-2 hours", "2-3 days"
+  turnaroundTime?: string; // Expected completion time
+  // Status & Availability
+  status: ServiceStatus;
+  isPopular: boolean; // Mark as popular/featured service
+  // Additional Info
+  warranty?: string; // Service warranty if any
+  requirements?: string; // What customer needs to bring/provide
+  notes?: string; // Internal notes
+  // Tracking
+  totalCompleted: number; // Total times service was provided
+  totalRevenue: number; // Total revenue from this service
+  lastPerformed?: string; // Last date service was performed
+  // Timestamps
+  createdAt: string;
+  updatedAt?: string;
+  image?: string; // Service icon/image
+}
+
+// Service Categories Configuration
+export const serviceCategories: { value: ServiceCategory; label: string; icon: string; description: string }[] = [
+  { value: 'repair', label: 'Repair Services', icon: '🔧', description: 'Hardware and software repairs' },
+  { value: 'maintenance', label: 'Maintenance', icon: '🛠️', description: 'Regular system maintenance' },
+  { value: 'installation', label: 'Installation', icon: '💻', description: 'Software and hardware installation' },
+  { value: 'upgrade', label: 'Upgrades', icon: '⬆️', description: 'System and component upgrades' },
+  { value: 'data_recovery', label: 'Data Recovery', icon: '💾', description: 'Lost data recovery services' },
+  { value: 'networking', label: 'Networking', icon: '🌐', description: 'Network setup and configuration' },
+  { value: 'software', label: 'Software Services', icon: '📀', description: 'OS installation, virus removal' },
+  { value: 'consultation', label: 'Consultation', icon: '💡', description: 'Technical advice and planning' },
+  { value: 'cleaning', label: 'Cleaning', icon: '✨', description: 'Hardware cleaning services' },
+  { value: 'other', label: 'Other Services', icon: '📦', description: 'Miscellaneous services' },
+];
+
+// Mock Services Data for Sri Lankan Computer Shop
+export const mockServices: Service[] = [
+  // REPAIR SERVICES
+  {
+    id: 'srv-001',
+    name: 'Laptop Screen Replacement',
+    category: 'repair',
+    description: 'Professional laptop screen replacement for all brands. Includes screen + labor.',
+    basePrice: 15000,
+    minPrice: 12000,
+    maxPrice: 45000,
+    priceType: 'variable',
+    estimatedDuration: '1-2 days',
+    turnaroundTime: '24-48 hours',
+    status: 'active',
+    isPopular: true,
+    warranty: '3 months',
+    requirements: 'Bring laptop with power adapter',
+    totalCompleted: 156,
+    totalRevenue: 2340000,
+    lastPerformed: '2026-01-13',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'srv-002',
+    name: 'Desktop PC Repair',
+    category: 'repair',
+    description: 'Comprehensive desktop computer diagnostics and repair. Hardware and software issues.',
+    basePrice: 2500,
+    minPrice: 1500,
+    maxPrice: 15000,
+    priceType: 'variable',
+    estimatedDuration: '1-3 days',
+    turnaroundTime: '48-72 hours',
+    status: 'active',
+    isPopular: true,
+    warranty: '1 month',
+    requirements: 'Bring CPU unit only (no monitor/peripherals unless needed)',
+    totalCompleted: 423,
+    totalRevenue: 1057500,
+    lastPerformed: '2026-01-14',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'srv-003',
+    name: 'Keyboard Replacement (Laptop)',
+    category: 'repair',
+    description: 'Laptop keyboard replacement service. Compatible keyboards sourced for all models.',
+    basePrice: 8000,
+    minPrice: 5000,
+    maxPrice: 20000,
+    priceType: 'variable',
+    estimatedDuration: '2-4 hours',
+    turnaroundTime: '24 hours',
+    status: 'active',
+    isPopular: false,
+    warranty: '3 months',
+    totalCompleted: 89,
+    totalRevenue: 712000,
+    lastPerformed: '2026-01-12',
+    createdAt: '2025-02-15T00:00:00Z',
+  },
+  {
+    id: 'srv-004',
+    name: 'Power Jack Repair',
+    category: 'repair',
+    description: 'Laptop charging port / DC jack repair and replacement.',
+    basePrice: 3500,
+    minPrice: 2500,
+    maxPrice: 6000,
+    priceType: 'variable',
+    estimatedDuration: '2-4 hours',
+    turnaroundTime: '24 hours',
+    status: 'active',
+    isPopular: true,
+    warranty: '3 months',
+    requirements: 'Bring laptop with original charger',
+    totalCompleted: 201,
+    totalRevenue: 703500,
+    lastPerformed: '2026-01-14',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'srv-005',
+    name: 'Motherboard Repair',
+    category: 'repair',
+    description: 'Advanced motherboard repair for laptops and desktops. Chip-level repairs available.',
+    basePrice: 5000,
+    minPrice: 3000,
+    maxPrice: 25000,
+    priceType: 'variable',
+    estimatedDuration: '3-7 days',
+    turnaroundTime: '5-7 business days',
+    status: 'active',
+    isPopular: false,
+    warranty: '1 month',
+    notes: 'Complex repairs may require additional time',
+    totalCompleted: 67,
+    totalRevenue: 335000,
+    lastPerformed: '2026-01-10',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+
+  // MAINTENANCE SERVICES
+  {
+    id: 'srv-006',
+    name: 'Full System Service',
+    category: 'maintenance',
+    description: 'Complete PC/Laptop servicing: cleaning, thermal paste, OS optimization, virus scan.',
+    basePrice: 2000,
+    priceType: 'fixed',
+    estimatedDuration: '2-4 hours',
+    turnaroundTime: 'Same day',
+    status: 'active',
+    isPopular: true,
+    warranty: '1 week service warranty',
+    requirements: 'Bring device with charger',
+    totalCompleted: 892,
+    totalRevenue: 1784000,
+    lastPerformed: '2026-01-14',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'srv-007',
+    name: 'Thermal Paste Replacement',
+    category: 'maintenance',
+    description: 'CPU/GPU thermal paste replacement to fix overheating issues.',
+    basePrice: 1500,
+    priceType: 'fixed',
+    estimatedDuration: '1-2 hours',
+    turnaroundTime: 'Same day',
+    status: 'active',
+    isPopular: true,
+    warranty: '6 months',
+    totalCompleted: 345,
+    totalRevenue: 517500,
+    lastPerformed: '2026-01-13',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+
+  // INSTALLATION SERVICES
+  {
+    id: 'srv-008',
+    name: 'Windows Installation',
+    category: 'software',
+    description: 'Fresh Windows 10/11 installation with drivers and basic software setup.',
+    basePrice: 1500,
+    priceType: 'fixed',
+    estimatedDuration: '2-3 hours',
+    turnaroundTime: 'Same day',
+    status: 'active',
+    isPopular: true,
+    warranty: '1 week',
+    notes: 'Customer provides license or we can arrange',
+    totalCompleted: 567,
+    totalRevenue: 850500,
+    lastPerformed: '2026-01-14',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'srv-009',
+    name: 'SSD/HDD Installation',
+    category: 'installation',
+    description: 'Hard drive or SSD installation with data migration and OS setup.',
+    basePrice: 1000,
+    priceType: 'fixed',
+    estimatedDuration: '2-4 hours',
+    turnaroundTime: 'Same day',
+    status: 'active',
+    isPopular: true,
+    warranty: 'Hardware warranty applicable',
+    requirements: 'Purchase drive from us or bring your own',
+    totalCompleted: 234,
+    totalRevenue: 234000,
+    lastPerformed: '2026-01-13',
+    createdAt: '2025-03-01T00:00:00Z',
+  },
+  {
+    id: 'srv-010',
+    name: 'RAM Upgrade Installation',
+    category: 'upgrade',
+    description: 'RAM module installation and compatibility check.',
+    basePrice: 500,
+    priceType: 'fixed',
+    estimatedDuration: '30 mins',
+    turnaroundTime: 'Same day',
+    status: 'active',
+    isPopular: false,
+    totalCompleted: 456,
+    totalRevenue: 228000,
+    lastPerformed: '2026-01-14',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+
+  // DATA RECOVERY SERVICES
+  {
+    id: 'srv-011',
+    name: 'Data Recovery - Basic',
+    category: 'data_recovery',
+    description: 'Data recovery from accessible drives with logical issues.',
+    basePrice: 3000,
+    minPrice: 2000,
+    maxPrice: 5000,
+    priceType: 'variable',
+    estimatedDuration: '1-2 days',
+    turnaroundTime: '24-48 hours',
+    status: 'active',
+    isPopular: true,
+    notes: 'No charge if recovery unsuccessful',
+    totalCompleted: 123,
+    totalRevenue: 369000,
+    lastPerformed: '2026-01-12',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'srv-012',
+    name: 'Data Recovery - Advanced',
+    category: 'data_recovery',
+    description: 'Advanced data recovery from damaged/clicking drives. Clean room service available.',
+    basePrice: 15000,
+    minPrice: 10000,
+    maxPrice: 50000,
+    priceType: 'quote',
+    estimatedDuration: '5-14 days',
+    turnaroundTime: '1-2 weeks',
+    status: 'active',
+    isPopular: false,
+    notes: 'Diagnosis fee applies, waived if recovery successful',
+    totalCompleted: 34,
+    totalRevenue: 510000,
+    lastPerformed: '2026-01-08',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+
+  // NETWORKING SERVICES
+  {
+    id: 'srv-013',
+    name: 'Home WiFi Setup',
+    category: 'networking',
+    description: 'Home WiFi router setup, configuration, and security optimization.',
+    basePrice: 1500,
+    priceType: 'fixed',
+    estimatedDuration: '1-2 hours',
+    turnaroundTime: 'Same day (on-site)',
+    status: 'active',
+    isPopular: true,
+    warranty: '1 month support',
+    totalCompleted: 178,
+    totalRevenue: 267000,
+    lastPerformed: '2026-01-11',
+    createdAt: '2025-02-01T00:00:00Z',
+  },
+  {
+    id: 'srv-014',
+    name: 'Office Network Setup',
+    category: 'networking',
+    description: 'Complete office network infrastructure setup with cabling.',
+    basePrice: 25000,
+    minPrice: 15000,
+    maxPrice: 100000,
+    priceType: 'quote',
+    hourlyRate: 2500,
+    estimatedDuration: '1-5 days',
+    turnaroundTime: 'Based on scope',
+    status: 'active',
+    isPopular: false,
+    warranty: '6 months',
+    notes: 'Site survey required before quote',
+    totalCompleted: 23,
+    totalRevenue: 575000,
+    lastPerformed: '2026-01-05',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+
+  // SOFTWARE SERVICES
+  {
+    id: 'srv-015',
+    name: 'Virus Removal',
+    category: 'software',
+    description: 'Complete virus, malware, and adware removal with system optimization.',
+    basePrice: 1500,
+    priceType: 'fixed',
+    estimatedDuration: '2-4 hours',
+    turnaroundTime: 'Same day',
+    status: 'active',
+    isPopular: true,
+    warranty: '1 month protection guarantee',
+    totalCompleted: 445,
+    totalRevenue: 667500,
+    lastPerformed: '2026-01-14',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'srv-016',
+    name: 'Software Installation Package',
+    category: 'software',
+    description: 'Installation of essential software: Office, Browsers, Media players, etc.',
+    basePrice: 1000,
+    priceType: 'fixed',
+    estimatedDuration: '1-2 hours',
+    turnaroundTime: 'Same day',
+    status: 'active',
+    isPopular: false,
+    totalCompleted: 312,
+    totalRevenue: 312000,
+    lastPerformed: '2026-01-14',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+
+  // CLEANING SERVICES
+  {
+    id: 'srv-017',
+    name: 'Deep Cleaning - Laptop',
+    category: 'cleaning',
+    description: 'Comprehensive internal and external cleaning, dust removal, thermal paste.',
+    basePrice: 2500,
+    priceType: 'fixed',
+    estimatedDuration: '2-3 hours',
+    turnaroundTime: 'Same day',
+    status: 'active',
+    isPopular: true,
+    warranty: 'Workmanship guaranteed',
+    totalCompleted: 567,
+    totalRevenue: 1417500,
+    lastPerformed: '2026-01-14',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'srv-018',
+    name: 'Deep Cleaning - Desktop',
+    category: 'cleaning',
+    description: 'Full desktop PC cleaning including all components, fans, and filters.',
+    basePrice: 2000,
+    priceType: 'fixed',
+    estimatedDuration: '1-2 hours',
+    turnaroundTime: 'Same day',
+    status: 'active',
+    isPopular: false,
+    totalCompleted: 234,
+    totalRevenue: 468000,
+    lastPerformed: '2026-01-13',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+
+  // CONSULTATION SERVICES
+  {
+    id: 'srv-019',
+    name: 'PC Build Consultation',
+    category: 'consultation',
+    description: 'Expert advice on custom PC builds based on budget and requirements.',
+    basePrice: 0,
+    priceType: 'fixed',
+    estimatedDuration: '30-60 mins',
+    turnaroundTime: 'Walk-in available',
+    status: 'active',
+    isPopular: true,
+    notes: 'Free with any purchase, Rs. 500 otherwise',
+    totalCompleted: 234,
+    totalRevenue: 0,
+    lastPerformed: '2026-01-14',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'srv-020',
+    name: 'Corporate IT Consultation',
+    category: 'consultation',
+    description: 'On-site IT infrastructure assessment and recommendations for businesses.',
+    basePrice: 5000,
+    hourlyRate: 3000,
+    priceType: 'hourly',
+    estimatedDuration: '2-4 hours',
+    turnaroundTime: 'By appointment',
+    status: 'active',
+    isPopular: false,
+    totalCompleted: 45,
+    totalRevenue: 225000,
+    lastPerformed: '2026-01-10',
+    createdAt: '2025-04-01T00:00:00Z',
+  },
+];
+
+// Generate Service ID
+export const generateServiceId = () => `srv-${String(Date.now()).slice(-6)}`;
+
 // Supplier interface for managing suppliers with credit tracking
 export interface Supplier {
   id: string;

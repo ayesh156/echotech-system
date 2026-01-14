@@ -5,10 +5,24 @@ import {
   Package, FileText, Users, LayoutDashboard, Settings, 
   Moon, Sun, Menu, X, ChevronLeft, ChevronRight, Bell, Search,
   User, HelpCircle, ChevronDown, Sparkles, TrendingUp,
-  FolderTree, Building, Shield, Truck, ClipboardCheck
+  FolderTree, Building, Shield, Truck, ClipboardCheck, Wrench, Layers
 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import logoImage from '../assets/logo.jpg';
+
+interface SubNavItem {
+  path: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}
+
+interface NavItem {
+  path: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  badge: string | null;
+  subItems?: SubNavItem[];
+}
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -22,6 +36,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notificationCount] = useState(3);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -37,13 +52,50 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     }
   }, [profileDropdownOpen]);
 
-  const navItems = [
+  // Auto-expand menu when navigating to a sub-item
+  useEffect(() => {
+    navItems.forEach(item => {
+      if (item.subItems) {
+        const isSubItemActive = item.subItems.some(sub => location.pathname === sub.path || location.pathname.startsWith(sub.path + '/'));
+        const isParentActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+        if ((isSubItemActive || isParentActive) && !expandedMenus.includes(item.path)) {
+          setExpandedMenus(prev => [...prev, item.path]);
+        }
+      }
+    });
+  }, [location.pathname]);
+
+  const toggleMenu = (path: string) => {
+    setExpandedMenus(prev => 
+      prev.includes(path) 
+        ? prev.filter(p => p !== path)
+        : [...prev, path]
+    );
+  };
+
+  const navItems: NavItem[] = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', badge: null },
     { path: '/invoices', icon: FileText, label: 'Invoices', badge: '12' },
-    { path: '/products', icon: Package, label: 'Products', badge: null },
+    { 
+      path: '/products', 
+      icon: Package, 
+      label: 'Products', 
+      badge: null,
+      subItems: [
+        { path: '/categories', icon: FolderTree, label: 'Categories' },
+        { path: '/brands', icon: Building, label: 'Brands' },
+      ]
+    },
+    { 
+      path: '/services', 
+      icon: Wrench, 
+      label: 'Services', 
+      badge: null,
+      subItems: [
+        { path: '/service-categories', icon: Layers, label: 'Service Categories' },
+      ]
+    },
     { path: '/warranties', icon: Shield, label: 'Warranties', badge: '3' },
-    { path: '/categories', icon: FolderTree, label: 'Categories', badge: null },
-    { path: '/brands', icon: Building, label: 'Brands', badge: null },
     { path: '/customers', icon: Users, label: 'Customers', badge: '3' },
     { path: '/suppliers', icon: Truck, label: 'Suppliers', badge: '2' },
     { path: '/grn', icon: ClipboardCheck, label: 'GRN', badge: null },
@@ -55,7 +107,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: '/help', icon: HelpCircle, label: 'Help Center' },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const isExactActive = (path: string) => location.pathname === path;
+  const isParentActive = (item: NavItem) => {
+    if (item.subItems) {
+      return item.subItems.some(sub => isActive(sub.path)) || isActive(item.path);
+    }
+    return isActive(item.path);
+  };
 
   // Sidebar Component
   const Sidebar = () => (
@@ -101,60 +160,195 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           <div className="mt-2 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const active = isActive(item.path);
+              const hasSubItems = item.subItems && item.subItems.length > 0;
+              const isExpanded = expandedMenus.includes(item.path);
+              const parentActive = isParentActive(item);
+              const exactActive = isExactActive(item.path);
+
               return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                    active
-                      ? theme === 'dark' 
-                        ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/10 text-emerald-400 shadow-lg shadow-emerald-500/10' 
-                        : 'bg-gradient-to-r from-emerald-500/10 to-blue-500/5 text-emerald-600 shadow-lg shadow-emerald-500/10'
-                      : theme === 'dark' 
-                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/50' 
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                  title={sidebarCollapsed ? item.label : undefined}
-                >
-                  {/* Active indicator bar */}
-                  {active && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-emerald-500 to-blue-500 rounded-r-full" />
-                  )}
-                  
-                  <Icon className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
-                    active ? 'text-emerald-500' : ''
-                  }`} />
-                  
-                  {!sidebarCollapsed && (
-                    <>
-                      <span className="flex-1">{item.label}</span>
-                      {item.badge && (
-                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                          theme === 'dark' 
-                            ? 'bg-emerald-500/20 text-emerald-400' 
-                            : 'bg-emerald-100 text-emerald-600'
-                        }`}>
-                          {item.badge}
-                        </span>
+                <div key={item.path}>
+                  {/* Parent Menu Item */}
+                  {hasSubItems ? (
+                    <div
+                      onClick={() => {
+                        if (!sidebarCollapsed) {
+                          toggleMenu(item.path);
+                        }
+                      }}
+                      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 cursor-pointer ${
+                        parentActive
+                          ? theme === 'dark' 
+                            ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/10 text-emerald-400 shadow-lg shadow-emerald-500/10' 
+                            : 'bg-gradient-to-r from-emerald-500/10 to-blue-500/5 text-emerald-600 shadow-lg shadow-emerald-500/10'
+                          : theme === 'dark' 
+                            ? 'text-slate-400 hover:text-white hover:bg-slate-800/50' 
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                      title={sidebarCollapsed ? item.label : undefined}
+                    >
+                      {/* Active indicator bar */}
+                      {parentActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-emerald-500 to-blue-500 rounded-r-full" />
                       )}
-                    </>
-                  )}
-                  
-                  {/* Tooltip for collapsed sidebar */}
-                  {sidebarCollapsed && (
-                    <div className={`absolute left-full ml-2 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 ${
-                      theme === 'dark' ? 'bg-slate-800 text-white shadow-xl' : 'bg-slate-900 text-white shadow-xl'
-                    }`}>
-                      {item.label}
-                      {item.badge && (
-                        <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-emerald-500 text-white rounded-full">
-                          {item.badge}
-                        </span>
+                      
+                      <Link to={item.path} onClick={(e) => e.stopPropagation()}>
+                        <Icon className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
+                          parentActive ? 'text-emerald-500' : ''
+                        }`} />
+                      </Link>
+                      
+                      {!sidebarCollapsed && (
+                        <>
+                          <Link to={item.path} className="flex-1" onClick={(e) => e.stopPropagation()}>
+                            {item.label}
+                          </Link>
+                          {item.badge && (
+                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                              theme === 'dark' 
+                                ? 'bg-emerald-500/20 text-emerald-400' 
+                                : 'bg-emerald-100 text-emerald-600'
+                            }`}>
+                              {item.badge}
+                            </span>
+                          )}
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : ''
+                          } ${parentActive ? 'text-emerald-500' : ''}`} />
+                        </>
+                      )}
+                      
+                      {/* Tooltip for collapsed sidebar with sub-items */}
+                      {sidebarCollapsed && (
+                        <div className={`absolute left-full ml-2 px-0 py-2 rounded-xl text-sm font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 min-w-[180px] ${
+                          theme === 'dark' ? 'bg-slate-800 text-white shadow-2xl border border-slate-700' : 'bg-white text-slate-900 shadow-2xl border border-slate-200'
+                        }`}>
+                          <Link 
+                            to={item.path}
+                            className={`flex items-center gap-2 px-4 py-2 ${
+                              exactActive 
+                                ? theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-600 bg-emerald-50'
+                                : theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            {item.label}
+                            {item.badge && (
+                              <span className="ml-auto px-1.5 py-0.5 text-[10px] bg-emerald-500 text-white rounded-full">
+                                {item.badge}
+                              </span>
+                            )}
+                          </Link>
+                          <div className={`my-1 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`} />
+                          {item.subItems?.map((subItem) => {
+                            const SubIcon = subItem.icon;
+                            const subActive = isActive(subItem.path);
+                            return (
+                              <Link
+                                key={subItem.path}
+                                to={subItem.path}
+                                className={`flex items-center gap-2 px-4 py-2 ${
+                                  subActive 
+                                    ? theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-600 bg-emerald-50'
+                                    : theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
+                                }`}
+                              >
+                                <SubIcon className="w-4 h-4" />
+                                {subItem.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
+                  ) : (
+                    <Link
+                      to={item.path}
+                      className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                        exactActive
+                          ? theme === 'dark' 
+                            ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/10 text-emerald-400 shadow-lg shadow-emerald-500/10' 
+                            : 'bg-gradient-to-r from-emerald-500/10 to-blue-500/5 text-emerald-600 shadow-lg shadow-emerald-500/10'
+                          : theme === 'dark' 
+                            ? 'text-slate-400 hover:text-white hover:bg-slate-800/50' 
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                      title={sidebarCollapsed ? item.label : undefined}
+                    >
+                      {/* Active indicator bar */}
+                      {exactActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-emerald-500 to-blue-500 rounded-r-full" />
+                      )}
+                      
+                      <Icon className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
+                        exactActive ? 'text-emerald-500' : ''
+                      }`} />
+                      
+                      {!sidebarCollapsed && (
+                        <>
+                          <span className="flex-1">{item.label}</span>
+                          {item.badge && (
+                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                              theme === 'dark' 
+                                ? 'bg-emerald-500/20 text-emerald-400' 
+                                : 'bg-emerald-100 text-emerald-600'
+                            }`}>
+                              {item.badge}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Tooltip for collapsed sidebar */}
+                      {sidebarCollapsed && (
+                        <div className={`absolute left-full ml-2 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 ${
+                          theme === 'dark' ? 'bg-slate-800 text-white shadow-xl' : 'bg-slate-900 text-white shadow-xl'
+                        }`}>
+                          {item.label}
+                          {item.badge && (
+                            <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-emerald-500 text-white rounded-full">
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </Link>
                   )}
-                </Link>
+
+                  {/* Sub Items - Expanded Desktop */}
+                  {hasSubItems && isExpanded && !sidebarCollapsed && (
+                    <div className={`ml-4 mt-1 pl-4 border-l-2 space-y-1 ${
+                      theme === 'dark' ? 'border-slate-700' : 'border-slate-200'
+                    }`}>
+                      {item.subItems?.map((subItem) => {
+                        const SubIcon = subItem.icon;
+                        const subActive = isActive(subItem.path);
+                        return (
+                          <Link
+                            key={subItem.path}
+                            to={subItem.path}
+                            className={`group relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                              subActive
+                                ? theme === 'dark' 
+                                  ? 'bg-emerald-500/10 text-emerald-400' 
+                                  : 'bg-emerald-50 text-emerald-600'
+                                : theme === 'dark' 
+                                  ? 'text-slate-400 hover:text-white hover:bg-slate-800/30' 
+                                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                            }`}
+                          >
+                            {subActive && (
+                              <div className={`absolute -left-[18px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${
+                                theme === 'dark' ? 'bg-emerald-500' : 'bg-emerald-500'
+                              }`} />
+                            )}
+                            <SubIcon className={`w-4 h-4 flex-shrink-0 ${subActive ? 'text-emerald-500' : ''}`} />
+                            <span>{subItem.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -270,38 +464,118 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="px-3 py-4 space-y-1">
+        <nav className="px-3 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-5rem)]">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.path);
+            const hasSubItems = item.subItems && item.subItems.length > 0;
+            const isExpanded = expandedMenus.includes(item.path);
+            const parentActive = isParentActive(item);
+            const exactActive = isExactActive(item.path);
+
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileSidebarOpen(false)}
-                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
-                  active
-                    ? theme === 'dark' 
-                      ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/10 text-emerald-400' 
-                      : 'bg-gradient-to-r from-emerald-500/10 to-blue-500/5 text-emerald-600'
-                    : theme === 'dark' 
-                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/50' 
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                {active && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-emerald-500 to-blue-500 rounded-r-full" />
+              <div key={item.path}>
+                {hasSubItems ? (
+                  <>
+                    <div
+                      onClick={() => toggleMenu(item.path)}
+                      className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all cursor-pointer ${
+                        parentActive
+                          ? theme === 'dark' 
+                            ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/10 text-emerald-400' 
+                            : 'bg-gradient-to-r from-emerald-500/10 to-blue-500/5 text-emerald-600'
+                          : theme === 'dark' 
+                            ? 'text-slate-400 hover:text-white hover:bg-slate-800/50' 
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      {parentActive && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-emerald-500 to-blue-500 rounded-r-full" />
+                      )}
+                      <Link to={item.path} onClick={(e) => { e.stopPropagation(); setMobileSidebarOpen(false); }}>
+                        <Icon className={`w-5 h-5 ${parentActive ? 'text-emerald-500' : ''}`} />
+                      </Link>
+                      <Link 
+                        to={item.path} 
+                        className="flex-1"
+                        onClick={(e) => { e.stopPropagation(); setMobileSidebarOpen(false); }}
+                      >
+                        {item.label}
+                      </Link>
+                      {item.badge && (
+                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                          theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      )}
+                      <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${
+                        isExpanded ? 'rotate-180' : ''
+                      } ${parentActive ? 'text-emerald-500' : ''}`} />
+                    </div>
+                    
+                    {/* Sub Items */}
+                    {isExpanded && (
+                      <div className={`ml-4 mt-1 pl-4 border-l-2 space-y-1 ${
+                        theme === 'dark' ? 'border-slate-700' : 'border-slate-200'
+                      }`}>
+                        {item.subItems?.map((subItem) => {
+                          const SubIcon = subItem.icon;
+                          const subActive = isActive(subItem.path);
+                          return (
+                            <Link
+                              key={subItem.path}
+                              to={subItem.path}
+                              onClick={() => setMobileSidebarOpen(false)}
+                              className={`relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                subActive
+                                  ? theme === 'dark' 
+                                    ? 'bg-emerald-500/10 text-emerald-400' 
+                                    : 'bg-emerald-50 text-emerald-600'
+                                  : theme === 'dark' 
+                                    ? 'text-slate-400 hover:text-white hover:bg-slate-800/30' 
+                                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                              }`}
+                            >
+                              {subActive && (
+                                <div className={`absolute -left-[18px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500`} />
+                              )}
+                              <SubIcon className={`w-4 h-4 ${subActive ? 'text-emerald-500' : ''}`} />
+                              <span>{subItem.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Link
+                    to={item.path}
+                    onClick={() => setMobileSidebarOpen(false)}
+                    className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all ${
+                      exactActive
+                        ? theme === 'dark' 
+                          ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/10 text-emerald-400' 
+                          : 'bg-gradient-to-r from-emerald-500/10 to-blue-500/5 text-emerald-600'
+                        : theme === 'dark' 
+                          ? 'text-slate-400 hover:text-white hover:bg-slate-800/50' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    {exactActive && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-emerald-500 to-blue-500 rounded-r-full" />
+                    )}
+                    <Icon className={`w-5 h-5 ${exactActive ? 'text-emerald-500' : ''}`} />
+                    <span className="flex-1">{item.label}</span>
+                    {item.badge && (
+                      <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                        theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
+                      }`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
                 )}
-                <Icon className={`w-5 h-5 ${active ? 'text-emerald-500' : ''}`} />
-                <span className="flex-1">{item.label}</span>
-                {item.badge && (
-                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                    theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
+              </div>
             );
           })}
           
