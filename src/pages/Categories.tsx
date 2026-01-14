@@ -77,6 +77,7 @@ export const Categories: React.FC = () => {
     description: `All ${name.toLowerCase()} products`,
     productCount: mockProducts.filter(p => p.category === name).length,
     icon: categoryImages[name] || '',
+    image: categoryImages[name] || '',
     createdAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
   }));
 

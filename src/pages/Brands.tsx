@@ -44,7 +44,7 @@ export const Brands: React.FC = () => {
     name,
     description: `${name} brand products`,
     productCount: mockProducts.filter(p => p.brand === name).length,
-    image: brandLogos[name] || `https://logo.clearbit.com/${name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
+    image: brandLogos[name] || '',
     createdAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
   }));
 

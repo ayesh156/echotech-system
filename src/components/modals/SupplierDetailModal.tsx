@@ -384,7 +384,7 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
                             {getStatusIcon(purchase.paymentStatus)}
                             {purchase.paymentPercentage.toFixed(0)}%
                           </span>
-                          {expandedPurchase === purchase.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          {expandedPurchase === purchase.id ? <ChevronUp className="w-5 h-5 text-white" /> : <ChevronDown className="w-5 h-5 text-white" />}
                         </div>
                       </div>
                       {/* Payment Progress Bar */}
