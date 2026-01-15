@@ -28,6 +28,8 @@ const CreateGRN = lazy(() => import('./pages/CreateGRN').then(m => ({ default: m
 const Services = lazy(() => import('./pages/Services').then(m => ({ default: m.Services })));
 const ServiceForm = lazy(() => import('./pages/ServiceForm').then(m => ({ default: m.ServiceForm })));
 const ServiceCategories = lazy(() => import('./pages/ServiceCategories').then(m => ({ default: m.ServiceCategories })));
+const JobNotes = lazy(() => import('./pages/JobNotes').then(m => ({ default: m.JobNotes })));
+const JobNoteForm = lazy(() => import('./pages/JobNoteForm').then(m => ({ default: m.JobNoteForm })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -71,6 +73,9 @@ function App() {
                   <Route path="/services/add" element={<ServiceForm />} />
                   <Route path="/services/edit/:id" element={<ServiceForm />} />
                   <Route path="/service-categories" element={<ServiceCategories />} />
+                  <Route path="/job-notes" element={<JobNotes />} />
+                  <Route path="/job-notes/create" element={<JobNoteForm />} />
+                  <Route path="/job-notes/edit/:id" element={<JobNoteForm />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/help" element={<Help />} />

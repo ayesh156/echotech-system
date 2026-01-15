@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
   Package, FileText, Users, LayoutDashboard, Settings, 
   Moon, Sun, Menu, X, ChevronLeft, ChevronRight, Bell, Search,
   User, HelpCircle, ChevronDown, Sparkles, TrendingUp,
-  FolderTree, Building, Shield, Truck, ClipboardCheck, Wrench, Layers
+  FolderTree, Building, Shield, Truck, ClipboardCheck, Wrench, Layers, ClipboardList
 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import logoImage from '../assets/logo.jpg';
@@ -37,10 +37,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notificationCount] = useState(3);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [collapsedPopover, setCollapsedPopover] = useState<string | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<number>(0);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   // Close mobile sidebar on route change
   useEffect(() => {
     setMobileSidebarOpen(false);
+    setCollapsedPopover(null);
   }, [location.pathname]);
 
   // Close dropdowns when clicking outside
@@ -51,6 +55,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [profileDropdownOpen]);
+
+  // Close collapsed popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setCollapsedPopover(null);
+      }
+    };
+    if (collapsedPopover) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [collapsedPopover]);
 
   // Auto-expand menu when navigating to a sub-item
   useEffect(() => {
@@ -76,6 +93,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const navItems: NavItem[] = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', badge: null },
     { path: '/invoices', icon: FileText, label: 'Invoices', badge: '12' },
+    { path: '/job-notes', icon: ClipboardList, label: 'Job Notes', badge: '4' },
     { 
       path: '/products', 
       icon: Package, 
@@ -149,7 +167,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col h-[calc(100%-4rem)] px-3 py-4 overflow-y-auto">
+      <nav className="flex flex-col h-[calc(100%-4rem)] px-3 py-4 overflow-y-auto overflow-x-hidden">
         {/* Main Navigation */}
         <div className="flex-1 space-y-1">
           {!sidebarCollapsed && (
@@ -166,12 +184,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               const exactActive = isExactActive(item.path);
 
               return (
-                <div key={item.path}>
+                <div key={item.path} className="relative">
                   {/* Parent Menu Item */}
                   {hasSubItems ? (
                     <div
-                      onClick={() => {
-                        if (!sidebarCollapsed) {
+                      data-menu-id={item.path}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (sidebarCollapsed) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setPopoverPosition(rect.top);
+                          setCollapsedPopover(collapsedPopover === item.path ? null : item.path);
+                        } else {
                           toggleMenu(item.path);
                         }
                       }}
@@ -191,11 +215,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-emerald-500 to-blue-500 rounded-r-full" />
                       )}
                       
-                      <Link to={item.path} onClick={(e) => e.stopPropagation()}>
-                        <Icon className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
-                          parentActive ? 'text-emerald-500' : ''
-                        }`} />
-                      </Link>
+                      <Icon className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
+                        parentActive ? 'text-emerald-500' : ''
+                      }`} />
                       
                       {!sidebarCollapsed && (
                         <>
@@ -217,46 +239,82 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                         </>
                       )}
                       
-                      {/* Tooltip for collapsed sidebar with sub-items */}
-                      {sidebarCollapsed && (
-                        <div className={`absolute left-full ml-2 px-0 py-2 rounded-xl text-sm font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50 min-w-[180px] ${
-                          theme === 'dark' ? 'bg-slate-800 text-white shadow-2xl border border-slate-700' : 'bg-white text-slate-900 shadow-2xl border border-slate-200'
-                        }`}>
+                      {/* Click-based Popover for collapsed sidebar with sub-items */}
+                      {sidebarCollapsed && collapsedPopover === item.path && (
+                        <div 
+                          ref={popoverRef}
+                          className={`fixed left-[84px] px-0 py-2 rounded-xl text-sm font-medium whitespace-nowrap z-[100] min-w-[200px] shadow-2xl animate-in fade-in slide-in-from-left-2 zoom-in-95 duration-200 ${
+                            theme === 'dark' ? 'bg-slate-800/95 backdrop-blur-xl text-white border border-slate-700/50' : 'bg-white/95 backdrop-blur-xl text-slate-900 border border-slate-200'
+                          }`}
+                          style={{ 
+                            top: `${Math.min(popoverPosition, window.innerHeight - 280)}px`
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {/* Arrow Pointer */}
+                          <div className={`absolute -left-2 top-4 w-0 h-0 border-y-8 border-y-transparent border-r-8 ${
+                            theme === 'dark' ? 'border-r-slate-700/50' : 'border-r-slate-200'
+                          }`} />
+                          <div className={`absolute -left-[6px] top-4 w-0 h-0 border-y-8 border-y-transparent border-r-8 ${
+                            theme === 'dark' ? 'border-r-slate-800/95' : 'border-r-white/95'
+                          }`} />
+                          
+                          {/* Popover Header */}
+                          <div className={`px-4 py-2.5 border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                            <div className="flex items-center gap-2">
+                              <div className={`p-1.5 rounded-lg ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-50'}`}>
+                                <Icon className="w-4 h-4 text-emerald-500" />
+                              </div>
+                              <span className="font-semibold">{item.label}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Main Link */}
                           <Link 
                             to={item.path}
-                            className={`flex items-center gap-2 px-4 py-2 ${
+                            className={`flex items-center gap-2 px-4 py-2.5 mt-1 mx-2 rounded-lg transition-colors ${
                               exactActive 
-                                ? theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-600 bg-emerald-50'
+                                ? theme === 'dark' ? 'text-emerald-400 bg-emerald-500/20' : 'text-emerald-600 bg-emerald-50'
                                 : theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
                             }`}
+                            onClick={() => setCollapsedPopover(null)}
                           >
-                            <Icon className="w-4 h-4" />
-                            {item.label}
+                            <Package className="w-4 h-4" />
+                            All {item.label}
                             {item.badge && (
                               <span className="ml-auto px-1.5 py-0.5 text-[10px] bg-emerald-500 text-white rounded-full">
                                 {item.badge}
                               </span>
                             )}
                           </Link>
-                          <div className={`my-1 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`} />
-                          {item.subItems?.map((subItem) => {
-                            const SubIcon = subItem.icon;
-                            const subActive = isActive(subItem.path);
-                            return (
-                              <Link
-                                key={subItem.path}
-                                to={subItem.path}
-                                className={`flex items-center gap-2 px-4 py-2 ${
-                                  subActive 
-                                    ? theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-600 bg-emerald-50'
-                                    : theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
-                                }`}
-                              >
-                                <SubIcon className="w-4 h-4" />
-                                {subItem.label}
-                              </Link>
-                            );
-                          })}
+                          
+                          {/* Sub Items */}
+                          <div className={`mt-1 pt-1 border-t mx-2 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                            <span className={`block px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+                              theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+                            }`}>
+                              Sub Categories
+                            </span>
+                            {item.subItems?.map((subItem) => {
+                              const SubIcon = subItem.icon;
+                              const subActive = isActive(subItem.path);
+                              return (
+                                <Link
+                                  key={subItem.path}
+                                  to={subItem.path}
+                                  className={`flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
+                                    subActive 
+                                      ? theme === 'dark' ? 'text-emerald-400 bg-emerald-500/20' : 'text-emerald-600 bg-emerald-50'
+                                      : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'
+                                  }`}
+                                  onClick={() => setCollapsedPopover(null)}
+                                >
+                                  <SubIcon className={`w-4 h-4 ${subActive ? 'text-emerald-500' : ''}`} />
+                                  {subItem.label}
+                                </Link>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -610,7 +668,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   );
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0a0f1a]' : 'bg-slate-100'}`}>
+    <div className={`min-h-screen overflow-x-hidden transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0a0f1a]' : 'bg-slate-100'}`}>
       {/* Ambient background effects - only in dark mode */}
       <div className={`fixed inset-0 overflow-hidden pointer-events-none transition-opacity duration-300 ${theme === 'dark' ? 'opacity-100' : 'opacity-0'}`}>
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px]" />

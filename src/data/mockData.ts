@@ -179,6 +179,262 @@ export interface WarrantyCredit {
 }
 
 // ==========================================
+// JOB NOTES SYSTEM - Service/Repair Job Tracking
+// ==========================================
+
+// Job Note Status Types
+export type JobNoteStatus = 'received' | 'diagnosing' | 'waiting-parts' | 'in-progress' | 'testing' | 'completed' | 'delivered' | 'cancelled';
+
+// Job Note Priority
+export type JobNotePriority = 'low' | 'normal' | 'high' | 'urgent';
+
+// Device Type
+export type DeviceType = 'laptop' | 'desktop' | 'printer' | 'monitor' | 'phone' | 'tablet' | 'other';
+
+// Job Note Interface
+export interface JobNote {
+  id: string;
+  jobNumber: string; // JOB-2026-0001 format
+  // Customer Info
+  customerId?: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  // Device Info
+  deviceType: DeviceType;
+  deviceBrand: string;
+  deviceModel: string;
+  serialNumber?: string;
+  accessories: string[]; // Charger, Bag, Mouse etc.
+  deviceCondition: string; // Physical condition notes
+  // Problem & Service
+  reportedIssue: string; // Customer's complaint
+  diagnosisNotes?: string; // Technician's diagnosis
+  serviceRequired?: string; // What needs to be done
+  // Pricing
+  estimatedCost?: number;
+  actualCost?: number;
+  advancePayment?: number;
+  // Status & Timeline
+  status: JobNoteStatus;
+  priority: JobNotePriority;
+  receivedDate: string;
+  expectedCompletionDate?: string;
+  completedDate?: string;
+  deliveredDate?: string;
+  // Assignment
+  assignedTechnician?: string;
+  // Tracking
+  statusHistory: {
+    status: JobNoteStatus;
+    date: string;
+    notes?: string;
+    updatedBy?: string;
+  }[];
+  // Additional
+  internalNotes?: string;
+  customerNotified: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Generate Job Number
+export const generateJobNumber = () => {
+  const year = new Date().getFullYear();
+  const sequence = Math.floor(Math.random() * 9999) + 1;
+  return `JOB-${year}-${sequence.toString().padStart(4, '0')}`;
+};
+
+// Mock Job Notes Data
+// Generate 25 Job Notes (small dev sample)
+const generateMockJobNotes = (): JobNote[] => {
+  const firstNames = ['Kasun', 'Amali', 'Ranjith', 'Dilshan', 'Nimali', 'Saman', 'Kumari', 'Nuwan', 'Chamara', 'Priyanka', 'Rohan', 'Nimal', 'Sanduni', 'Tharindu', 'Nethmi', 'Ayesh', 'Dinuka', 'Hashini', 'Lakshan', 'Sachini', 'Isuru', 'Malsha', 'Kavinda', 'Hiruni', 'Supun'];
+  const lastNames = ['Perera', 'Fernando', 'Silva', 'Jayawardena', 'Dissanayake', 'Wijesinghe', 'Gunasekara', 'Wickramasinghe', 'Bandara', 'Rajapaksa', 'De Silva', 'Karunaratne', 'Mendis', 'Gunaratne', 'Samarasinghe', 'Alwis', 'Rathnayake', 'Jayasuriya', 'Kumarasinghe', 'Pathirana'];
+  
+  const deviceBrands = {
+    laptop: ['HP', 'Dell', 'Lenovo', 'Asus', 'Acer', 'Apple', 'MSI', 'Toshiba', 'Samsung'],
+    desktop: ['Custom Build', 'HP', 'Dell', 'Lenovo', 'Asus'],
+    phone: ['Samsung', 'Apple', 'Xiaomi', 'Huawei', 'Oppo', 'Vivo', 'OnePlus', 'Nokia'],
+    tablet: ['Apple', 'Samsung', 'Huawei', 'Lenovo', 'Xiaomi'],
+    printer: ['Canon', 'HP', 'Epson', 'Brother', 'Xerox'],
+    monitor: ['Dell', 'Samsung', 'LG', 'Asus', 'BenQ', 'HP'],
+    other: ['Generic', 'Various', 'Multiple Brands']
+  };
+
+  const laptopIssues = [
+    'Laptop not turning on, power button not responding',
+    'Screen flickering and sometimes goes black',
+    'Overheating and automatic shutdown',
+    'Battery not charging properly',
+    'Keyboard keys not working',
+    'Touchpad not responding',
+    'No display but power LED is on',
+    'Blue screen error during startup',
+    'Slow performance, hanging issues',
+    'Hard drive clicking sound, data not accessible',
+    'WiFi not detecting any networks',
+    'USB ports not working',
+    'Fan making loud noise',
+    'Broken screen, physical damage',
+    'Water damage, liquid spill'
+  ];
+
+  const desktopIssues = [
+    'PC not turning on, no display',
+    'Random restarts during use',
+    'Blue screen errors',
+    'No boot device found error',
+    'Overheating and loud fan noise',
+    'Graphics card not detected',
+    'RAM not detected',
+    'USB ports not functioning',
+    'Internet connectivity issues',
+    'Hard drive failure'
+  ];
+
+  const phoneIssues = [
+    'Screen cracked, touch not working properly',
+    'Battery draining very fast',
+    'Phone not charging',
+    'Camera not working',
+    'Microphone or speaker issues',
+    'Water damage',
+    'Software hanging and freezing',
+    'Network/SIM card not detected',
+    'Overheating issues',
+    'Display not working'
+  ];
+
+  const printerIssues = [
+    'Paper jamming frequently',
+    'Poor print quality, streaks on paper',
+    'Printer not detected by computer',
+    'Error lights blinking',
+    'Ink not flowing properly',
+    'Cartridge not recognized',
+    'Printing very slowly',
+    'Network printer not connecting'
+  ];
+
+  const technicians = ['Nuwan Silva', 'Pradeep Kumar', 'Chaminda Perera', 'Tharaka Jayasuriya', 'Dinesh Fernando', 'Lahiru Bandara'];
+  const statuses: JobNoteStatus[] = ['received', 'diagnosing', 'waiting-parts', 'in-progress', 'testing', 'completed', 'delivered', 'cancelled'];
+  const priorities: JobNotePriority[] = ['low', 'normal', 'high', 'urgent'];
+  const deviceTypes: DeviceType[] = ['laptop', 'desktop', 'phone', 'tablet', 'printer', 'other'];
+
+  const accessories = {
+    laptop: [['Charger'], ['Charger', 'Laptop Bag'], ['Charger', 'Mouse'], ['Charger', 'Bag', 'Mouse']],
+    desktop: [['Power Cable'], ['Power Cable', 'Keyboard', 'Mouse'], ['All cables']],
+    phone: [['Charger'], ['Charger', 'Cover'], ['Charger', 'Earphones'], []],
+    tablet: [['Charger'], ['Charger', 'Cover'], ['Charger', 'Stylus']],
+    printer: [['Power Cable'], ['Power Cable', 'USB Cable'], ['All cables']],
+    monitor: [['Power Cable'], ['Power Cable', 'HDMI Cable'], ['All cables']],
+    other: [['None'], ['Accessories included']]
+  };
+
+  const conditions = [
+    'Good condition',
+    'Minor scratches',
+    'Screen cracked',
+    'Dusty inside',
+    'Well maintained',
+    'Physical damage visible',
+    'Excellent condition',
+    'Worn out body',
+    'Heavy usage marks'
+  ];
+
+  const jobNotes: JobNote[] = [];
+  const startDate = new Date('2023-01-01');
+  const endDate = new Date('2026-01-15');
+
+  for (let i = 1; i <= 25; i++) {
+    const deviceType = deviceTypes[Math.floor(Math.random() * deviceTypes.length)];
+    const brand = deviceBrands[deviceType][Math.floor(Math.random() * deviceBrands[deviceType].length)];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const priority = priorities[Math.floor(Math.random() * priorities.length)];
+    
+    // Generate random date between start and end
+    const randomTime = startDate.getTime() + Math.random() * (endDate.getTime() - startDate.getTime());
+    const receivedDate = new Date(randomTime);
+    const expectedDays = Math.floor(Math.random() * 10) + 2;
+    const expectedDate = new Date(receivedDate.getTime() + expectedDays * 24 * 60 * 60 * 1000);
+    
+    let reportedIssue = '';
+    if (deviceType === 'laptop') reportedIssue = laptopIssues[Math.floor(Math.random() * laptopIssues.length)];
+    else if (deviceType === 'desktop') reportedIssue = desktopIssues[Math.floor(Math.random() * desktopIssues.length)];
+    else if (deviceType === 'phone') reportedIssue = phoneIssues[Math.floor(Math.random() * phoneIssues.length)];
+    else if (deviceType === 'printer') reportedIssue = printerIssues[Math.floor(Math.random() * printerIssues.length)];
+    else reportedIssue = 'Device malfunction, needs diagnosis';
+
+    const estimatedCost = Math.floor(Math.random() * 30000) + 1000;
+    const advancePayment = Math.random() > 0.5 ? Math.floor(estimatedCost * (Math.random() * 0.5 + 0.2)) : 0;
+    
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    const customerName = `${firstName} ${lastName}`;
+    const phone = `077${Math.floor(1000000 + Math.random() * 9000000)}`;
+    
+    const statusHistory: JobNote['statusHistory'] = [
+      { status: 'received', date: receivedDate.toISOString(), notes: 'Device received', updatedBy: 'Reception' }
+    ];
+
+    if (status !== 'received') {
+      statusHistory.push({ 
+        status: status === 'delivered' || status === 'completed' || status === 'cancelled' ? 'diagnosing' : status, 
+        date: new Date(receivedDate.getTime() + 3 * 60 * 60 * 1000).toISOString(), 
+        updatedBy: technicians[Math.floor(Math.random() * technicians.length)] 
+      });
+    }
+
+    let completedDate: string | undefined;
+    let deliveredDate: string | undefined;
+    if (status === 'completed' || status === 'delivered') {
+      completedDate = new Date(receivedDate.getTime() + Math.random() * expectedDays * 24 * 60 * 60 * 1000).toISOString();
+      if (status === 'delivered') {
+        deliveredDate = new Date(new Date(completedDate).getTime() + Math.random() * 2 * 24 * 60 * 60 * 1000).toISOString();
+      }
+    }
+
+    jobNotes.push({
+      id: `job-${i.toString().padStart(5, '0')}`,
+      jobNumber: `JOB-${receivedDate.getFullYear()}-${i.toString().padStart(4, '0')}`,
+      customerName,
+      customerPhone: phone,
+      customerEmail: Math.random() > 0.6 ? `${firstName.toLowerCase()}.${lastName.toLowerCase()}@email.com` : undefined,
+      customerAddress: Math.random() > 0.7 ? `${Math.floor(Math.random() * 500) + 1}, ${['Colombo', 'Kandy', 'Galle', 'Negombo', 'Matara', 'Kurunegala'][Math.floor(Math.random() * 6)]}` : undefined,
+      deviceType,
+      deviceBrand: brand,
+      deviceModel: `${brand} ${['Pro', 'Elite', 'Standard', 'Gaming', 'Business'][Math.floor(Math.random() * 5)]} ${Math.floor(Math.random() * 20) + 1}`,
+      serialNumber: Math.random() > 0.4 ? `${brand.substring(0, 2).toUpperCase()}${Math.floor(Math.random() * 1000000)}` : undefined,
+      accessories: accessories[deviceType][Math.floor(Math.random() * accessories[deviceType].length)],
+      deviceCondition: conditions[Math.floor(Math.random() * conditions.length)],
+      reportedIssue,
+      diagnosisNotes: status !== 'received' ? 'Under diagnosis' : undefined,
+      estimatedCost,
+      actualCost: status === 'completed' || status === 'delivered' ? Math.floor(estimatedCost * (0.8 + Math.random() * 0.4)) : undefined,
+      advancePayment,
+      status,
+      priority,
+      receivedDate: receivedDate.toISOString(),
+      expectedCompletionDate: expectedDate.toISOString(),
+      completedDate,
+      deliveredDate,
+      assignedTechnician: status !== 'received' ? technicians[Math.floor(Math.random() * technicians.length)] : undefined,
+      statusHistory,
+      internalNotes: Math.random() > 0.7 ? 'Follow up required' : undefined,
+      customerNotified: Math.random() > 0.3,
+      createdAt: receivedDate.toISOString(),
+      updatedAt: status !== 'received' ? new Date(receivedDate.getTime() + Math.random() * 5 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+    });
+  }
+
+  return jobNotes.sort((a, b) => new Date(b.receivedDate).getTime() - new Date(a.receivedDate).getTime());
+};
+
+export const mockJobNotes: JobNote[] = generateMockJobNotes();
+
+// ==========================================
 // SERVICES SYSTEM - Computer Shop Services
 // ==========================================
 

@@ -75,19 +75,19 @@ export const ServiceCategories: React.FC = () => {
   // Available icons for category
   const categoryIcons = ['🔧', '🛠️', '💻', '⬆️', '💾', '🌐', '📀', '💡', '✨', '📦', '🔌', '🖥️', '📱', '🎮', '🔒', '📡'];
   
-  // Available colors for category
-  const categoryColorOptions = [
-    { value: 'from-red-500 to-orange-500', label: 'Red-Orange', preview: 'bg-gradient-to-r from-red-500 to-orange-500' },
-    { value: 'from-blue-500 to-cyan-500', label: 'Blue-Cyan', preview: 'bg-gradient-to-r from-blue-500 to-cyan-500' },
-    { value: 'from-green-500 to-emerald-500', label: 'Green-Emerald', preview: 'bg-gradient-to-r from-green-500 to-emerald-500' },
-    { value: 'from-purple-500 to-pink-500', label: 'Purple-Pink', preview: 'bg-gradient-to-r from-purple-500 to-pink-500' },
-    { value: 'from-yellow-500 to-amber-500', label: 'Yellow-Amber', preview: 'bg-gradient-to-r from-yellow-500 to-amber-500' },
-    { value: 'from-indigo-500 to-blue-500', label: 'Indigo-Blue', preview: 'bg-gradient-to-r from-indigo-500 to-blue-500' },
-    { value: 'from-teal-500 to-green-500', label: 'Teal-Green', preview: 'bg-gradient-to-r from-teal-500 to-green-500' },
-    { value: 'from-orange-500 to-red-500', label: 'Orange-Red', preview: 'bg-gradient-to-r from-orange-500 to-red-500' },
-    { value: 'from-cyan-500 to-blue-500', label: 'Cyan-Blue', preview: 'bg-gradient-to-r from-cyan-500 to-blue-500' },
-    { value: 'from-pink-500 to-rose-500', label: 'Pink-Rose', preview: 'bg-gradient-to-r from-pink-500 to-rose-500' },
-  ];
+  // Available colors for category (kept for future use)
+  // const categoryColorOptions = [
+  //   { value: 'from-red-500 to-orange-500', label: 'Red-Orange', preview: 'bg-gradient-to-r from-red-500 to-orange-500' },
+  //   { value: 'from-blue-500 to-cyan-500', label: 'Blue-Cyan', preview: 'bg-gradient-to-r from-blue-500 to-cyan-500' },
+  //   { value: 'from-green-500 to-emerald-500', label: 'Green-Emerald', preview: 'bg-gradient-to-r from-green-500 to-emerald-500' },
+  //   { value: 'from-purple-500 to-pink-500', label: 'Purple-Pink', preview: 'bg-gradient-to-r from-purple-500 to-pink-500' },
+  //   { value: 'from-yellow-500 to-amber-500', label: 'Yellow-Amber', preview: 'bg-gradient-to-r from-yellow-500 to-amber-500' },
+  //   { value: 'from-indigo-500 to-blue-500', label: 'Indigo-Blue', preview: 'bg-gradient-to-r from-indigo-500 to-blue-500' },
+  //   { value: 'from-teal-500 to-green-500', label: 'Teal-Green', preview: 'bg-gradient-to-r from-teal-500 to-green-500' },
+  //   { value: 'from-orange-500 to-red-500', label: 'Orange-Red', preview: 'bg-gradient-to-r from-orange-500 to-red-500' },
+  //   { value: 'from-cyan-500 to-blue-500', label: 'Cyan-Blue', preview: 'bg-gradient-to-r from-cyan-500 to-blue-500' },
+  //   { value: 'from-pink-500 to-rose-500', label: 'Pink-Rose', preview: 'bg-gradient-to-r from-pink-500 to-rose-500' },
+  // ];
 
   // Sort options for SearchableSelect
   const sortOptions = [
@@ -1153,36 +1153,6 @@ export const ServiceCategories: React.FC = () => {
                       }`}
                     >
                       {icon}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Color Selector */}
-              <div className="mb-4">
-                <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                  <Palette className="w-4 h-4 inline-block mr-1" /> Select Color
-                </label>
-                <div className={`flex flex-wrap gap-2 p-3 rounded-xl ${
-                  theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'
-                }`}>
-                  {categoryColorOptions.map((colorOption) => (
-                    <button
-                      key={colorOption.value}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, color: colorOption.value })}
-                      className={`relative w-10 h-10 rounded-lg bg-gradient-to-br ${colorOption.value} transition-all ${
-                        formData.color === colorOption.value
-                          ? 'ring-2 ring-offset-2 ring-emerald-500 scale-110 shadow-lg'
-                          : 'hover:scale-105'
-                      } ${theme === 'dark' ? 'ring-offset-slate-900' : 'ring-offset-white'}`}
-                      title={colorOption.label}
-                    >
-                      {formData.color === colorOption.value && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Check className="w-5 h-5 text-white drop-shadow-md" />
-                        </div>
-                      )}
                     </button>
                   ))}
                 </div>
