@@ -5,7 +5,8 @@ import {
   Package, FileText, Users, LayoutDashboard, Settings, 
   Moon, Sun, Menu, X, ChevronLeft, ChevronRight, Bell, Search,
   User, HelpCircle, ChevronDown, Sparkles, TrendingUp,
-  FolderTree, Building, Shield, Truck, ClipboardCheck, Wrench, Layers, ClipboardList
+  FolderTree, Building, Shield, Truck, ClipboardCheck, Wrench, Layers, ClipboardList,
+  Calculator, FileCheck
 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import logoImage from '../assets/logo.jpg';
@@ -100,6 +101,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: 'Products', 
       badge: null,
       subItems: [
+        { path: '/products', icon: Package, label: 'All Products' },
         { path: '/categories', icon: FolderTree, label: 'Categories' },
         { path: '/brands', icon: Building, label: 'Brands' },
       ]
@@ -110,7 +112,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: 'Services', 
       badge: null,
       subItems: [
+        { path: '/services', icon: Wrench, label: 'All Services' },
         { path: '/service-categories', icon: Layers, label: 'Service Categories' },
+      ]
+    },
+    { 
+      path: '/pricing-proposals', 
+      icon: Calculator, 
+      label: 'Pricing Proposals', 
+      badge: null,
+      subItems: [
+        { path: '/estimates', icon: FileCheck, label: 'Estimates' },
       ]
     },
     { path: '/warranties', icon: Shield, label: 'Warranties', badge: '3' },
@@ -221,9 +233,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       
                       {!sidebarCollapsed && (
                         <>
-                          <Link to={item.path} className="flex-1" onClick={(e) => e.stopPropagation()}>
+                          <span className="flex-1">
                             {item.label}
-                          </Link>
+                          </span>
                           {item.badge && (
                             <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
                               theme === 'dark' 
@@ -269,32 +281,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                             </div>
                           </div>
                           
-                          {/* Main Link */}
-                          <Link 
-                            to={item.path}
-                            className={`flex items-center gap-2 px-4 py-2.5 mt-1 mx-2 rounded-lg transition-colors ${
-                              exactActive 
-                                ? theme === 'dark' ? 'text-emerald-400 bg-emerald-500/20' : 'text-emerald-600 bg-emerald-50'
-                                : theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
-                            }`}
-                            onClick={() => setCollapsedPopover(null)}
-                          >
-                            <Package className="w-4 h-4" />
-                            All {item.label}
-                            {item.badge && (
-                              <span className="ml-auto px-1.5 py-0.5 text-[10px] bg-emerald-500 text-white rounded-full">
-                                {item.badge}
-                              </span>
-                            )}
-                          </Link>
-                          
                           {/* Sub Items */}
-                          <div className={`mt-1 pt-1 border-t mx-2 ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-                            <span className={`block px-2 py-1 text-[10px] font-semibold uppercase tracking-wider ${
-                              theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
-                            }`}>
-                              Sub Categories
-                            </span>
+                          <div className="mt-1 mx-2">
                             {item.subItems?.map((subItem) => {
                               const SubIcon = subItem.icon;
                               const subActive = isActive(subItem.path);
@@ -549,16 +537,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                       {parentActive && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-emerald-500 to-blue-500 rounded-r-full" />
                       )}
-                      <Link to={item.path} onClick={(e) => { e.stopPropagation(); setMobileSidebarOpen(false); }}>
-                        <Icon className={`w-5 h-5 ${parentActive ? 'text-emerald-500' : ''}`} />
-                      </Link>
-                      <Link 
-                        to={item.path} 
-                        className="flex-1"
-                        onClick={(e) => { e.stopPropagation(); setMobileSidebarOpen(false); }}
-                      >
+                      <Icon className={`w-5 h-5 ${parentActive ? 'text-emerald-500' : ''}`} />
+                      <span className="flex-1">
                         {item.label}
-                      </Link>
+                      </span>
                       {item.badge && (
                         <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
                           theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'

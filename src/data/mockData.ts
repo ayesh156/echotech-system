@@ -4019,6 +4019,197 @@ export const updateCustomerCreditStatus = (customer: Customer, invoices: Invoice
   };
 };
 
+// ==========================================
+// ESTIMATES SYSTEM - Price Quotations
+// ==========================================
+
+// Estimate Status Type
+export type EstimateStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+
+// Estimate Item Interface
+export interface EstimateItem {
+  id: string;
+  productId: string;
+  productName: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  total: number;
+}
+
+// Estimate Interface
+export interface Estimate {
+  id: string;
+  estimateNumber: string;
+  customerId?: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  estimateDate: string;
+  expiryDate: string;
+  items: EstimateItem[];
+  subtotal: number;
+  discountPercent: number;
+  discountAmount: number;
+  taxPercent: number;
+  taxAmount: number;
+  total: number;
+  status: EstimateStatus;
+  notes?: string;
+  terms?: string;
+  internalNotes?: string;
+  createdAt: string;
+  updatedAt?: string;
+  convertedToInvoice?: string; // Invoice ID if converted
+}
+
+// Generate Estimate Number
+export const generateEstimateNumber = () => {
+  const year = new Date().getFullYear();
+  const sequence = Math.floor(Math.random() * 9999) + 1;
+  return `EST-${year}-${sequence.toString().padStart(4, '0')}`;
+};
+
+// Generate Mock Estimates
+const generateMockEstimates = (): Estimate[] => {
+  const estimates: Estimate[] = [];
+  const statuses: EstimateStatus[] = ['draft', 'sent', 'accepted', 'rejected', 'expired'];
+  
+  const customerData = [
+    { name: 'Tech Solutions Ltd', phone: '077-1234567', email: 'contact@techsolutions.lk', address: 'No. 45, Galle Road, Colombo 03' },
+    { name: 'Digital Marketing Agency', phone: '077-2345678', email: 'info@digitalagency.lk', address: 'Level 5, One Galle Face Tower, Colombo 01' },
+    { name: 'Startup Hub Lanka', phone: '077-3456789', email: 'hello@startuphub.lk', address: '123 Innovation Drive, Colombo 07' },
+    { name: 'Ceylon Traders', phone: '077-4567890', email: 'sales@ceylontraders.lk', address: 'No. 78, Main Street, Kandy' },
+    { name: 'Global Exports PVT', phone: '077-5678901', email: 'info@globalexports.lk', address: 'Industrial Zone, Katunayake' },
+    { name: 'Sampath Perera', phone: '071-1234567', email: 'sampath.p@gmail.com', address: 'No. 12, Temple Road, Nugegoda' },
+    { name: 'Kumara Electronics', phone: '071-2345678', email: 'kumara.elec@yahoo.com', address: '234 High Level Road, Maharagama' },
+    { name: 'Jayawardena Holdings', phone: '071-3456789', email: 'contact@jayawardena.lk', address: 'Tower Building, Colombo 10' },
+    { name: 'Mega Computers', phone: '071-4567890', email: 'orders@megacomp.lk', address: 'Unity Plaza, Bambalapitiya' },
+    { name: 'Smart Solutions', phone: '071-5678901', email: 'info@smartsol.lk', address: 'No. 89, Duplication Road, Colombo 04' },
+    { name: 'Nimal Fernando', phone: '076-1234567', email: 'nimal.f@outlook.com', address: '45 Lake Drive, Rajagiriya' },
+    { name: 'Prasad Enterprises', phone: '076-2345678', email: 'prasad.ent@gmail.com', address: 'Commercial Complex, Negombo' },
+    { name: 'Island Systems', phone: '076-3456789', email: 'sales@islandsys.lk', address: 'Tech Park, Malabe' },
+    { name: 'Creative Studios', phone: '076-4567890', email: 'hello@creativestudios.lk', address: 'Art District, Colombo 07' },
+    { name: 'DataSoft Lanka', phone: '076-5678901', email: 'contact@datasoft.lk', address: 'Software Park, Trace City' },
+  ];
+
+  const productItems = [
+    { name: 'Dell Laptop XPS 15', desc: 'High-performance laptop, i7, 16GB RAM, 512GB SSD', price: 450000 },
+    { name: 'MacBook Pro M3', desc: '14-inch, 16GB RAM, 512GB SSD', price: 550000 },
+    { name: 'HP Desktop Workstation', desc: 'Intel i7, 32GB RAM, 1TB SSD', price: 280000 },
+    { name: 'Asus ROG Gaming Laptop', desc: 'RTX 4060, i7-13th Gen, 16GB RAM', price: 380000 },
+    { name: 'Samsung 27" 4K Monitor', desc: 'UHD IPS Panel, USB-C', price: 95000 },
+    { name: 'Logitech MX Master 3S', desc: 'Wireless Mouse, Multi-device', price: 28000 },
+    { name: 'Mechanical Keyboard', desc: 'RGB, Cherry MX Switches', price: 18500 },
+    { name: 'Samsung 990 PRO 2TB SSD', desc: 'NVMe M.2, 7450MB/s', price: 65000 },
+    { name: 'Corsair 32GB DDR5 RAM', desc: '5600MHz, RGB', price: 42000 },
+    { name: 'NVIDIA RTX 4070 GPU', desc: '12GB GDDR6X', price: 185000 },
+    { name: 'APC UPS 1500VA', desc: 'Smart-UPS, AVR', price: 45000 },
+    { name: 'Canon PIXMA Printer', desc: 'All-in-One, Wi-Fi, Color', price: 32000 },
+    { name: 'TP-Link WiFi 6 Router', desc: 'AX5400, Dual Band', price: 28500 },
+    { name: 'Webcam Logitech C920', desc: 'Full HD 1080p', price: 22000 },
+    { name: 'External HDD 2TB', desc: 'Seagate Portable', price: 24500 },
+    { name: 'iPhone 15 Pro', desc: '256GB, Titanium', price: 485000 },
+    { name: 'Samsung Galaxy S24 Ultra', desc: '512GB, S Pen included', price: 395000 },
+    { name: 'iPad Pro 12.9"', desc: 'M2 chip, 256GB, Wi-Fi', price: 425000 },
+    { name: 'Surface Pro 9', desc: 'i7, 16GB, 256GB', price: 365000 },
+    { name: 'Network Installation', desc: 'Full office setup, cabling', price: 75000 },
+  ];
+
+  const terms = [
+    'This estimate is valid for 30 days from the date of issue.\nPrices are subject to change without prior notice.\nPayment terms: 50% advance, 50% on delivery.',
+    'Valid for 15 days. Full payment required on acceptance.\nDelivery within 3-5 business days.',
+    'Corporate pricing applied. Valid for 45 days.\nNet 30 payment terms after delivery.',
+    'Special promotional pricing. Valid for 7 days only.\nStock subject to availability.',
+    'Bulk order discount applied. Valid for 60 days.\nInstallment options available.',
+  ];
+
+  for (let i = 0; i < 25; i++) {
+    const customer = customerData[Math.floor(Math.random() * customerData.length)];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const itemCount = Math.floor(Math.random() * 4) + 1;
+    
+    const items: EstimateItem[] = [];
+    let subtotal = 0;
+    
+    // Generate random items
+    const usedProducts = new Set<number>();
+    for (let j = 0; j < itemCount; j++) {
+      let productIndex: number;
+      do {
+        productIndex = Math.floor(Math.random() * productItems.length);
+      } while (usedProducts.has(productIndex) && usedProducts.size < productItems.length);
+      usedProducts.add(productIndex);
+      
+      const product = productItems[productIndex];
+      const quantity = Math.floor(Math.random() * 5) + 1;
+      const itemDiscount = Math.random() > 0.7 ? Math.floor(Math.random() * 10) + 5 : 0;
+      const itemTotal = product.price * quantity * (1 - itemDiscount / 100);
+      
+      items.push({
+        id: `item-${i}-${j}`,
+        productId: `prod-${productIndex}`,
+        productName: product.name,
+        description: product.desc,
+        quantity,
+        unitPrice: product.price,
+        discount: itemDiscount,
+        total: Math.round(itemTotal),
+      });
+      
+      subtotal += Math.round(itemTotal);
+    }
+
+    const discountPercent = Math.random() > 0.6 ? Math.floor(Math.random() * 10) + 2 : 0;
+    const discountAmount = Math.round(subtotal * discountPercent / 100);
+    const afterDiscount = subtotal - discountAmount;
+    const taxPercent = 0; // No tax in most SL quotes
+    const taxAmount = Math.round(afterDiscount * taxPercent / 100);
+    const total = afterDiscount + taxAmount;
+
+    // Generate dates
+    const daysAgo = Math.floor(Math.random() * 60);
+    const estimateDate = new Date();
+    estimateDate.setDate(estimateDate.getDate() - daysAgo);
+    
+    const validityDays = [7, 15, 30, 45, 60][Math.floor(Math.random() * 5)];
+    const expiryDate = new Date(estimateDate);
+    expiryDate.setDate(expiryDate.getDate() + validityDays);
+
+    estimates.push({
+      id: `est-${(i + 1).toString().padStart(3, '0')}`,
+      estimateNumber: `EST-2026-${(1000 + i).toString()}`,
+      customerId: `cust-${Math.floor(Math.random() * 15) + 1}`,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      customerEmail: customer.email,
+      customerAddress: customer.address,
+      estimateDate: estimateDate.toISOString().split('T')[0],
+      expiryDate: expiryDate.toISOString().split('T')[0],
+      items,
+      subtotal,
+      discountPercent,
+      discountAmount,
+      taxPercent,
+      taxAmount,
+      total,
+      status,
+      notes: Math.random() > 0.5 ? 'Thank you for your inquiry. Please feel free to contact us for any clarifications.' : undefined,
+      terms: terms[Math.floor(Math.random() * terms.length)],
+      internalNotes: Math.random() > 0.7 ? 'Follow up required. Customer interested in bulk order.' : undefined,
+      createdAt: estimateDate.toISOString(),
+      updatedAt: status !== 'draft' ? new Date(estimateDate.getTime() + Math.random() * 10 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+      convertedToInvoice: status === 'accepted' && Math.random() > 0.5 ? `INV-2026-${Math.floor(Math.random() * 900) + 100}` : undefined,
+    });
+  }
+
+  return estimates.sort((a, b) => new Date(b.estimateDate).getTime() - new Date(a.estimateDate).getTime());
+};
+
+export const mockEstimates: Estimate[] = generateMockEstimates();
+
 /**
  * Get warranty workflow stage info
  */

@@ -28,6 +28,8 @@ const CreateGRN = lazy(() => import('./pages/CreateGRN').then(m => ({ default: m
 const Services = lazy(() => import('./pages/Services').then(m => ({ default: m.Services })));
 const ServiceForm = lazy(() => import('./pages/ServiceForm').then(m => ({ default: m.ServiceForm })));
 const ServiceCategories = lazy(() => import('./pages/ServiceCategories').then(m => ({ default: m.ServiceCategories })));
+const Estimates = lazy(() => import('./pages/Estimates').then(m => ({ default: m.Estimates })));
+const EstimateForm = lazy(() => import('./pages/EstimateForm').then(m => ({ default: m.EstimateForm })));
 const JobNotes = lazy(() => import('./pages/JobNotes').then(m => ({ default: m.JobNotes })));
 const JobNoteForm = lazy(() => import('./pages/JobNoteForm').then(m => ({ default: m.JobNoteForm })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
@@ -69,6 +71,9 @@ function App() {
                   <Route path="/grn" element={<GoodsReceived />} />
                   <Route path="/grn/create" element={<CreateGRN />} />
                   <Route path="/warranties" element={<Warranties />} />
+                  <Route path="/estimates" element={<Estimates />} />
+                  <Route path="/estimates/create" element={<EstimateForm />} />
+                  <Route path="/estimates/edit/:id" element={<EstimateForm />} />
                   <Route path="/services" element={<Services />} />
                   <Route path="/services/add" element={<ServiceForm />} />
                   <Route path="/services/edit/:id" element={<ServiceForm />} />
