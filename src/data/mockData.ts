@@ -4210,6 +4210,306 @@ const generateMockEstimates = (): Estimate[] => {
 
 export const mockEstimates: Estimate[] = generateMockEstimates();
 
+// ==========================================
+// QUOTATIONS SYSTEM - Professional Price Quotations
+// ==========================================
+
+// Quotation Status Type with more detailed workflow
+export type QuotationStatus = 'draft' | 'pending_approval' | 'sent' | 'viewed' | 'negotiating' | 'accepted' | 'rejected' | 'expired' | 'converted';
+
+// Quotation Priority
+export type QuotationPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+// Quotation Item Interface
+export interface QuotationItem {
+  id: string;
+  productId?: string;
+  productName: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  taxRate: number;
+  total: number;
+  warranty?: string;
+  deliveryTime?: string;
+}
+
+// Quotation Activity Log
+export interface QuotationActivity {
+  id: string;
+  action: 'created' | 'updated' | 'sent' | 'viewed' | 'accepted' | 'rejected' | 'expired' | 'converted' | 'comment' | 'follow_up';
+  description: string;
+  timestamp: string;
+  user?: string;
+}
+
+// Quotation Interface - Enhanced for world-class features
+export interface Quotation {
+  id: string;
+  quotationNumber: string;
+  referenceNumber?: string;
+  // Customer Info
+  customerId?: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  customerNIC?: string;
+  companyName?: string;
+  // Dates
+  quotationDate: string;
+  expiryDate: string;
+  validityDays: number;
+  // Items
+  items: QuotationItem[];
+  // Financial
+  subtotal: number;
+  discountPercent: number;
+  discountAmount: number;
+  taxPercent: number;
+  taxAmount: number;
+  shippingCost: number;
+  total: number;
+  // Status & Priority
+  status: QuotationStatus;
+  priority: QuotationPriority;
+  // Additional Info
+  notes?: string;
+  terms?: string;
+  internalNotes?: string;
+  paymentTerms?: string;
+  deliveryTerms?: string;
+  warrantyTerms?: string;
+  // Tracking
+  viewCount: number;
+  lastViewedAt?: string;
+  sentVia?: ('email' | 'whatsapp' | 'print')[];
+  followUpDate?: string;
+  assignedTo?: string;
+  tags?: string[];
+  // Activity Log
+  activities: QuotationActivity[];
+  // Timestamps
+  createdAt: string;
+  updatedAt?: string;
+  // Conversion
+  convertedToInvoice?: string;
+  convertedAt?: string;
+}
+
+// Generate Quotation Number
+export const generateQuotationNumber = () => {
+  const year = new Date().getFullYear();
+  const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
+  const sequence = Math.floor(Math.random() * 9999) + 1;
+  return `QUO-${year}${month}-${sequence.toString().padStart(4, '0')}`;
+};
+
+// Generate Mock Quotations
+const generateMockQuotations = (): Quotation[] => {
+  const quotations: Quotation[] = [];
+  const statuses: QuotationStatus[] = ['draft', 'pending_approval', 'sent', 'viewed', 'negotiating', 'accepted', 'rejected', 'expired', 'converted'];
+  const priorities: QuotationPriority[] = ['low', 'normal', 'high', 'urgent'];
+  
+  const customerData = [
+    { name: 'Tech Solutions Ltd', phone: '077-1234567', email: 'contact@techsolutions.lk', address: 'No. 45, Galle Road, Colombo 03', company: 'Tech Solutions Ltd' },
+    { name: 'Digital Marketing Agency', phone: '077-2345678', email: 'info@digitalagency.lk', address: 'Level 5, One Galle Face Tower, Colombo 01', company: 'Digital Marketing Agency' },
+    { name: 'Startup Hub Lanka', phone: '077-3456789', email: 'hello@startuphub.lk', address: '123 Innovation Drive, Colombo 07', company: 'Startup Hub Lanka (Pvt) Ltd' },
+    { name: 'Ceylon Traders', phone: '077-4567890', email: 'sales@ceylontraders.lk', address: 'No. 78, Main Street, Kandy', company: 'Ceylon Traders & Co.' },
+    { name: 'Global Exports PVT', phone: '077-5678901', email: 'info@globalexports.lk', address: 'Industrial Zone, Katunayake', company: 'Global Exports (Pvt) Ltd' },
+    { name: 'Sampath Perera', phone: '071-1234567', email: 'sampath.p@gmail.com', address: 'No. 12, Temple Road, Nugegoda', company: '' },
+    { name: 'Kumara Electronics', phone: '071-2345678', email: 'kumara.elec@yahoo.com', address: '234 High Level Road, Maharagama', company: 'Kumara Electronics' },
+    { name: 'Jayawardena Holdings', phone: '071-3456789', email: 'contact@jayawardena.lk', address: 'Tower Building, Colombo 10', company: 'Jayawardena Holdings (Pvt) Ltd' },
+    { name: 'Mega Computers', phone: '071-4567890', email: 'orders@megacomp.lk', address: 'Unity Plaza, Bambalapitiya', company: 'Mega Computers' },
+    { name: 'Smart Solutions', phone: '071-5678901', email: 'info@smartsol.lk', address: 'No. 89, Duplication Road, Colombo 04', company: 'Smart Solutions (Pvt) Ltd' },
+    { name: 'Nimal Fernando', phone: '076-1234567', email: 'nimal.f@outlook.com', address: '45 Lake Drive, Rajagiriya', company: '' },
+    { name: 'Prasad Enterprises', phone: '076-2345678', email: 'prasad.ent@gmail.com', address: 'Commercial Complex, Negombo', company: 'Prasad Enterprises' },
+    { name: 'Island Systems', phone: '076-3456789', email: 'sales@islandsys.lk', address: 'Tech Park, Malabe', company: 'Island Systems (Pvt) Ltd' },
+    { name: 'Creative Studios', phone: '076-4567890', email: 'hello@creativestudios.lk', address: 'Art District, Colombo 07', company: 'Creative Studios' },
+    { name: 'DataSoft Lanka', phone: '076-5678901', email: 'contact@datasoft.lk', address: 'Software Park, Trace City', company: 'DataSoft Lanka (Pvt) Ltd' },
+    { name: 'Office Solutions', phone: '077-6789012', email: 'info@officesol.lk', address: 'Commercial Hub, Colombo 02', company: 'Office Solutions Lanka' },
+    { name: 'Gaming Zone LK', phone: '077-7890123', email: 'support@gamingzone.lk', address: 'Majestic City, Colombo 04', company: 'Gaming Zone LK' },
+    { name: 'E-Learn Academy', phone: '077-8901234', email: 'admin@elearn.lk', address: 'Education Hub, Colombo 05', company: 'E-Learn Academy (Pvt) Ltd' },
+  ];
+
+  const productItems = [
+    { name: 'Dell Laptop XPS 15', desc: 'High-performance laptop, i7-13th Gen, 16GB RAM, 512GB SSD, 15.6" 4K OLED Display', price: 450000, warranty: '2 Years', delivery: '3-5 days' },
+    { name: 'MacBook Pro M3', desc: '14-inch Liquid Retina XDR, M3 Pro chip, 16GB RAM, 512GB SSD', price: 550000, warranty: '1 Year Apple Care', delivery: '5-7 days' },
+    { name: 'HP Desktop Workstation', desc: 'Intel i7-13700, 32GB DDR5 RAM, 1TB NVMe SSD, RTX 4060', price: 280000, warranty: '3 Years', delivery: '7-10 days' },
+    { name: 'Asus ROG Gaming Laptop', desc: 'RTX 4060, i7-13th Gen, 16GB DDR5, 512GB SSD, 165Hz Display', price: 380000, warranty: '2 Years', delivery: '3-5 days' },
+    { name: 'Samsung 27" 4K Monitor', desc: 'UHD IPS Panel, USB-C 90W PD, HDR400, 99% sRGB', price: 95000, warranty: '3 Years', delivery: '2-3 days' },
+    { name: 'LG 34" Ultrawide Monitor', desc: '3440x1440 IPS, 160Hz, HDR10, USB-C Hub', price: 145000, warranty: '3 Years', delivery: '3-5 days' },
+    { name: 'Logitech MX Master 3S', desc: 'Wireless Mouse, Multi-device, USB-C, Silent Clicks', price: 28000, warranty: '2 Years', delivery: '1-2 days' },
+    { name: 'Keychron K8 Pro', desc: 'Wireless Mechanical Keyboard, Hot-swappable, RGB, Gateron G Pro', price: 24500, warranty: '1 Year', delivery: '2-3 days' },
+    { name: 'Samsung 990 PRO 2TB SSD', desc: 'NVMe M.2, 7450MB/s Read, 6900MB/s Write, PS5 Compatible', price: 65000, warranty: '5 Years', delivery: '1-2 days' },
+    { name: 'Corsair 64GB DDR5 RAM Kit', desc: '5600MHz (2x32GB), RGB, Intel XMP 3.0', price: 72000, warranty: 'Lifetime', delivery: '2-3 days' },
+    { name: 'NVIDIA RTX 4070 Ti Super', desc: '16GB GDDR6X, Ray Tracing, DLSS 3.5', price: 225000, warranty: '3 Years', delivery: '5-7 days' },
+    { name: 'APC Smart-UPS 1500VA', desc: 'Line Interactive, AVR, LCD Display, 8 Outlets', price: 68000, warranty: '2 Years + Battery', delivery: '3-5 days' },
+    { name: 'Canon imageCLASS MF269dw', desc: 'All-in-One Laser, Wi-Fi, Duplex, 30ppm', price: 85000, warranty: '1 Year', delivery: '3-5 days' },
+    { name: 'TP-Link Omada WiFi 6 AP', desc: 'AX3000, Ceiling Mount, PoE, Business Grade', price: 32000, warranty: '3 Years', delivery: '2-3 days' },
+    { name: 'Synology DS923+ NAS', desc: '4-Bay, AMD Ryzen, 4GB RAM, RAID Support', price: 185000, warranty: '3 Years', delivery: '7-10 days' },
+    { name: 'iPhone 15 Pro Max', desc: '256GB, Natural Titanium, A17 Pro chip', price: 485000, warranty: '1 Year', delivery: '1-2 days' },
+    { name: 'Samsung Galaxy S24 Ultra', desc: '512GB, Titanium Gray, S Pen, AI Features', price: 395000, warranty: '1 Year', delivery: '1-2 days' },
+    { name: 'iPad Pro 12.9" M2', desc: '256GB Wi-Fi, Liquid Retina XDR, Face ID', price: 425000, warranty: '1 Year', delivery: '2-3 days' },
+    { name: 'Office Network Setup', desc: 'Complete office network installation, cabling, configuration', price: 150000, warranty: '6 Months Support', delivery: '7-14 days' },
+    { name: 'Server Room Setup', desc: 'Server rack, cooling, power distribution, cabling', price: 450000, warranty: '1 Year Support', delivery: '14-21 days' },
+  ];
+
+  const termsTemplates = [
+    'This quotation is valid for 30 days from the date of issue.\nPrices are subject to change without prior notice.\nPayment: 50% advance, balance on delivery.\nDelivery subject to stock availability.',
+    'Valid for 15 days. Full payment required on acceptance.\nDelivery within 3-5 business days after payment.\nPrices include standard warranty as specified.\nInstallation charges not included.',
+    'Corporate pricing applied. Valid for 45 days.\nNet 30 payment terms after delivery.\nFree delivery within Colombo district.\nBulk order discounts may apply.',
+    'Special promotional pricing. Valid for 7 days only.\nStock subject to availability.\nNo returns on clearance items.\nWarranty as specified per item.',
+    'Bulk order discount applied. Valid for 60 days.\nInstallment options available (6/12/24 months).\nFree installation for orders above Rs. 500,000.\nDedicated support included.',
+  ];
+
+  const paymentTermsOptions = [
+    '50% Advance, 50% on Delivery',
+    'Full Payment on Order',
+    'Net 30 Days',
+    'Net 15 Days',
+    '30% Advance, 70% on Delivery',
+    'COD (Cash on Delivery)',
+    'Installment Plan Available',
+  ];
+
+  const tags = ['corporate', 'retail', 'bulk-order', 'vip-customer', 'first-time', 'repeat-customer', 'urgent', 'government', 'educational'];
+  const assignees = ['Kasun', 'Nimal', 'Sampath', 'Chamara', 'Pradeep'];
+
+  for (let i = 0; i < 30; i++) {
+    const customer = customerData[Math.floor(Math.random() * customerData.length)];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const priority = priorities[Math.floor(Math.random() * priorities.length)];
+    const itemCount = Math.floor(Math.random() * 5) + 1;
+    
+    const items: QuotationItem[] = [];
+    let subtotal = 0;
+    
+    const usedProducts = new Set<number>();
+    for (let j = 0; j < itemCount; j++) {
+      let productIndex: number;
+      do {
+        productIndex = Math.floor(Math.random() * productItems.length);
+      } while (usedProducts.has(productIndex) && usedProducts.size < productItems.length);
+      usedProducts.add(productIndex);
+      
+      const product = productItems[productIndex];
+      const quantity = Math.floor(Math.random() * 5) + 1;
+      const itemDiscount = Math.random() > 0.7 ? Math.floor(Math.random() * 15) + 5 : 0;
+      const taxRate = 0;
+      const itemTotal = product.price * quantity * (1 - itemDiscount / 100);
+      
+      items.push({
+        id: `qitem-${i}-${j}`,
+        productId: `prod-${productIndex}`,
+        productName: product.name,
+        description: product.desc,
+        quantity,
+        unitPrice: product.price,
+        discount: itemDiscount,
+        taxRate,
+        total: Math.round(itemTotal),
+        warranty: product.warranty,
+        deliveryTime: product.delivery,
+      });
+      
+      subtotal += Math.round(itemTotal);
+    }
+
+    const discountPercent = Math.random() > 0.6 ? Math.floor(Math.random() * 10) + 2 : 0;
+    const discountAmount = Math.round(subtotal * discountPercent / 100);
+    const afterDiscount = subtotal - discountAmount;
+    const taxPercent = 0;
+    const taxAmount = Math.round(afterDiscount * taxPercent / 100);
+    const shippingCost = subtotal > 100000 ? 0 : (Math.random() > 0.5 ? Math.floor(Math.random() * 3000) + 500 : 0);
+    const total = afterDiscount + taxAmount + shippingCost;
+
+    const daysAgo = Math.floor(Math.random() * 90);
+    const quotationDate = new Date();
+    quotationDate.setDate(quotationDate.getDate() - daysAgo);
+    
+    const validityDays = [7, 15, 30, 45, 60][Math.floor(Math.random() * 5)];
+    const expiryDate = new Date(quotationDate);
+    expiryDate.setDate(expiryDate.getDate() + validityDays);
+
+    const viewCount = status === 'draft' ? 0 : Math.floor(Math.random() * 10);
+    const sentVia: ('email' | 'whatsapp' | 'print')[] = [];
+    if (status !== 'draft') {
+      if (Math.random() > 0.3) sentVia.push('email');
+      if (Math.random() > 0.4) sentVia.push('whatsapp');
+      if (Math.random() > 0.7) sentVia.push('print');
+    }
+
+    const activities: QuotationActivity[] = [
+      { id: `act-${i}-1`, action: 'created', description: 'Quotation created', timestamp: quotationDate.toISOString(), user: assignees[Math.floor(Math.random() * assignees.length)] }
+    ];
+    
+    if (status !== 'draft') {
+      activities.push({ id: `act-${i}-2`, action: 'sent', description: `Quotation sent via ${sentVia[0] || 'email'}`, timestamp: new Date(quotationDate.getTime() + 1000 * 60 * 60).toISOString() });
+    }
+    if (viewCount > 0) {
+      activities.push({ id: `act-${i}-3`, action: 'viewed', description: `Customer viewed quotation (${viewCount} times)`, timestamp: new Date(quotationDate.getTime() + 1000 * 60 * 60 * 24).toISOString() });
+    }
+    if (status === 'accepted' || status === 'converted') {
+      activities.push({ id: `act-${i}-4`, action: 'accepted', description: 'Quotation accepted by customer', timestamp: new Date(quotationDate.getTime() + 1000 * 60 * 60 * 48).toISOString() });
+    }
+    if (status === 'rejected') {
+      activities.push({ id: `act-${i}-4`, action: 'rejected', description: 'Quotation rejected - Price too high', timestamp: new Date(quotationDate.getTime() + 1000 * 60 * 60 * 72).toISOString() });
+    }
+
+    const selectedTags: string[] = [];
+    if (Math.random() > 0.5) selectedTags.push(tags[Math.floor(Math.random() * tags.length)]);
+    if (Math.random() > 0.7) selectedTags.push(tags[Math.floor(Math.random() * tags.length)]);
+
+    quotations.push({
+      id: `quo-${(i + 1).toString().padStart(3, '0')}`,
+      quotationNumber: `QUO-2026${(Math.floor(Math.random() * 12) + 1).toString().padStart(2, '0')}-${(1000 + i).toString()}`,
+      referenceNumber: Math.random() > 0.7 ? `REF-${Math.floor(Math.random() * 9000) + 1000}` : undefined,
+      customerId: `cust-${Math.floor(Math.random() * 18) + 1}`,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      customerEmail: customer.email,
+      customerAddress: customer.address,
+      companyName: customer.company || undefined,
+      quotationDate: quotationDate.toISOString().split('T')[0],
+      expiryDate: expiryDate.toISOString().split('T')[0],
+      validityDays,
+      items,
+      subtotal,
+      discountPercent,
+      discountAmount,
+      taxPercent,
+      taxAmount,
+      shippingCost,
+      total,
+      status,
+      priority,
+      notes: Math.random() > 0.5 ? 'Thank you for your inquiry. We are pleased to submit our best quotation for your consideration.' : undefined,
+      terms: termsTemplates[Math.floor(Math.random() * termsTemplates.length)],
+      internalNotes: Math.random() > 0.6 ? 'Priority customer. Follow up within 2 days. Potential for bulk order.' : undefined,
+      paymentTerms: paymentTermsOptions[Math.floor(Math.random() * paymentTermsOptions.length)],
+      deliveryTerms: 'Free delivery within Colombo. Other areas - standard shipping charges apply.',
+      warrantyTerms: 'Standard manufacturer warranty applies. Extended warranty available on request.',
+      viewCount,
+      lastViewedAt: viewCount > 0 ? new Date(quotationDate.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+      sentVia: sentVia.length > 0 ? sentVia : undefined,
+      followUpDate: Math.random() > 0.5 ? new Date(Date.now() + Math.random() * 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : undefined,
+      assignedTo: assignees[Math.floor(Math.random() * assignees.length)],
+      tags: selectedTags.length > 0 ? selectedTags : undefined,
+      activities,
+      createdAt: quotationDate.toISOString(),
+      updatedAt: status !== 'draft' ? new Date(quotationDate.getTime() + Math.random() * 10 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+      convertedToInvoice: status === 'converted' ? `INV-2026-${Math.floor(Math.random() * 900) + 100}` : undefined,
+      convertedAt: status === 'converted' ? new Date(quotationDate.getTime() + Math.random() * 14 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+    });
+  }
+
+  return quotations.sort((a, b) => new Date(b.quotationDate).getTime() - new Date(a.quotationDate).getTime());
+};
+
+export const mockQuotations: Quotation[] = generateMockQuotations();
+
 /**
  * Get warranty workflow stage info
  */

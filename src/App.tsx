@@ -30,6 +30,8 @@ const ServiceForm = lazy(() => import('./pages/ServiceForm').then(m => ({ defaul
 const ServiceCategories = lazy(() => import('./pages/ServiceCategories').then(m => ({ default: m.ServiceCategories })));
 const Estimates = lazy(() => import('./pages/Estimates').then(m => ({ default: m.Estimates })));
 const EstimateForm = lazy(() => import('./pages/EstimateForm').then(m => ({ default: m.EstimateForm })));
+const Quotations = lazy(() => import('./pages/Quotations').then(m => ({ default: m.Quotations })));
+const QuotationForm = lazy(() => import('./pages/QuotationForm').then(m => ({ default: m.QuotationForm })));
 const JobNotes = lazy(() => import('./pages/JobNotes').then(m => ({ default: m.JobNotes })));
 const JobNoteForm = lazy(() => import('./pages/JobNoteForm').then(m => ({ default: m.JobNoteForm })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
@@ -74,6 +76,9 @@ function App() {
                   <Route path="/estimates" element={<Estimates />} />
                   <Route path="/estimates/create" element={<EstimateForm />} />
                   <Route path="/estimates/edit/:id" element={<EstimateForm />} />
+                  <Route path="/quotations" element={<Quotations />} />
+                  <Route path="/quotations/create" element={<QuotationForm />} />
+                  <Route path="/quotations/edit/:id" element={<QuotationForm />} />
                   <Route path="/services" element={<Services />} />
                   <Route path="/services/add" element={<ServiceForm />} />
                   <Route path="/services/edit/:id" element={<ServiceForm />} />

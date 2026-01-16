@@ -10,7 +10,7 @@ import {
   Clock, User, Package, Calendar, DollarSign, CheckCircle,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X,
   SortAsc, SortDesc, Filter, RefreshCw, LayoutGrid, List,
-  FileCheck, Send, XCircle, AlertTriangle, Phone
+  FileCheck, Send, XCircle, AlertTriangle, Phone, MessageCircle
 } from 'lucide-react';
 
 type ViewMode = 'grid' | 'table';
@@ -179,6 +179,20 @@ export const Estimates: React.FC = () => {
       setIsDeleteModalOpen(false);
       setEstimateToDelete(null);
     }
+  };
+
+  const handleWhatsAppShare = (estimate: Estimate) => {
+    const message = `📋 *ESTIMATE - ${estimate.estimateNumber}*\n\n` +
+      `Dear ${estimate.customerName},\n\n` +
+      `Thank you for your inquiry. Please find your estimate details below:\n\n` +
+      `📅 Date: ${formatDate(estimate.estimateDate)}\n` +
+      `⏰ Valid Until: ${formatDate(estimate.expiryDate)}\n` +
+      `📦 Items: ${estimate.items.length}\n` +
+      `💰 *Total: ${formatCurrency(estimate.total)}*\n\n` +
+      `For full details, please visit our shop or contact us.\n\n` +
+      `Thank you!\n*EchoTech Computer Shop*\n📞 011-2345678`;
+    const phone = '94783233760';
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const statusOptions = [
@@ -481,6 +495,13 @@ export const Estimates: React.FC = () => {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+                <button 
+                  onClick={() => handleWhatsAppShare(estimate)} 
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${theme === 'dark' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  WhatsApp
+                </button>
               </div>
             </div>
           ))}
@@ -569,6 +590,13 @@ export const Estimates: React.FC = () => {
                           className={`p-2 rounded-lg ${theme === 'dark' ? 'hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400' : 'hover:bg-emerald-50 text-slate-600 hover:text-emerald-600'}`}
                         >
                           <Copy className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleWhatsAppShare(estimate)} 
+                          className={`p-2 rounded-lg ${theme === 'dark' ? 'hover:bg-green-500/20 text-slate-400 hover:text-green-400' : 'hover:bg-green-50 text-slate-600 hover:text-green-600'}`}
+                          title="WhatsApp"
+                        >
+                          <MessageCircle className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handleDelete(estimate)} 

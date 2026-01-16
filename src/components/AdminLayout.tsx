@@ -122,7 +122,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: 'Pricing Proposals', 
       badge: null,
       subItems: [
-        { path: '/estimates', icon: FileCheck, label: 'Estimates' },
+        { path: '/quotations', icon: FileCheck, label: 'Quotations' },
+        { path: '/estimates', icon: FileText, label: 'Estimates' },
       ]
     },
     { path: '/warranties', icon: Shield, label: 'Warranties', badge: '3' },
