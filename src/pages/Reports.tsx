@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import * as XLSX from 'xlsx';
 import { 
   TrendingUp, DollarSign, ShoppingCart, Users, ArrowUpRight, ArrowDownRight,
   Calendar, CreditCard, Banknote, Building2, Clock, Package,
@@ -736,7 +737,7 @@ export const Reports: React.FC = () => {
     }
   };
 
-  // Excel Export - ALL DATA without pagination
+  // Excel Export - ALL DATA without pagination (.xlsx format)
   const exportToExcel = () => {
     setIsExporting(true);
     try {
@@ -750,76 +751,93 @@ export const Reports: React.FC = () => {
       const pendingAmount = totalRevenue - totalPaid;
       const collectionRate = totalRevenue > 0 ? ((totalPaid / totalRevenue) * 100).toFixed(1) : '0';
       
-      // Excel-friendly format with BOM
-      let xls = '\uFEFF';
+      // Create workbook
+      const wb = XLSX.utils.book_new();
       
-      // Title Section
-      xls += `"ECOTEC COMPUTER SHOP"\n`;
-      xls += `"${getReportTitle()}"\n`;
-      xls += `"Generated: ${formatDateForExport(new Date())}"\n`;
+      // === SUMMARY SHEET ===
+      const summaryData = [
+        ['ECOTEC COMPUTER SHOP'],
+        [getReportTitle()],
+        [`Generated: ${formatDateForExport(new Date())}`],
+        [],
+        ['📊 REVENUE SUMMARY', ''],
+        ['Total Revenue', totalRevenue],
+        ['Cash Collected', totalPaid],
+        ['Pending Amount', pendingAmount],
+        ['Collection Rate', `${collectionRate}%`],
+        [],
+        ['📋 INVOICE STATUS', ''],
+        ['Total Invoices', invoicesToExport.length],
+        ['Full Paid', statusBreakdown.fullpaid],
+        ['Partial Paid', statusBreakdown.halfpay],
+        ['Unpaid', statusBreakdown.unpaid],
+        [],
+        ['💳 PAYMENT METHODS', 'Count', 'Amount'],
+        ...Object.entries(paymentBreakdown).map(([method, data]) => [
+          method.replace('_', ' ').toUpperCase(),
+          data.count,
+          data.amount
+        ]),
+        [],
+        ['📦 CATEGORY PERFORMANCE', 'Units Sold', 'Revenue'],
+        ...categoryPerformance.map(cat => [cat.name, cat.sales, cat.revenue]),
+        [],
+        ['🏆 TOP PRODUCTS', 'Quantity', 'Revenue'],
+        ...topProducts.map((p, i) => [`${i + 1}. ${p.name}`, p.quantity, p.revenue]),
+        [],
+        ['👥 TOP CUSTOMERS', 'Orders', 'Total Spent'],
+        ...topCustomers.map((c, i) => [`${i + 1}. ${c.name}`, c.orders, c.total]),
+        [],
+        ['🛡️ WARRANTY CLAIMS', ''],
+        ['Total Claims', warrantyStats.total],
+        ['Pending', warrantyStats.pending],
+        ['Resolved', warrantyStats.resolved],
+        ['Rejected', warrantyStats.rejected],
+      ];
       
-      // Summary in single row format
-      xls += `"SUMMARY","Revenue","Collected","Pending","Rate","Invoices","Paid","Partial","Unpaid"\n`;
-      xls += `,"Rs. ${totalRevenue.toLocaleString()}","Rs. ${totalPaid.toLocaleString()}","Rs. ${pendingAmount.toLocaleString()}","${collectionRate}%",${invoicesToExport.length},${statusBreakdown.fullpaid},${statusBreakdown.halfpay},${statusBreakdown.unpaid}\n`;
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+      wsSummary['!cols'] = [{ wch: 35 }, { wch: 15 }, { wch: 15 }];
+      wsSummary['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } },
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
       
-      // Invoice Details
-      xls += `\n"INVOICE DETAILS"\n`;
-      xls += `"ID","Customer","Date","Items","Subtotal","Tax","Total","Paid","Balance","Status","Payment","Channel"\n`;
-      invoicesToExport.forEach(inv => {
+      // === INVOICES SHEET ===
+      const invoiceHeaders = ['Invoice ID', 'Customer', 'Date', 'Items', 'Subtotal', 'Tax', 'Total', 'Paid', 'Balance', 'Status', 'Payment', 'Channel'];
+      const invoiceRows = invoicesToExport.map(inv => {
         const balance = inv.total - (inv.paidAmount || 0);
         const invDate = inv.date ? new Date(inv.date).toLocaleDateString('en-GB') : '-';
-        xls += `"${inv.id}","${inv.customerName}","${invDate}",${inv.items.length},${inv.subtotal},${inv.tax},${inv.total},${inv.paidAmount || 0},${balance},"${inv.status}","${inv.paymentMethod || '-'}","${inv.salesChannel || '-'}"\n`;
+        return [inv.id, inv.customerName, invDate, inv.items.length, inv.subtotal, inv.tax, inv.total, inv.paidAmount || 0, balance, inv.status, inv.paymentMethod || '-', inv.salesChannel || '-'];
       });
       
-      // Sales History
-      xls += `\n\n"SALES HISTORY"\n`;
-      xls += `"Product","Category","Brand","Qty","Unit Price","Total","Date","Customer"\n`;
-      allSales.forEach(sale => {
-        const product = mockProducts.find(p => p.id === sale.productId);
-        const category = product?.category || '-';
-        const brand = product?.brand || '-';
-        const saleDate = sale.saleDate ? new Date(sale.saleDate).toLocaleDateString('en-GB') : '-';
-        xls += `"${sale.productName}","${category}","${brand}",${sale.quantity},${sale.unitPrice},${sale.total},"${saleDate}","${sale.customerName}"\n`;
-      });
-      
-      // Combined Analytics Section
-      xls += `\n\n"ANALYTICS"\n`;
-      xls += `"TOP PRODUCTS","","","","TOP CUSTOMERS","","","","PAYMENT METHODS","",""\n`;
-      xls += `"#","Product","Qty","Revenue","#","Customer","Orders","Spent","Method","Count","Amount"\n`;
-      
-      const payEntries = Object.entries(paymentBreakdown);
-      const maxAnalytics = Math.max(topProducts.length, topCustomers.length, payEntries.length);
-      for (let i = 0; i < maxAnalytics; i++) {
-        const p = topProducts[i];
-        const c = topCustomers[i];
-        const pay = payEntries[i];
-        xls += `${p ? i + 1 : ''},"${p?.name || ''}",${p?.quantity || ''},${p?.revenue || ''},${c ? i + 1 : ''},"${c?.name || ''}",${c?.orders || ''},${c?.total || ''},"${pay ? pay[0].replace('_', ' ') : ''}",${pay ? pay[1].count : ''},${pay ? pay[1].amount : ''}\n`;
-      }
-      
-      // Category & Channel
-      xls += `\n\n"CATEGORY PERFORMANCE","","","SALES CHANNELS","",""\n`;
-      xls += `"Category","Units","Revenue","Channel","Orders","Amount"\n`;
-      const channels = [
-        { name: 'On-site', ...salesChannelBreakdown.onSite },
-        { name: 'Online', ...salesChannelBreakdown.online }
+      const wsInvoices = XLSX.utils.aoa_to_sheet([invoiceHeaders, ...invoiceRows]);
+      wsInvoices['!cols'] = [
+        { wch: 12 }, { wch: 25 }, { wch: 12 }, { wch: 8 },
+        { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 },
+        { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 10 }
       ];
-      const maxCat = Math.max(categoryPerformance.length, channels.length);
-      for (let i = 0; i < maxCat; i++) {
-        const cat = categoryPerformance[i];
-        const ch = channels[i];
-        xls += `"${cat?.name || ''}",${cat?.sales || ''},${cat?.revenue || ''},"${ch?.name || ''}",${ch?.count || ''},${ch?.amount || ''}\n`;
-      }
+      XLSX.utils.book_append_sheet(wb, wsInvoices, 'Invoices');
       
-      // Warranty Summary
-      xls += `\n\n"WARRANTY","Total","Pending","Resolved","Rejected"\n`;
-      xls += `,${warrantyStats.total},${warrantyStats.pending},${warrantyStats.resolved},${warrantyStats.rejected}\n`;
+      // === SALES HISTORY SHEET ===
+      const salesHeaders = ['Product', 'Category', 'Brand', 'Qty', 'Unit Price', 'Total', 'Date', 'Customer'];
+      const salesRows = allSales.map(sale => {
+        const product = mockProducts.find(p => p.id === sale.productId);
+        const saleDate = sale.saleDate ? new Date(sale.saleDate).toLocaleDateString('en-GB') : '-';
+        return [sale.productName, product?.category || '-', product?.brand || '-', sale.quantity, sale.unitPrice, sale.total, saleDate, sale.customerName];
+      });
       
-      const blob = new Blob([xls], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `ECOTEC_${getReportTitle().replace(/\s+/g, '_')}.xls`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      const wsSales = XLSX.utils.aoa_to_sheet([salesHeaders, ...salesRows]);
+      wsSales['!cols'] = [
+        { wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 8 },
+        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 25 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSales, 'Sales History');
+      
+      // Generate and download the file
+      XLSX.writeFile(wb, `ECOTEC_${getReportTitle().replace(/\s+/g, '_')}.xlsx`);
+      
     } finally {
       setIsExporting(false);
       setShowExportMenu(false);

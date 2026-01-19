@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import logo from '../assets/logo.jpg';
+import * as XLSX from 'xlsx';
 import { 
   mockCashAccounts, 
   mockCashTransactions,
@@ -26,7 +27,7 @@ import {
   SortAsc, SortDesc, Calendar, Receipt, Package, 
   CreditCard, DollarSign, BarChart3, Eye, ArrowRight, ChevronDown,
   Truck, HandCoins, BadgePercent, Minus, AlertTriangle,
-  CheckCircle2, FileSpreadsheet, Printer
+  CheckCircle2, FileSpreadsheet, Printer, Download
 } from 'lucide-react';
 
 type ViewMode = 'grid' | 'table';
@@ -170,6 +171,10 @@ export const CashManagement: React.FC = () => {
   // Summary dropdown
   const [showDateRangeDropdown, setShowDateRangeDropdown] = useState(false);
   const dateRangeRef = useRef<HTMLDivElement>(null);
+  
+  // Export dropdown for summary
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   // Close action menu when clicking outside
   useEffect(() => {
@@ -185,6 +190,9 @@ export const CashManagement: React.FC = () => {
       }
       if (dateRangeRef.current && !dateRangeRef.current.contains(event.target as Node)) {
         setShowDateRangeDropdown(false);
+      }
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -668,83 +676,78 @@ export const CashManagement: React.FC = () => {
     link.click();
   }, [generateReportData, formatCurrency]);
 
-  // Export to Excel (using CSV with Excel-compatible formatting)
+  // Export to Excel (.xlsx format with professional styling)
   const exportToExcel = useCallback(() => {
     const data = generateReportData();
     
-    // Create XML for Excel
-    const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- <Styles>
-  <Style ss:ID="Title"><Font ss:Size="18" ss:Bold="1" ss:Color="#10b981"/><Alignment ss:Horizontal="Center"/></Style>
-  <Style ss:ID="Subtitle"><Font ss:Size="12" ss:Color="#64748b"/><Alignment ss:Horizontal="Center"/></Style>
-  <Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#ffffff"/><Interior ss:Color="#10b981" ss:Pattern="Solid"/><Alignment ss:Horizontal="Left"/></Style>
-  <Style ss:ID="SectionHeader"><Font ss:Bold="1" ss:Size="11" ss:Color="#0f172a"/><Interior ss:Color="#f1f5f9" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="Currency"><NumberFormat ss:Format="#,##0.00"/><Alignment ss:Horizontal="Right"/></Style>
-  <Style ss:ID="Positive"><Font ss:Color="#10b981" ss:Bold="1"/><NumberFormat ss:Format="#,##0.00"/><Alignment ss:Horizontal="Right"/></Style>
-  <Style ss:ID="Negative"><Font ss:Color="#ef4444" ss:Bold="1"/><NumberFormat ss:Format="#,##0.00"/><Alignment ss:Horizontal="Right"/></Style>
-  <Style ss:ID="Label"><Font ss:Color="#475569"/></Style>
-  <Style ss:ID="Total"><Font ss:Bold="1"/><Interior ss:Color="#f8fafc" ss:Pattern="Solid"/></Style>
- </Styles>
- <Worksheet ss:Name="Financial Summary">
-  <Table>
-   <Column ss:Width="200"/>
-   <Column ss:Width="150"/>
-   <Row ss:Height="30"><Cell ss:StyleID="Title" ss:MergeAcross="1"><Data ss:Type="String">ECOTEC FINANCIAL REPORT</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Subtitle" ss:MergeAcross="1"><Data ss:Type="String">Computer &amp; Mobile Shop Management System</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Subtitle" ss:MergeAcross="1"><Data ss:Type="String">Period: ${data.period} | Generated: ${data.generatedDate}</Data></Cell></Row>
-   <Row></Row>
-   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">FINANCIAL SUMMARY</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total Cash Balance</Data></Cell><Cell ss:StyleID="Positive"><Data ss:Type="Number">${data.summary.totalBalance}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Net Cash Flow</Data></Cell><Cell ss:StyleID="${data.summary.netCashFlow >= 0 ? 'Positive' : 'Negative'}"><Data ss:Type="Number">${data.summary.netCashFlow}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Estimated Profit</Data></Cell><Cell ss:StyleID="${data.summary.estimatedProfit >= 0 ? 'Positive' : 'Negative'}"><Data ss:Type="Number">${data.summary.estimatedProfit}</Data></Cell></Row>
-   <Row></Row>
-   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">INCOME</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Invoice Payments</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.income.invoicePayments}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Other Income</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.income.otherIncome}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Total"><Data ss:Type="String">Total Income</Data></Cell><Cell ss:StyleID="Positive"><Data ss:Type="Number">${data.income.totalIncome}</Data></Cell></Row>
-   <Row></Row>
-   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">EXPENSES</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">GRN Payments</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.expenses.grnPayments}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Business Expenses</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.expenses.businessExpenses}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Total"><Data ss:Type="String">Total Expenses</Data></Cell><Cell ss:StyleID="Negative"><Data ss:Type="Number">${data.expenses.totalExpenses}</Data></Cell></Row>
-   <Row></Row>
-   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">INVOICE DETAILS</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total Sales</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.invoices.totalSales}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Cash Received</Data></Cell><Cell ss:StyleID="Positive"><Data ss:Type="Number">${data.invoices.cashReceived}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Pending Amount</Data></Cell><Cell ss:StyleID="Negative"><Data ss:Type="Number">${data.invoices.pending}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total Invoices</Data></Cell><Cell><Data ss:Type="Number">${data.invoices.count}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Full Paid</Data></Cell><Cell><Data ss:Type="Number">${data.invoices.fullPaid}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Partial Paid</Data></Cell><Cell><Data ss:Type="Number">${data.invoices.partialPaid}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Unpaid</Data></Cell><Cell><Data ss:Type="Number">${data.invoices.unpaid}</Data></Cell></Row>
-   <Row></Row>
-   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">GRN DETAILS</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total Purchases</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.grn.totalPurchases}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Paid to Suppliers</Data></Cell><Cell ss:StyleID="Positive"><Data ss:Type="Number">${data.grn.paid}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Pending Payment</Data></Cell><Cell ss:StyleID="Negative"><Data ss:Type="Number">${data.grn.pending}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total GRNs</Data></Cell><Cell><Data ss:Type="Number">${data.grn.count}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Products Added</Data></Cell><Cell><Data ss:Type="Number">${data.grn.productsAdded}</Data></Cell></Row>
-   <Row></Row>
-   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">ACCOUNT BALANCES</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Cash Drawer</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.accounts.drawer}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Cash in Hand</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.accounts.cashInHand}</Data></Cell></Row>
-   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Business Account</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.accounts.business}</Data></Cell></Row>
-   <Row></Row>
-   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">EXPENSES BY CATEGORY</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
-   ${Object.entries(data.expensesByCategory).map(([cat, amt]) => 
-     `<Row><Cell ss:StyleID="Label"><Data ss:Type="String">${cat}</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${amt}</Data></Cell></Row>`
-   ).join('\n   ')}
-  </Table>
- </Worksheet>
-</Workbook>`;
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    
+    // Financial Summary Data with proper structure
+    const summaryData = [
+      ['ECOTEC FINANCIAL REPORT'],
+      ['Computer & Mobile Shop Management System'],
+      [`Period: ${data.period} | Generated: ${data.generatedDate}`],
+      [],
+      ['📊 FINANCIAL SUMMARY', ''],
+      ['Total Cash Balance', data.summary.totalBalance],
+      ['Net Cash Flow', data.summary.netCashFlow],
+      ['Estimated Profit', data.summary.estimatedProfit],
+      [],
+      ['💰 INCOME', ''],
+      ['Invoice Payments', data.income.invoicePayments],
+      ['Other Income', data.income.otherIncome],
+      ['Total Income', data.income.totalIncome],
+      [],
+      ['💸 EXPENSES', ''],
+      ['GRN Payments', data.expenses.grnPayments],
+      ['Business Expenses', data.expenses.businessExpenses],
+      ['Total Expenses', data.expenses.totalExpenses],
+      [],
+      ['🧾 INVOICE DETAILS', ''],
+      ['Total Sales', data.invoices.totalSales],
+      ['Cash Received', data.invoices.cashReceived],
+      ['Pending Amount', data.invoices.pending],
+      ['Total Invoices', data.invoices.count],
+      ['Full Paid', data.invoices.fullPaid],
+      ['Partial Paid', data.invoices.partialPaid],
+      ['Unpaid', data.invoices.unpaid],
+      [],
+      ['📦 GRN DETAILS', ''],
+      ['Total Purchases', data.grn.totalPurchases],
+      ['Paid to Suppliers', data.grn.paid],
+      ['Pending Payment', data.grn.pending],
+      ['Total GRNs', data.grn.count],
+      ['Products Added', data.grn.productsAdded],
+      [],
+      ['🏦 ACCOUNT BALANCES', ''],
+      ['Cash Drawer', data.accounts.drawer],
+      ['Cash in Hand', data.accounts.cashInHand],
+      ['Business Account', data.accounts.business],
+      [],
+      ['📁 EXPENSES BY CATEGORY', ''],
+      ...Object.entries(data.expensesByCategory).map(([cat, amt]) => [cat, amt as number]),
+    ];
 
-    const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `ECOTEC_Financial_Report_${new Date().toISOString().split('T')[0]}.xls`;
-    link.click();
+    const ws = XLSX.utils.aoa_to_sheet(summaryData);
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 30 }, // Column A width
+      { wch: 20 }, // Column B width
+    ];
+    
+    // Merge cells for title rows
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }, // Title
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }, // Subtitle
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } }, // Period
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Financial Summary');
+    
+    // Generate and download the file
+    XLSX.writeFile(wb, `ECOTEC_Financial_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
   }, [generateReportData]);
 
   // Export to PDF (using print with custom styling)
@@ -2456,44 +2459,71 @@ export const CashManagement: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                {/* Export Buttons */}
-                <div className="flex items-center gap-2">
+                {/* Export Button with Dropdown */}
+                <div className="relative" ref={exportMenuRef}>
                   <button
-                    onClick={exportToPDF}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
-                      theme === 'dark'
-                        ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
-                        : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
-                    }`}
-                    title="Export as PDF"
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity shadow-lg shadow-emerald-500/25"
                   >
-                    <Printer className="w-4 h-4" />
-                    <span className="text-sm font-medium hidden sm:inline">PDF</span>
+                    <Download className="w-4 h-4" />
+                    <span className="text-sm font-medium">Export</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
                   </button>
-                  <button
-                    onClick={exportToCSV}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
-                      theme === 'dark'
-                        ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
-                        : 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100'
-                    }`}
-                    title="Export as CSV"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span className="text-sm font-medium hidden sm:inline">CSV</span>
-                  </button>
-                  <button
-                    onClick={exportToExcel}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
-                      theme === 'dark'
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100'
-                    }`}
-                    title="Export as Excel"
-                  >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span className="text-sm font-medium hidden sm:inline">Excel</span>
-                  </button>
+                  
+                  {showExportMenu && (
+                    <div className={`absolute right-0 mt-2 w-48 rounded-xl border shadow-xl z-50 py-2 ${
+                      theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                    }`}>
+                      <button
+                        onClick={() => {
+                          exportToPDF();
+                          setShowExportMenu(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
+                          theme === 'dark'
+                            ? 'text-slate-300 hover:bg-slate-700'
+                            : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg ${theme === 'dark' ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                          <Printer className="w-4 h-4 text-red-500" />
+                        </div>
+                        <span>Export as PDF</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToCSV();
+                          setShowExportMenu(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
+                          theme === 'dark'
+                            ? 'text-slate-300 hover:bg-slate-700'
+                            : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                          <FileText className="w-4 h-4 text-blue-500" />
+                        </div>
+                        <span>Export as CSV</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToExcel();
+                          setShowExportMenu(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
+                          theme === 'dark'
+                            ? 'text-slate-300 hover:bg-slate-700'
+                            : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        <span>Export as Excel</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {/* Profit Card */}
                 <div className={`flex items-center gap-4 p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-100'}`}>
