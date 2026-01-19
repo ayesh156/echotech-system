@@ -20,7 +20,7 @@ export const Help: React.FC = () => {
           Help Center
         </h1>
         <p className={`mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-          Get help and support for Ecotec system
+          Get help and support for ECOTEC system
         </p>
       </div>
 

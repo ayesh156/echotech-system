@@ -130,7 +130,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: '/customers', icon: Users, label: 'Customers', badge: '3' },
     { path: '/suppliers', icon: Truck, label: 'Suppliers', badge: '2' },
     { path: '/grn', icon: ClipboardCheck, label: 'GRN', badge: null },
-    { path: '/cash-management', icon: Wallet, label: 'Cash Management', badge: null },
+    { 
+      path: '/cash-management', 
+      icon: Wallet, 
+      label: 'Cash Management', 
+      badge: null,
+      subItems: [
+        { path: '/cash-management/overview', icon: Wallet, label: 'Overview' },
+        { path: '/cash-management/transactions', icon: FileText, label: 'Transactions' },
+        { path: '/cash-management/summary', icon: TrendingUp, label: 'Financial Summary' },
+      ]
+    },
     { path: '/reports', icon: TrendingUp, label: 'Reports', badge: null },
   ];
 
@@ -164,13 +174,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         <Link to="/" className="flex items-center gap-3 group">
           <div className="relative flex-shrink-0">
             <div className="relative w-10 h-10 rounded-xl overflow-hidden shadow-lg">
-              <img src={logoImage} alt="Ecotec Logo" className="w-full h-full object-cover" />
+              <img src={logoImage} alt="ECOTEC Logo" className="w-full h-full object-cover" />
             </div>
           </div>
           {!sidebarCollapsed && (
             <div className="flex flex-col overflow-hidden">
               <span className={`text-lg font-bold whitespace-nowrap ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                Eco<span className="text-emerald-500">tec</span>
+                 <span className="text-emerald-500">ECO</span>TEC
               </span>
               <span className={`text-[10px] -mt-0.5 tracking-wider uppercase whitespace-nowrap ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
                 Computer Solutions
@@ -499,11 +509,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 h-16">
           <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 shadow-lg">
-            <img src={logoImage} alt="Ecotec Logo" className="w-full h-full object-cover" />
+            <img src={logoImage} alt="ECOTEC Logo" className="w-full h-full object-cover" />
           </div>
           <div className="flex flex-col">
             <span className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-              Eco<span className="text-emerald-500">tec</span>
+              <span className="text-emerald-500">ECO</span>TEC
             </span>
             <span className={`text-[10px] -mt-0.5 tracking-wider uppercase ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
               Computer Solutions
@@ -753,7 +763,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                   </div>
                   <div className="hidden md:block text-left">
                     <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Admin</p>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Ecotec</p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>ECOTEC</p>
                   </div>
                   <ChevronDown className={`w-4 h-4 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''} ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`} />
                 </button>

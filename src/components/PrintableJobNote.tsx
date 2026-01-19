@@ -70,15 +70,15 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
     return (
       <div ref={ref} className="print-job-note">
         <style>{`
+          /* ═══════════════════════════════════════════════════════════════
+             INK-EFFICIENT B&W PRINT OPTIMIZED - ECOTEC JOB NOTE
+             Designed for black laser/inkjet printers to minimize ink usage
+             ═══════════════════════════════════════════════════════════════ */
+          
           @media print {
             @page {
               size: A4 portrait;
               margin: 8mm 10mm;
-            }
-            
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
             }
             
             html, body {
@@ -116,13 +116,13 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
             box-sizing: border-box;
           }
 
-          /* HEADER */
+          /* HEADER - INK EFFICIENT */
           .job-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             padding-bottom: 12px;
-            border-bottom: 2px solid #333;
+            border-bottom: 2px solid #000;
             margin-bottom: 15px;
           }
 
@@ -135,7 +135,7 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           .company-logo {
             width: 55px;
             height: 55px;
-            border-radius: 12px;
+            border-radius: 8px;
             object-fit: cover;
             border: 2px solid #000;
           }
@@ -153,31 +153,31 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
 
           .company-info .tagline {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             margin-top: 2px;
           }
 
           .company-info .contact {
             font-size: 7pt;
-            color: #666;
+            color: #000;
             margin-top: 4px;
           }
 
           .job-number-box {
             text-align: right;
-            background: #f5f5f5;
+            background: white;
             color: #000;
             padding: 12px 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            border: 2px solid #000;
+            border-radius: 4px;
           }
 
           .job-number-box .label {
             font-size: 7pt;
-            color: #555;
+            color: #000;
             text-transform: uppercase;
             letter-spacing: 1px;
-            font-weight: 600;
+            font-weight: 700;
           }
 
           .job-number-box .number {
@@ -188,15 +188,15 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
 
           .job-number-box .date {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             margin-top: 4px;
           }
 
-          /* TITLE SECTION */
+          /* TITLE SECTION - NO BACKGROUND */
           .title-section {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            background: white;
+            border: 2px solid #000;
+            border-radius: 4px;
             padding: 12px 16px;
             margin-bottom: 15px;
             display: flex;
@@ -207,8 +207,10 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           .title-section h2 {
             font-size: 14pt;
             font-weight: 700;
-            color: #1e293b;
+            color: #000;
             margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
           }
 
           .status-priority {
@@ -218,25 +220,29 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
 
           .status-badge {
             padding: 4px 12px;
-            border-radius: 20px;
+            border-radius: 4px;
             font-size: 8pt;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
+            background: white;
+            color: #000;
+            border: 1px solid #000;
           }
 
-          .status-received { background: #f5f5f5; color: #000; border: 1px solid #ddd; }
-          .status-diagnosing { background: #f5f5f5; color: #000; border: 1px solid #ddd; }
-          .status-waiting-parts { background: #f5f5f5; color: #000; border: 1px solid #ddd; }
-          .status-in-progress { background: #f5f5f5; color: #000; border: 1px solid #ddd; }
-          .status-testing { background: #f5f5f5; color: #000; border: 1px solid #ddd; }
-          .status-completed { background: #333; color: white; border: 1px solid #333; }
-          .status-delivered { background: #333; color: white; border: 1px solid #333; }
-          .status-cancelled { background: #f5f5f5; color: #000; border: 1px solid #ddd; }
+          /* All status badges use border styles instead of fills */
+          .status-received { border-style: solid; }
+          .status-diagnosing { border-style: dashed; }
+          .status-waiting-parts { border-style: dotted; }
+          .status-in-progress { border-style: dashed; }
+          .status-testing { border-style: dotted; }
+          .status-completed { border-width: 2px; font-weight: 700; }
+          .status-delivered { border-width: 2px; font-weight: 700; }
+          .status-cancelled { border-style: double; }
 
-          .priority-low { background: #f5f5f5; color: #000; border: 1px solid #ddd; }
-          .priority-normal { background: #f5f5f5; color: #000; border: 1px solid #ddd; }
-          .priority-high { background: #f5f5f5; color: #000; border: 1px solid #ddd; }
-          .priority-urgent { background: #333; color: white; border: 1px solid #333; }
+          .priority-low { border-style: solid; }
+          .priority-normal { border-style: solid; }
+          .priority-high { border-style: dashed; }
+          .priority-urgent { border-width: 2px; font-weight: 700; }
 
           /* TWO COLUMN LAYOUT */
           .two-columns {
@@ -249,40 +255,31 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
             flex: 1;
           }
 
-          /* SECTION BOX */
+          /* SECTION BOX - NO FILLED HEADERS */
           .section-box {
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            border: 1px solid #000;
+            border-radius: 4px;
             margin-bottom: 12px;
             overflow: hidden;
           }
 
           .section-header {
-            background: #333;
-            color: white;
+            background: white;
+            color: #000;
             padding: 8px 12px;
             font-size: 9pt;
-            font-weight: 600;
+            font-weight: 700;
             display: flex;
             align-items: center;
             gap: 6px;
+            border-bottom: 2px solid #000;
+            text-transform: uppercase;
           }
 
-          .section-header.green {
-            background: #333;
-          }
-
-          .section-header.blue {
-            background: #333;
-          }
-
-          .section-header.purple {
-            background: #333;
-          }
-
-          .section-header.orange {
-            background: #333;
-          }
+          .section-header.green { background: white; color: #000; }
+          .section-header.blue { background: white; color: #000; }
+          .section-header.purple { background: white; color: #000; }
+          .section-header.orange { background: white; color: #000; }
 
           .section-content {
             padding: 10px 12px;
@@ -302,23 +299,23 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
 
           .info-label {
             width: 100px;
-            color: #64748b;
+            color: #000;
             font-weight: 500;
             flex-shrink: 0;
           }
 
           .info-value {
-            color: #1e293b;
+            color: #000;
             font-weight: 500;
             flex: 1;
           }
 
           .info-value.highlight {
             color: #000;
-            font-weight: 600;
+            font-weight: 700;
           }
 
-          /* ACCESSORIES LIST */
+          /* ACCESSORIES LIST - NO BACKGROUNDS */
           .accessories-list {
             display: flex;
             flex-wrap: wrap;
@@ -326,19 +323,20 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           }
 
           .accessory-tag {
-            background: #f1f5f9;
-            color: #475569;
+            background: white;
+            color: #000;
             padding: 2px 8px;
             border-radius: 4px;
             font-size: 7pt;
-            font-weight: 500;
+            font-weight: 600;
+            border: 1px solid #000;
           }
 
-          /* ISSUE BOX */
+          /* ISSUE BOX - NO BACKGROUND */
           .issue-box {
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            background: white;
+            border: 1px solid #000;
+            border-radius: 4px;
             padding: 10px;
             margin-bottom: 8px;
           }
@@ -346,9 +344,11 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           .issue-box .label {
             font-size: 7pt;
             color: #000;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             margin-bottom: 4px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
           }
 
           .issue-box .content {
@@ -358,18 +358,20 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           }
 
           .diagnosis-box {
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            background: white;
+            border: 1px solid #000;
+            border-radius: 4px;
             padding: 10px;
           }
 
           .diagnosis-box .label {
             font-size: 7pt;
             color: #000;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             margin-bottom: 4px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
           }
 
           .diagnosis-box .content {
@@ -387,23 +389,26 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           .cost-table td {
             padding: 6px 0;
             font-size: 8.5pt;
+            color: #000;
+            border-bottom: 1px dotted #000;
           }
 
           .cost-table td:first-child {
-            color: #64748b;
+            color: #000;
           }
 
           .cost-table td:last-child {
             text-align: right;
             font-family: 'Consolas', monospace;
-            font-weight: 500;
+            font-weight: 600;
           }
 
           .cost-table .total-row td {
-            border-top: 1px solid #e2e8f0;
+            border-top: 2px solid #000;
+            border-bottom: none;
             padding-top: 8px;
-            font-weight: 600;
-            color: #1e293b;
+            font-weight: 700;
+            color: #000;
           }
 
           .cost-table .total-row td:last-child {
@@ -411,7 +416,7 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
             color: #000;
           }
 
-          /* TIMELINE */
+          /* TIMELINE - MINIMAL INK */
           .timeline {
             padding: 0;
             margin: 0;
@@ -431,7 +436,8 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           .timeline-dot {
             width: 8px;
             height: 8px;
-            background: #333;
+            background: white;
+            border: 2px solid #000;
             border-radius: 50%;
             margin-top: 4px;
             flex-shrink: 0;
@@ -442,19 +448,20 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           }
 
           .timeline-status {
-            font-weight: 600;
-            color: #1e293b;
+            font-weight: 700;
+            color: #000;
           }
 
           .timeline-date {
-            color: #64748b;
+            color: #000;
             font-size: 7pt;
           }
 
           .timeline-notes {
-            color: #475569;
+            color: #000;
             font-size: 7pt;
             margin-top: 2px;
+            font-style: italic;
           }
 
           /* SIGNATURE SECTION */
@@ -463,7 +470,7 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
             justify-content: space-between;
             margin-top: 20px;
             padding-top: 15px;
-            border-top: 1px dashed #cbd5e1;
+            border-top: 1px dashed #000;
           }
 
           .signature-box {
@@ -472,51 +479,53 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           }
 
           .signature-line {
-            border-top: 1px solid #1e293b;
+            border-top: 1px solid #000;
             margin-bottom: 4px;
             margin-top: 30px;
           }
 
           .signature-label {
             font-size: 8pt;
-            color: #475569;
+            color: #000;
           }
 
-          /* TERMS */
+          /* TERMS - NO BACKGROUND */
           .terms-section {
             margin-top: 15px;
             padding: 10px 12px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            background: white;
+            border: 1px solid #000;
+            border-radius: 4px;
           }
 
           .terms-section h4 {
             font-size: 8pt;
-            font-weight: 600;
-            color: #475569;
+            font-weight: 700;
+            color: #000;
             margin: 0 0 6px 0;
+            text-transform: uppercase;
           }
 
           .terms-section ul {
             margin: 0;
             padding-left: 16px;
             font-size: 7pt;
-            color: #64748b;
+            color: #000;
             line-height: 1.6;
           }
 
-          /* CUSTOMER COPY LABEL */
+          /* CUSTOMER COPY LABEL - BORDER ONLY */
           .copy-label {
             position: absolute;
             top: 8mm;
             right: 10mm;
-            background: #10b981;
-            color: white;
+            background: white;
+            color: #000;
             padding: 2px 10px;
             font-size: 7pt;
-            font-weight: 600;
-            border-radius: 0 0 6px 6px;
+            font-weight: 700;
+            border: 1px solid #000;
+            border-radius: 0 0 4px 4px;
             text-transform: uppercase;
           }
 
@@ -524,19 +533,19 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           .job-footer {
             margin-top: 15px;
             padding-top: 10px;
-            border-top: 2px solid #333;
+            border-top: 2px solid #000;
             text-align: center;
           }
 
           .job-footer p {
             font-size: 8pt;
-            color: #64748b;
+            color: #000;
             margin: 2px 0;
           }
 
           .job-footer .thanks {
             font-size: 10pt;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
             margin-top: 6px;
           }
@@ -547,7 +556,7 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
           <div className="company-section">
             <img src={logo} alt="Logo" className="company-logo" />
             <div className="company-info">
-              <h1>Eco<span>tec</span></h1>
+              <h1>ECO<span>TEC</span></h1>
               <div className="tagline">Computer Solutions</div>
               <div className="contact">011-2345678 | 077-1234567 | info@ecotec.lk</div>
             </div>
@@ -776,7 +785,7 @@ export const PrintableJobNote = forwardRef<HTMLDivElement, PrintableJobNoteProps
         <div className="job-footer">
           <p>No. 123, Main Street, Colombo 05, Sri Lanka</p>
           <p>www.ecotec.lk | support@ecotec.lk</p>
-          <p className="thanks">Thank you for choosing Ecotec!</p>
+          <p className="thanks">Thank you for choosing ECOTEC!</p>
         </div>
       </div>
     );

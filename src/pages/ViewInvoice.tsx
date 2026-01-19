@@ -677,10 +677,10 @@ export const ViewInvoice: React.FC = () => {
                 Thank you for your business!
               </p>
               <p className={`text-center text-xs mt-1 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>
-                Ecotec Computer Solutions • Main Street, Colombo 03 • 📞 011-2345678 / 077-1234567 • info@ecotec.lk
+                ECOTEC Computer Solutions • Main Street, Colombo 03 • 📞 011-2345678 / 077-1234567 • info@ecotec.lk
               </p>
               <p className={`text-center text-[10px] mt-2 ${theme === 'dark' ? 'text-slate-600' : 'text-slate-400'}`}>
-                © 2025 Powered by <span className="font-semibold">Ecotec</span>
+                © 2025 Powered by <span className="font-semibold">ECOTEC</span>
               </p>
             </div>
           </div>

@@ -52,15 +52,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     return (
       <div ref={ref} className="print-estimate">
         <style>{`
+          /* ═══════════════════════════════════════════════════════════════
+             INK-EFFICIENT B&W PRINT OPTIMIZED - ECOTEC ESTIMATE
+             Designed for black laser/inkjet printers to minimize ink usage
+             ═══════════════════════════════════════════════════════════════ */
+          
           @media print {
             @page {
               size: A4 portrait;
               margin: 8mm 10mm;
-            }
-            
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
             }
             
             html, body {
@@ -98,7 +98,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             box-sizing: border-box;
           }
 
-          /* HEADER */
+          /* HEADER - INK EFFICIENT */
           .estimate-header {
             display: flex;
             justify-content: space-between;
@@ -117,7 +117,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           .company-logo {
             width: 55px;
             height: 55px;
-            border-radius: 12px;
+            border-radius: 8px;
             object-fit: cover;
             border: 2px solid #000;
           }
@@ -139,17 +139,17 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           .company-info .contact {
             font-size: 7pt;
-            color: #333;
+            color: #000;
             margin-top: 4px;
           }
 
           .estimate-number-box {
             text-align: right;
-            background: #f5f5f5;
+            background: white;
             color: #000;
             padding: 12px 20px;
-            border: 1px solid #000;
-            border-radius: 8px;
+            border: 2px solid #000;
+            border-radius: 4px;
           }
 
           .estimate-number-box .label {
@@ -157,7 +157,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             color: #000;
             text-transform: uppercase;
             letter-spacing: 1px;
-            font-weight: 600;
+            font-weight: 700;
           }
 
           .estimate-number-box .number {
@@ -169,15 +169,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           .estimate-number-box .date {
             font-size: 8pt;
-            color: #333;
+            color: #000;
             margin-top: 4px;
           }
 
-          /* TITLE SECTION */
+          /* TITLE SECTION - NO BACKGROUND */
           .title-section {
-            background: #f5f5f5;
-            border: 1px solid #000;
-            border-radius: 8px;
+            background: white;
+            border: 2px solid #000;
+            border-radius: 4px;
             padding: 12px 16px;
             margin-bottom: 15px;
             display: flex;
@@ -190,13 +190,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             font-weight: 700;
             color: #000;
             margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
           }
 
           .validity-badge {
             padding: 4px 12px;
-            border-radius: 20px;
+            border-radius: 4px;
             font-size: 8pt;
-            font-weight: 600;
+            font-weight: 700;
             background: white;
             color: #000;
             border: 1px solid #000;
@@ -213,23 +215,25 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             flex: 1;
           }
 
-          /* SECTION BOX */
+          /* SECTION BOX - NO FILLED HEADERS */
           .section-box {
             border: 1px solid #000;
-            border-radius: 8px;
+            border-radius: 4px;
             margin-bottom: 12px;
             overflow: hidden;
           }
 
           .section-header {
-            background: #000;
-            color: white;
+            background: white;
+            color: #000;
             padding: 8px 12px;
             font-size: 9pt;
-            font-weight: 600;
+            font-weight: 700;
             display: flex;
             align-items: center;
             gap: 6px;
+            border-bottom: 2px solid #000;
+            text-transform: uppercase;
           }
 
           .section-content {
@@ -250,7 +254,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           .info-label {
             width: 80px;
-            color: #333;
+            color: #000;
             font-weight: 500;
             flex-shrink: 0;
           }
@@ -263,10 +267,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           .info-value.highlight {
             color: #000;
-            font-weight: 600;
+            font-weight: 700;
           }
 
-          /* ITEMS TABLE */
+          /* ITEMS TABLE - MINIMAL INK */
           .items-section {
             margin-bottom: 15px;
           }
@@ -275,22 +279,28 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             width: 100%;
             border-collapse: collapse;
             border: 1px solid #000;
-            border-radius: 8px;
+            border-radius: 4px;
             overflow: hidden;
           }
 
           .items-table thead {
-            background: #000;
+            background: white;
           }
 
           .items-table th {
             padding: 10px 12px;
             text-align: left;
             font-size: 8pt;
-            font-weight: 600;
-            color: white;
+            font-weight: 700;
+            color: #000;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            border-bottom: 2px solid #000;
+            border-right: 1px solid #000;
+          }
+
+          .items-table th:last-child {
+            border-right: none;
           }
 
           .items-table th:nth-child(2),
@@ -306,9 +316,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           .items-table td {
             padding: 10px 12px;
             font-size: 8.5pt;
-            border-bottom: 1px solid #ccc;
+            border-bottom: 1px solid #000;
+            border-right: 1px solid #000;
             vertical-align: top;
             color: #000;
+          }
+
+          .items-table td:last-child {
+            border-right: none;
           }
 
           .items-table td:nth-child(2),
@@ -320,16 +335,12 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           .items-table td:last-child {
             text-align: right;
             font-family: 'Consolas', monospace;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
           }
 
           .items-table tbody tr:last-child td {
             border-bottom: none;
-          }
-
-          .items-table tbody tr:nth-child(even) {
-            background: #f8f8f8;
           }
 
           .item-name {
@@ -339,8 +350,9 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           .item-desc {
             font-size: 7pt;
-            color: #333;
+            color: #000;
             margin-top: 2px;
+            font-style: italic;
           }
 
           .item-number {
@@ -349,15 +361,16 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             justify-content: center;
             width: 20px;
             height: 20px;
-            background: #e0e0e0;
+            background: white;
+            border: 1px solid #000;
             border-radius: 50%;
             font-size: 7pt;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
             margin-right: 8px;
           }
 
-          /* SUMMARY SECTION */
+          /* SUMMARY SECTION - NO FILLED BACKGROUNDS */
           .summary-section {
             display: flex;
             justify-content: flex-end;
@@ -366,8 +379,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           .summary-box {
             width: 250px;
-            border: 1px solid #000;
-            border-radius: 8px;
+            border: 2px solid #000;
+            border-radius: 4px;
             overflow: hidden;
           }
 
@@ -376,7 +389,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             justify-content: space-between;
             padding: 8px 12px;
             font-size: 9pt;
-            border-bottom: 1px solid #ccc;
+            border-bottom: 1px dotted #000;
             background: white;
           }
 
@@ -385,41 +398,44 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           }
 
           .summary-row .label {
-            color: #333;
+            color: #000;
           }
 
           .summary-row .value {
             font-family: 'Consolas', monospace;
-            font-weight: 500;
+            font-weight: 600;
             color: #000;
           }
 
           .summary-row.discount .value {
             color: #000;
+            font-style: italic;
           }
 
           .summary-row.tax .value {
-            color: #333;
+            color: #000;
           }
 
           .summary-row.total {
-            background: #000;
+            background: white;
             padding: 12px;
+            border-top: 2px solid #000;
           }
 
           .summary-row.total .label {
             font-size: 11pt;
             font-weight: 700;
-            color: white;
+            color: #000;
+            text-transform: uppercase;
           }
 
           .summary-row.total .value {
             font-size: 13pt;
             font-weight: 700;
-            color: white;
+            color: #000;
           }
 
-          /* NOTES & TERMS */
+          /* NOTES & TERMS - NO BACKGROUNDS */
           .notes-terms {
             display: flex;
             gap: 15px;
@@ -429,15 +445,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           .notes-box, .terms-box {
             flex: 1;
             border: 1px solid #000;
-            border-radius: 8px;
+            border-radius: 4px;
             overflow: hidden;
           }
 
           .notes-box .box-header, .terms-box .box-header {
-            background: #f5f5f5;
+            background: white;
             padding: 8px 12px;
             font-size: 8pt;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -447,7 +463,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           .notes-box .box-content, .terms-box .box-content {
             padding: 10px 12px;
             font-size: 8pt;
-            color: #333;
+            color: #000;
             line-height: 1.6;
             white-space: pre-line;
           }
@@ -458,7 +474,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             justify-content: space-between;
             margin-top: 25px;
             padding-top: 15px;
-            border-top: 1px dashed #666;
+            border-top: 1px dashed #000;
           }
 
           .signature-box {
@@ -474,7 +490,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           .signature-label {
             font-size: 8pt;
-            color: #333;
+            color: #000;
           }
 
           /* FOOTER */
@@ -487,22 +503,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           .footer-message {
             font-size: 10pt;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
             margin-bottom: 4px;
           }
 
           .footer-contact {
             font-size: 8pt;
-            color: #333;
+            color: #000;
           }
 
           .footer-disclaimer {
             font-size: 7pt;
-            color: #666;
+            color: #000;
             margin-top: 8px;
             padding-top: 8px;
-            border-top: 1px dashed #ccc;
+            border-top: 1px dashed #000;
+            font-style: italic;
           }
         `}</style>
 
@@ -511,7 +528,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           <div className="company-section">
             <img src={logo} alt="Logo" className="company-logo" />
             <div className="company-info">
-              <h1>Ecotec</h1>
+              <h1>ECOTEC</h1>
               <div className="tagline">Computer Solutions</div>
               <div className="contact">Tel: 011-2345678 | 077-1234567 | Email: info@ecotec.lk</div>
             </div>
@@ -677,7 +694,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
         {/* Footer */}
         <div className="estimate-footer">
-          <div className="footer-message">Thank you for considering Ecotec!</div>
+          <div className="footer-message">Thank you for considering ECOTEC!</div>
           <div className="footer-contact">
             No. 123, Galle Road, Colombo 03 | www.ecotec.lk
           </div>

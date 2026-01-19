@@ -493,7 +493,7 @@ Please arrange immediate payment to avoid any service interruptions.
 Thank you for your prompt attention to this matter.
 
 Best regards,
-Ecotec Computer Solutions`;
+ECOTEC Computer Solutions`;
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
@@ -529,7 +529,7 @@ ${daysUntilDue ? `⏰ Days Remaining: ${daysUntilDue} days` : ''}
 Please let us know if you have any questions.
 
 Thank you!
-Ecotec Computer Solutions`;
+ECOTEC Computer Solutions`;
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
@@ -1720,7 +1720,7 @@ Ecotec Computer Solutions`;
 
 Hello ${supplierForOrder.name}! 👋
 
-This is *EchoTech Electronics* reaching out for a new order.
+This is *ECOTEC Electronics* reaching out for a new order.
 
 📅 *Date:* ${dateStr}
 🏢 *Supplier:* ${supplierForOrder.company}
@@ -1739,7 +1739,7 @@ Please share your:
 
 We look forward to doing business with you! 🤝
 
-_Sent via EchoTech POS System_
+_Sent via ECOTEC POS System_
 🌟 *Quality Electronics, Quality Service*`;
 
                   const encodedMessage = encodeURIComponent(message);

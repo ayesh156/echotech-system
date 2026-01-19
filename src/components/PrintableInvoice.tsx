@@ -37,15 +37,15 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
     return (
       <div ref={ref} className="print-invoice">
         <style>{`
+          /* ═══════════════════════════════════════════════════════════════
+             INK-EFFICIENT B&W PRINT OPTIMIZED - ECOTEC INVOICE
+             Designed for black laser/inkjet printers to minimize ink usage
+             ═══════════════════════════════════════════════════════════════ */
+          
           @media print {
             @page {
               size: A4 portrait;
               margin: 10mm 12mm;
-            }
-            
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
             }
             
             html, body {
@@ -90,14 +90,14 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
             box-sizing: border-box;
           }
 
-          /* HEADER - Company Info */
+          /* HEADER - Company Info - INK EFFICIENT */
           .invoice-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 2px solid #333;
+            border-bottom: 2px solid #000;
           }
 
           .company-section {
@@ -134,13 +134,13 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
           .company-info .sub-name {
             font-size: 9pt;
             font-weight: 600;
-            color: #333;
+            color: #000;
             margin-bottom: 6px;
           }
 
           .company-info .details {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             line-height: 1.4;
           }
 
@@ -153,23 +153,24 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
             font-weight: 600;
             color: #000;
             margin: 0 0 4px 0;
+            text-decoration: underline;
           }
 
           .contact-box .info {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             line-height: 1.5;
           }
 
-          /* TITLE SECTION */
+          /* TITLE SECTION - NO BACKGROUND FILL */
           .invoice-title-section {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             padding: 15px 18px;
             margin-bottom: 15px;
-            background: #f5f5f5;
-            border: 1px solid #ddd;
+            background: white;
+            border: 2px solid #000;
           }
 
           .invoice-title h2 {
@@ -177,12 +178,14 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
             font-weight: 700;
             color: #000;
             margin: 0 0 2px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
           }
 
           .invoice-title .company-label {
             font-size: 8pt;
-            color: #555;
-            font-weight: 600;
+            color: #000;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
           }
@@ -193,8 +196,9 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
 
           .amount-due label {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             font-weight: 600;
+            text-decoration: underline;
           }
 
           .amount-due .amount {
@@ -214,25 +218,29 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
 
           .bill-to {
             flex: 1;
+            padding: 10px;
+            border: 1px solid #000;
           }
 
           .bill-to label {
             font-size: 7pt;
-            color: #888;
+            color: #000;
             display: block;
             margin-bottom: 2px;
+            font-weight: 600;
+            text-transform: uppercase;
           }
 
           .bill-to .name {
             font-size: 11pt;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
             margin-bottom: 2px;
           }
 
           .bill-to .info {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             line-height: 1.4;
           }
 
@@ -244,22 +252,23 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
             display: flex;
             justify-content: flex-end;
             gap: 12px;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
             font-size: 8pt;
           }
 
           .invoice-details .row label {
-            color: #888;
+            color: #000;
+            font-weight: 500;
           }
 
           .invoice-details .row .value {
             color: #000;
-            font-weight: 500;
+            font-weight: 600;
             min-width: 90px;
             text-align: right;
           }
 
-          /* ITEMS TABLE */
+          /* ITEMS TABLE - MINIMAL INK */
           .items-table {
             width: 100%;
             border-collapse: collapse;
@@ -267,13 +276,15 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
           }
 
           .items-table thead th {
-            background: #f0f0f0;
+            background: white;
             color: #000;
             font-size: 8pt;
-            font-weight: 600;
+            font-weight: 700;
             padding: 8px 10px;
             text-align: left;
-            border: 1px solid #ccc;
+            border: 1px solid #000;
+            border-bottom: 2px solid #000;
+            text-transform: uppercase;
           }
 
           .items-table thead th:first-child {
@@ -292,7 +303,7 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
           }
 
           .items-table tbody tr {
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #000;
           }
 
           .items-table tbody td {
@@ -300,8 +311,8 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
             font-size: 9pt;
             color: #000;
             vertical-align: top;
-            border-left: 1px solid #ddd;
-            border-right: 1px solid #ddd;
+            border-left: 1px solid #000;
+            border-right: 1px solid #000;
           }
 
           .items-table tbody td:first-child .product-name {
@@ -312,13 +323,14 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
 
           .items-table tbody td:first-child .product-desc {
             font-size: 7pt;
-            color: #777;
+            color: #000;
             line-height: 1.3;
+            font-style: italic;
           }
 
           .items-table tbody td:nth-child(2) {
             text-align: center;
-            font-weight: 500;
+            font-weight: 600;
           }
 
           .items-table tbody td:nth-child(3),
@@ -329,7 +341,7 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
           }
 
           .items-table tbody td:nth-child(4) {
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
           }
 
@@ -348,19 +360,22 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
 
           .payment-info h4 {
             font-size: 8pt;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
             margin: 0 0 4px 0;
+            text-decoration: underline;
           }
 
           .payment-info p {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             margin: 0;
           }
 
           .totals-box {
             width: 220px;
+            border: 1px solid #000;
+            padding: 10px;
           }
 
           .totals-row {
@@ -368,11 +383,11 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
             justify-content: space-between;
             padding: 5px 0;
             font-size: 8pt;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px dotted #000;
           }
 
           .totals-row .label {
-            color: #555;
+            color: #000;
           }
 
           .totals-row .value {
@@ -389,8 +404,9 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
           }
 
           .totals-row.total .label {
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
+            text-transform: uppercase;
           }
 
           .totals-row.total .value {
@@ -399,44 +415,47 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
             color: #000;
           }
 
-          /* NOTES SECTION */
+          /* NOTES SECTION - NO BACKGROUND */
           .notes-section {
-            background: #fafafa;
-            border: 1px solid #ddd;
+            background: white;
+            border: 1px solid #000;
             padding: 10px 12px;
             margin-bottom: 15px;
           }
 
           .notes-section h4 {
             font-size: 8pt;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
             margin: 0 0 6px 0;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000;
+            padding-bottom: 4px;
           }
 
           .notes-section p {
             font-size: 7pt;
-            color: #444;
+            color: #000;
             margin: 0;
             line-height: 1.5;
           }
 
           /* FOOTER */
           .footer-section {
-            border-top: 1px solid #ccc;
+            border-top: 2px solid #000;
             padding-top: 12px;
           }
 
           .footer-section h4 {
             font-size: 7pt;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
             margin: 0 0 3px 0;
           }
 
           .footer-section p {
             font-size: 7pt;
-            color: #555;
+            color: #000;
             margin: 0;
             line-height: 1.5;
           }
@@ -445,9 +464,10 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
             text-align: center;
             margin-top: 15px;
             padding-top: 12px;
-            border-top: 1px solid #ccc;
-            font-size: 8pt;
-            color: #777;
+            border-top: 1px dashed #000;
+            font-size: 9pt;
+            font-weight: 600;
+            color: #000;
           }
         `}</style>
 
@@ -455,7 +475,7 @@ export const PrintableInvoice = forwardRef<HTMLDivElement, PrintableInvoiceProps
         <div className="invoice-header">
           <div className="company-section">
             <div className="company-logo">
-              <img src={logo} alt="Ecotec Logo" style={{ width: 40, height: 40, borderRadius: '50%' }} />
+              <img src={logo} alt="ECOTEC Logo" style={{ width: 40, height: 40, borderRadius: '50%' }} />
             </div>
             <div className="company-info">
               <h1>ECOTEC COMPUTER</h1>

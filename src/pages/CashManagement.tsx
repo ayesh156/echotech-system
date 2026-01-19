@@ -1,8 +1,12 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import logo from '../assets/logo.jpg';
 import { 
   mockCashAccounts, 
   mockCashTransactions,
+  mockInvoices,
+  mockGRNs,
   expenseCategories 
 } from '../data/mockData';
 import type {
@@ -19,15 +23,20 @@ import {
   ArrowLeftRight, Filter, ChevronLeft, ChevronRight, ChevronsLeft, 
   ChevronsRight, Banknote, Building2, PiggyBank, TrendingUp, TrendingDown,
   Clock, Tag, FileText, MoreVertical, RefreshCw, List, LayoutGrid,
-  SortAsc, SortDesc, Calendar
+  SortAsc, SortDesc, Calendar, Receipt, Package, 
+  CreditCard, DollarSign, BarChart3, Eye, ArrowRight, ChevronDown,
+  Truck, HandCoins, BadgePercent, Minus, AlertTriangle,
+  CheckCircle2, FileSpreadsheet, Printer
 } from 'lucide-react';
 
 type ViewMode = 'grid' | 'table';
+type TabView = 'overview' | 'transactions' | 'summary';
+type DateRange = 'today' | 'week' | 'month' | 'year' | 'custom';
 
 const getAccountIcon = (type: CashAccountType) => {
   switch (type) {
     case 'drawer': return Banknote;
-    case 'cash_in_hand': return Wallet;
+    case 'cash_in_hand': return HandCoins;
     case 'business': return Building2;
     default: return PiggyBank;
   }
@@ -36,7 +45,7 @@ const getAccountIcon = (type: CashAccountType) => {
 const getAccountIconJsx = (type: CashAccountType) => {
   switch (type) {
     case 'drawer': return <Banknote className="w-4 h-4 text-amber-500" />;
-    case 'cash_in_hand': return <Wallet className="w-4 h-4 text-emerald-500" />;
+    case 'cash_in_hand': return <HandCoins className="w-4 h-4 text-emerald-500" />;
     case 'business': return <Building2 className="w-4 h-4 text-blue-500" />;
     default: return <PiggyBank className="w-4 h-4 text-slate-500" />;
   }
@@ -104,6 +113,25 @@ const getTransactionTypeColor = (type: CashTransactionType, theme: string) => {
 
 export const CashManagement: React.FC = () => {
   const { theme } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Determine active view from URL
+  const activeTab: TabView = useMemo(() => {
+    if (location.pathname === '/cash-management/transactions') return 'transactions';
+    if (location.pathname === '/cash-management/summary') return 'summary';
+    return 'overview';
+  }, [location.pathname]);
+  
+  const [dateRange, setDateRange] = useState<DateRange>('month');
+  
+  // Date range options (defined early for use in exports)
+  const dateRangeOptions = [
+    { value: 'today', label: 'Today' },
+    { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' },
+    { value: 'year', label: 'This Year' },
+  ];
   
   // State
   const [accounts, setAccounts] = useState<CashAccount[]>(mockCashAccounts);
@@ -138,6 +166,10 @@ export const CashManagement: React.FC = () => {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const startCalendarRef = useRef<HTMLDivElement>(null);
   const endCalendarRef = useRef<HTMLDivElement>(null);
+  
+  // Summary dropdown
+  const [showDateRangeDropdown, setShowDateRangeDropdown] = useState(false);
+  const dateRangeRef = useRef<HTMLDivElement>(null);
 
   // Close action menu when clicking outside
   useEffect(() => {
@@ -150,6 +182,9 @@ export const CashManagement: React.FC = () => {
       }
       if (endCalendarRef.current && !endCalendarRef.current.contains(event.target as Node)) {
         setShowEndCalendar(false);
+      }
+      if (dateRangeRef.current && !dateRangeRef.current.contains(event.target as Node)) {
+        setShowDateRangeDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -166,11 +201,155 @@ export const CashManagement: React.FC = () => {
     setCurrentPage(1);
   }, [viewMode]);
 
-  // Calculate totals
-  const totalBalance = useMemo(() => {
-    return accounts.reduce((sum, acc) => sum + acc.balance, 0);
-  }, [accounts]);
+  // Format helpers
+  const formatCurrency = (amount: number) => `Rs. ${amount.toLocaleString('en-LK')}`;
+  
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return {
+      date: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+    };
+  };
 
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  // Get date range for filtering
+  const getDateRangeFilter = useMemo(() => {
+    const now = new Date();
+    let start = new Date();
+    let end = new Date();
+    
+    switch (dateRange) {
+      case 'today':
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        break;
+      case 'week':
+        const dayOfWeek = now.getDay();
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        break;
+      case 'month':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        break;
+      case 'year':
+        start = new Date(now.getFullYear(), 0, 1);
+        end = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+        break;
+      default:
+        start = new Date(2020, 0, 1);
+        end = new Date(now.getFullYear() + 1, 11, 31, 23, 59, 59);
+    }
+    return { start, end };
+  }, [dateRange]);
+
+  // Calculate Financial Summary from Invoices, GRNs, and Transactions
+  const financialSummary = useMemo(() => {
+    const { start, end } = getDateRangeFilter;
+    
+    // Invoice Income (Sales)
+    const filteredInvoices = mockInvoices.filter(inv => {
+      const invDate = new Date(inv.date);
+      return invDate >= start && invDate <= end;
+    });
+    
+    const totalInvoiceSales = filteredInvoices.reduce((sum, inv) => sum + inv.total, 0);
+    const invoiceCashReceived = filteredInvoices.reduce((sum, inv) => sum + (inv.paidAmount || 0), 0);
+    const invoicePendingAmount = totalInvoiceSales - invoiceCashReceived;
+    const invoiceCount = filteredInvoices.length;
+    const fullPaidInvoices = filteredInvoices.filter(inv => inv.status === 'fullpaid').length;
+    const unpaidInvoices = filteredInvoices.filter(inv => inv.status === 'unpaid').length;
+    const partialPaidInvoices = filteredInvoices.filter(inv => inv.status === 'halfpay').length;
+    
+    // GRN Expenses (Purchases)
+    const filteredGRNs = mockGRNs.filter(grn => {
+      const grnDate = new Date(grn.orderDate);
+      return grnDate >= start && grnDate <= end;
+    });
+    
+    const totalGRNPurchases = filteredGRNs.reduce((sum, grn) => sum + grn.totalAmount, 0);
+    const grnPaidAmount = filteredGRNs.reduce((sum, grn) => sum + (grn.paidAmount || 0), 0);
+    const grnPendingAmount = totalGRNPurchases - grnPaidAmount;
+    const grnCount = filteredGRNs.length;
+    const grnProductsAdded = filteredGRNs.reduce((sum, grn) => sum + grn.totalAcceptedQuantity, 0);
+    
+    // Cash Transactions
+    const filteredTransactions = transactions.filter(txn => {
+      const txnDate = new Date(txn.transactionDate);
+      return txnDate >= start && txnDate <= end;
+    });
+    
+    const totalIncome = filteredTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalExpenses = filteredTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalTransfers = filteredTransactions
+      .filter(t => t.type === 'transfer')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    // Expense breakdown by category
+    const expensesByCategory: { [key: string]: number } = {};
+    filteredTransactions
+      .filter(t => t.type === 'expense' && t.category)
+      .forEach(t => {
+        const cat = t.category || 'Other';
+        expensesByCategory[cat] = (expensesByCategory[cat] || 0) + t.amount;
+      });
+    
+    // Account balances
+    const drawerBalance = accounts.find(a => a.type === 'drawer')?.balance || 0;
+    const cashInHandBalance = accounts.find(a => a.type === 'cash_in_hand')?.balance || 0;
+    const businessBalance = accounts.find(a => a.type === 'business')?.balance || 0;
+    const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
+    
+    // Net cash flow
+    const netCashFlow = invoiceCashReceived - grnPaidAmount + totalIncome - totalExpenses;
+    
+    // Profit estimate (simplified)
+    const estimatedProfit = invoiceCashReceived - grnPaidAmount - totalExpenses;
+    
+    return {
+      // Invoice stats
+      totalInvoiceSales,
+      invoiceCashReceived,
+      invoicePendingAmount,
+      invoiceCount,
+      fullPaidInvoices,
+      unpaidInvoices,
+      partialPaidInvoices,
+      // GRN stats
+      totalGRNPurchases,
+      grnPaidAmount,
+      grnPendingAmount,
+      grnCount,
+      grnProductsAdded,
+      // Transaction stats
+      totalIncome,
+      totalExpenses,
+      totalTransfers,
+      expensesByCategory,
+      // Account balances
+      drawerBalance,
+      cashInHandBalance,
+      businessBalance,
+      totalBalance,
+      // Flow stats
+      netCashFlow,
+      estimatedProfit,
+    };
+  }, [transactions, accounts, getDateRangeFilter]);
+
+  // Today's transactions
   const todayTransactions = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     return transactions.filter(t => t.transactionDate.startsWith(today));
@@ -187,17 +366,6 @@ export const CashManagement: React.FC = () => {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
   }, [todayTransactions]);
-
-  // Stats
-  const stats = useMemo(() => {
-    const totalTransactions = transactions.length;
-    const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    const incomeCount = transactions.filter(t => t.type === 'income').length;
-    const expenseCount = transactions.filter(t => t.type === 'expense').length;
-    const transferCount = transactions.filter(t => t.type === 'transfer').length;
-    return { totalTransactions, totalIncome, totalExpense, incomeCount, expenseCount, transferCount };
-  }, [transactions]);
 
   // Filtering
   const filteredTransactions = useMemo(() => {
@@ -393,22 +561,804 @@ export const CashManagement: React.FC = () => {
     setTransactionToDelete(null);
   };
 
-  // Format helpers
-  const formatCurrency = (amount: number) => `Rs. ${amount.toLocaleString('en-LK')}`;
-  
-  const formatDateTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+  // Export Functions
+  const generateReportData = useCallback(() => {
+    const reportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const periodLabel = dateRangeOptions.find(o => o.value === dateRange)?.label || 'Custom Period';
+    
     return {
-      date: date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      title: 'Financial Summary Report',
+      subtitle: `ECOTEC Computer & Mobile Shop`,
+      period: periodLabel,
+      generatedDate: reportDate,
+      summary: {
+        totalBalance: financialSummary.totalBalance,
+        netCashFlow: financialSummary.netCashFlow,
+        estimatedProfit: financialSummary.estimatedProfit,
+      },
+      income: {
+        invoicePayments: financialSummary.invoiceCashReceived,
+        otherIncome: financialSummary.totalIncome,
+        totalIncome: financialSummary.invoiceCashReceived + financialSummary.totalIncome,
+      },
+      expenses: {
+        grnPayments: financialSummary.grnPaidAmount,
+        businessExpenses: financialSummary.totalExpenses,
+        totalExpenses: financialSummary.grnPaidAmount + financialSummary.totalExpenses,
+      },
+      invoices: {
+        totalSales: financialSummary.totalInvoiceSales,
+        cashReceived: financialSummary.invoiceCashReceived,
+        pending: financialSummary.invoicePendingAmount,
+        count: financialSummary.invoiceCount,
+        fullPaid: financialSummary.fullPaidInvoices,
+        partialPaid: financialSummary.partialPaidInvoices,
+        unpaid: financialSummary.unpaidInvoices,
+      },
+      grn: {
+        totalPurchases: financialSummary.totalGRNPurchases,
+        paid: financialSummary.grnPaidAmount,
+        pending: financialSummary.grnPendingAmount,
+        count: financialSummary.grnCount,
+        productsAdded: financialSummary.grnProductsAdded,
+      },
+      accounts: {
+        drawer: financialSummary.drawerBalance,
+        cashInHand: financialSummary.cashInHandBalance,
+        business: financialSummary.businessBalance,
+      },
+      expensesByCategory: financialSummary.expensesByCategory,
     };
-  };
+  }, [financialSummary, dateRange, dateRangeOptions]);
 
-  const formatDateDisplay = (dateStr: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
+  // Export to CSV
+  const exportToCSV = useCallback(() => {
+    const data = generateReportData();
+    const rows = [
+      ['ECOTEC FINANCIAL SUMMARY REPORT'],
+      [''],
+      ['Report Period:', data.period],
+      ['Generated Date:', data.generatedDate],
+      [''],
+      ['=== SUMMARY ==='],
+      ['Total Cash Balance:', formatCurrency(data.summary.totalBalance)],
+      ['Net Cash Flow:', formatCurrency(data.summary.netCashFlow)],
+      ['Estimated Profit:', formatCurrency(data.summary.estimatedProfit)],
+      [''],
+      ['=== INCOME ==='],
+      ['Invoice Payments:', formatCurrency(data.income.invoicePayments)],
+      ['Other Income:', formatCurrency(data.income.otherIncome)],
+      ['Total Income:', formatCurrency(data.income.totalIncome)],
+      [''],
+      ['=== EXPENSES ==='],
+      ['GRN Payments:', formatCurrency(data.expenses.grnPayments)],
+      ['Business Expenses:', formatCurrency(data.expenses.businessExpenses)],
+      ['Total Expenses:', formatCurrency(data.expenses.totalExpenses)],
+      [''],
+      ['=== INVOICE DETAILS ==='],
+      ['Total Sales:', formatCurrency(data.invoices.totalSales)],
+      ['Cash Received:', formatCurrency(data.invoices.cashReceived)],
+      ['Pending Amount:', formatCurrency(data.invoices.pending)],
+      ['Total Invoices:', data.invoices.count.toString()],
+      ['Full Paid:', data.invoices.fullPaid.toString()],
+      ['Partial Paid:', data.invoices.partialPaid.toString()],
+      ['Unpaid:', data.invoices.unpaid.toString()],
+      [''],
+      ['=== GRN DETAILS ==='],
+      ['Total Purchases:', formatCurrency(data.grn.totalPurchases)],
+      ['Paid to Suppliers:', formatCurrency(data.grn.paid)],
+      ['Pending Payment:', formatCurrency(data.grn.pending)],
+      ['Total GRNs:', data.grn.count.toString()],
+      ['Products Added:', data.grn.productsAdded.toString()],
+      [''],
+      ['=== ACCOUNT BALANCES ==='],
+      ['Cash Drawer:', formatCurrency(data.accounts.drawer)],
+      ['Cash in Hand:', formatCurrency(data.accounts.cashInHand)],
+      ['Business Account:', formatCurrency(data.accounts.business)],
+      [''],
+      ['=== EXPENSES BY CATEGORY ==='],
+      ...Object.entries(data.expensesByCategory).map(([cat, amt]) => [cat, formatCurrency(amt as number)]),
+    ];
+
+    const csvContent = rows.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `ECOTEC_Financial_Report_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  }, [generateReportData, formatCurrency]);
+
+  // Export to Excel (using CSV with Excel-compatible formatting)
+  const exportToExcel = useCallback(() => {
+    const data = generateReportData();
+    
+    // Create XML for Excel
+    const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Title"><Font ss:Size="18" ss:Bold="1" ss:Color="#10b981"/><Alignment ss:Horizontal="Center"/></Style>
+  <Style ss:ID="Subtitle"><Font ss:Size="12" ss:Color="#64748b"/><Alignment ss:Horizontal="Center"/></Style>
+  <Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#ffffff"/><Interior ss:Color="#10b981" ss:Pattern="Solid"/><Alignment ss:Horizontal="Left"/></Style>
+  <Style ss:ID="SectionHeader"><Font ss:Bold="1" ss:Size="11" ss:Color="#0f172a"/><Interior ss:Color="#f1f5f9" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="Currency"><NumberFormat ss:Format="#,##0.00"/><Alignment ss:Horizontal="Right"/></Style>
+  <Style ss:ID="Positive"><Font ss:Color="#10b981" ss:Bold="1"/><NumberFormat ss:Format="#,##0.00"/><Alignment ss:Horizontal="Right"/></Style>
+  <Style ss:ID="Negative"><Font ss:Color="#ef4444" ss:Bold="1"/><NumberFormat ss:Format="#,##0.00"/><Alignment ss:Horizontal="Right"/></Style>
+  <Style ss:ID="Label"><Font ss:Color="#475569"/></Style>
+  <Style ss:ID="Total"><Font ss:Bold="1"/><Interior ss:Color="#f8fafc" ss:Pattern="Solid"/></Style>
+ </Styles>
+ <Worksheet ss:Name="Financial Summary">
+  <Table>
+   <Column ss:Width="200"/>
+   <Column ss:Width="150"/>
+   <Row ss:Height="30"><Cell ss:StyleID="Title" ss:MergeAcross="1"><Data ss:Type="String">ECOTEC FINANCIAL REPORT</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Subtitle" ss:MergeAcross="1"><Data ss:Type="String">Computer &amp; Mobile Shop Management System</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Subtitle" ss:MergeAcross="1"><Data ss:Type="String">Period: ${data.period} | Generated: ${data.generatedDate}</Data></Cell></Row>
+   <Row></Row>
+   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">FINANCIAL SUMMARY</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total Cash Balance</Data></Cell><Cell ss:StyleID="Positive"><Data ss:Type="Number">${data.summary.totalBalance}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Net Cash Flow</Data></Cell><Cell ss:StyleID="${data.summary.netCashFlow >= 0 ? 'Positive' : 'Negative'}"><Data ss:Type="Number">${data.summary.netCashFlow}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Estimated Profit</Data></Cell><Cell ss:StyleID="${data.summary.estimatedProfit >= 0 ? 'Positive' : 'Negative'}"><Data ss:Type="Number">${data.summary.estimatedProfit}</Data></Cell></Row>
+   <Row></Row>
+   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">INCOME</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Invoice Payments</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.income.invoicePayments}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Other Income</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.income.otherIncome}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Total"><Data ss:Type="String">Total Income</Data></Cell><Cell ss:StyleID="Positive"><Data ss:Type="Number">${data.income.totalIncome}</Data></Cell></Row>
+   <Row></Row>
+   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">EXPENSES</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">GRN Payments</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.expenses.grnPayments}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Business Expenses</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.expenses.businessExpenses}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Total"><Data ss:Type="String">Total Expenses</Data></Cell><Cell ss:StyleID="Negative"><Data ss:Type="Number">${data.expenses.totalExpenses}</Data></Cell></Row>
+   <Row></Row>
+   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">INVOICE DETAILS</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total Sales</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.invoices.totalSales}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Cash Received</Data></Cell><Cell ss:StyleID="Positive"><Data ss:Type="Number">${data.invoices.cashReceived}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Pending Amount</Data></Cell><Cell ss:StyleID="Negative"><Data ss:Type="Number">${data.invoices.pending}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total Invoices</Data></Cell><Cell><Data ss:Type="Number">${data.invoices.count}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Full Paid</Data></Cell><Cell><Data ss:Type="Number">${data.invoices.fullPaid}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Partial Paid</Data></Cell><Cell><Data ss:Type="Number">${data.invoices.partialPaid}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Unpaid</Data></Cell><Cell><Data ss:Type="Number">${data.invoices.unpaid}</Data></Cell></Row>
+   <Row></Row>
+   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">GRN DETAILS</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total Purchases</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.grn.totalPurchases}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Paid to Suppliers</Data></Cell><Cell ss:StyleID="Positive"><Data ss:Type="Number">${data.grn.paid}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Pending Payment</Data></Cell><Cell ss:StyleID="Negative"><Data ss:Type="Number">${data.grn.pending}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Total GRNs</Data></Cell><Cell><Data ss:Type="Number">${data.grn.count}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Products Added</Data></Cell><Cell><Data ss:Type="Number">${data.grn.productsAdded}</Data></Cell></Row>
+   <Row></Row>
+   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">ACCOUNT BALANCES</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Cash Drawer</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.accounts.drawer}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Cash in Hand</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.accounts.cashInHand}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Label"><Data ss:Type="String">Business Account</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${data.accounts.business}</Data></Cell></Row>
+   <Row></Row>
+   <Row><Cell ss:StyleID="SectionHeader"><Data ss:Type="String">EXPENSES BY CATEGORY</Data></Cell><Cell ss:StyleID="SectionHeader"></Cell></Row>
+   ${Object.entries(data.expensesByCategory).map(([cat, amt]) => 
+     `<Row><Cell ss:StyleID="Label"><Data ss:Type="String">${cat}</Data></Cell><Cell ss:StyleID="Currency"><Data ss:Type="Number">${amt}</Data></Cell></Row>`
+   ).join('\n   ')}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+    const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `ECOTEC_Financial_Report_${new Date().toISOString().split('T')[0]}.xls`;
+    link.click();
+  }, [generateReportData]);
+
+  // Export to PDF (using print with custom styling)
+  const exportToPDF = useCallback(() => {
+    const data = generateReportData();
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    // Build expenses by category HTML
+    const expensesCategoryHTML = Object.keys(data.expensesByCategory).length > 0 
+      ? `<div class="section">
+          <div class="section-header">
+            <div class="section-icon">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            </div>
+            <div class="section-title">Expenses by Category</div>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>Category</th><th style="text-align:right">Amount</th></tr></thead>
+            <tbody>
+              ${Object.entries(data.expensesByCategory).sort(([,a], [,b]) => (b as number) - (a as number)).map(([cat, amt]) => 
+                `<tr><td>${cat}</td><td class="value">${formatCurrency(amt as number)}</td></tr>`
+              ).join('')}
+            </tbody>
+          </table>
+        </div>` 
+      : '';
+
+    // WORLD-CLASS PREMIUM PDF - INK-EFFICIENT B&W DESIGN
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ECOTEC Financial Summary Report</title>
+  <style>
+    /* ══════════════════════════════════════════════════════════════════════════
+       WORLD-CLASS PREMIUM FINANCIAL REPORT - INK-EFFICIENT B&W EDITION
+       Designed for professional business reporting with minimal ink usage
+       ══════════════════════════════════════════════════════════════════════════ */
+    
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: A4; margin: 12mm 15mm; }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fff;
+      color: #000;
+      line-height: 1.6;
+      font-size: 11px;
+    }
+    
+    .container { max-width: 100%; padding: 0; }
+    
+    /* ═══ HEADER - INVOICE STYLE ═══ */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #000;
+      margin-bottom: 20px;
+    }
+    
+    .company-section {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    
+    .company-logo {
+      width: 50px;
+      height: 50px;
+      border: 2px solid #000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    
+    .company-logo img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    
+    .company-info h1 {
+      font-size: 16pt;
+      font-weight: 700;
+      color: #000;
+      margin: 0 0 1px 0;
+      letter-spacing: -0.3px;
+    }
+    
+    .company-info .sub-name {
+      font-size: 9pt;
+      font-weight: 600;
+      color: #000;
+      margin-bottom: 6px;
+    }
+    
+    .company-info .details {
+      font-size: 8pt;
+      color: #000;
+      line-height: 1.4;
+    }
+    
+    .contact-box {
+      text-align: right;
+    }
+    
+    .contact-box h3 {
+      font-size: 9pt;
+      font-weight: 600;
+      color: #000;
+      margin: 0 0 4px 0;
+      text-decoration: underline;
+    }
+    
+    .contact-box .info {
+      font-size: 8pt;
+      color: #000;
+      line-height: 1.5;
+    }
+    
+    /* Report Title Section */
+    .report-title-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 15px 18px;
+      margin-bottom: 15px;
+      background: white;
+      border: 2px solid #000;
+    }
+    
+    .report-title h2 {
+      font-size: 18pt;
+      font-weight: 700;
+      color: #000;
+      margin: 0 0 2px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .report-title .company-label {
+      font-size: 8pt;
+      color: #000;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .report-meta-box {
+      text-align: right;
+    }
+    
+    .report-meta-box .meta-item {
+      font-size: 9pt;
+      margin-bottom: 3px;
+    }
+    
+    .report-meta-box .meta-item strong {
+      font-weight: 600;
+    }
+    
+    /* ═══ EXECUTIVE SUMMARY HERO ═══ */
+    .hero-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .hero-card {
+      border: 2px solid #000;
+      padding: 16px;
+      text-align: center;
+      position: relative;
+    }
+    
+    .hero-card.primary {
+      border-width: 3px;
+    }
+    
+    .hero-card .card-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+    
+    .hero-card .card-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    
+    .hero-card .card-indicator {
+      font-size: 9px;
+      margin-top: 6px;
+      padding: 3px 8px;
+      border: 1px solid #000;
+      display: inline-block;
+    }
+    
+    /* ═══ TWO-COLUMN LAYOUT ═══ */
+    .two-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    /* ═══ SECTIONS ═══ */
+    .section {
+      margin-bottom: 16px;
+      break-inside: avoid;
+    }
+    
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border: 2px solid #000;
+      border-bottom: none;
+      background: #fff;
+    }
+    
+    .section-icon {
+      width: 28px;
+      height: 28px;
+      border: 1.5px solid #000;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .section-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    /* ═══ TABLES ═══ */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 2px solid #000;
+    }
+    
+    .data-table thead th {
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #000;
+    }
+    
+    .data-table tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #ccc;
+      font-size: 11px;
+    }
+    
+    .data-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .data-table .value {
+      text-align: right;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 11px;
+    }
+    
+    .data-table .total-row {
+      border-top: 2px solid #000;
+    }
+    
+    .data-table .total-row td {
+      font-weight: 700;
+      padding: 10px 12px;
+      border-bottom: none;
+    }
+    
+    /* ═══ STATS GRID ═══ */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 2px solid #000;
+      border-top: none;
+    }
+    
+    .stats-row.cols-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .stat-item {
+      padding: 12px;
+      text-align: center;
+      border-right: 1px solid #000;
+    }
+    
+    .stat-item:last-child {
+      border-right: none;
+    }
+    
+    .stat-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    
+    .stat-label {
+      font-size: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+    
+    /* ═══ ACCOUNT BALANCES SPECIAL ═══ */
+    .accounts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border: 2px solid #000;
+    }
+    
+    .account-item {
+      padding: 14px;
+      text-align: center;
+      border-right: 1px solid #000;
+    }
+    
+    .account-item:last-child {
+      border-right: none;
+    }
+    
+    .account-item .acc-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .account-item .acc-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    
+    .total-balance-bar {
+      border: 2px solid #000;
+      border-top: none;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .total-balance-bar .tbl-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .total-balance-bar .tbl-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    
+    /* ═══ FOOTER ═══ */
+    .footer {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 2px double #000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9px;
+    }
+    
+    .footer-brand {
+      font-weight: 700;
+    }
+    
+    .footer-legal {
+      text-align: right;
+    }
+    
+    .footer-legal div {
+      margin-top: 2px;
+    }
+    
+    /* Print Optimization */
+    @media print {
+      body { background: white; }
+      .section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- HEADER - INVOICE STYLE -->
+    <div class="header">
+      <div class="company-section">
+        <div class="company-logo">
+          <img src="${logo}" alt="ECOTEC Logo" />
+        </div>
+        <div class="company-info">
+          <h1>ECOTEC COMPUTER</h1>
+          <div class="sub-name">SOLUTIONS</div>
+          <div class="details">
+            No.14, Mulatiyana junction,<br />
+            Mulatiyana, Matara.
+          </div>
+        </div>
+      </div>
+      <div class="contact-box">
+        <h3>Contact information</h3>
+        <div class="info">
+          ecoteccomputersolutions@gmail.com<br />
+          0711453111
+        </div>
+      </div>
+    </div>
+    
+    <!-- Report Title Section -->
+    <div class="report-title-section">
+      <div class="report-title">
+        <h2>FINANCIAL SUMMARY</h2>
+        <div class="company-label">ECOTEC COMPUTER SOLUTIONS</div>
+      </div>
+      <div class="report-meta-box">
+        <div class="meta-item"><strong>Report Period:</strong> ${data.period}</div>
+        <div class="meta-item"><strong>Generated:</strong> ${data.generatedDate}</div>
+      </div>
+    </div>
+    
+    <!-- EXECUTIVE SUMMARY -->
+    <div class="hero-summary">
+      <div class="hero-card primary">
+        <div class="card-label">Total Cash Balance</div>
+        <div class="card-value">${formatCurrency(data.summary.totalBalance)}</div>
+        <div class="card-indicator">Available Funds</div>
+      </div>
+      <div class="hero-card">
+        <div class="card-label">Net Cash Flow</div>
+        <div class="card-value">${data.summary.netCashFlow >= 0 ? '+' : ''}${formatCurrency(data.summary.netCashFlow)}</div>
+        <div class="card-indicator">${data.summary.netCashFlow >= 0 ? '▲ Positive' : '▼ Negative'}</div>
+      </div>
+      <div class="hero-card">
+        <div class="card-label">Estimated Profit</div>
+        <div class="card-value">${data.summary.estimatedProfit >= 0 ? '+' : ''}${formatCurrency(data.summary.estimatedProfit)}</div>
+        <div class="card-indicator">${data.summary.estimatedProfit >= 0 ? '▲ Profit' : '▼ Loss'}</div>
+      </div>
+    </div>
+    
+    <!-- INCOME & EXPENSES - TWO COLUMNS -->
+    <div class="two-columns">
+      <!-- INCOME -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+          </div>
+          <div class="section-title">Money In (Income)</div>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Source</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>Invoice Payments</td><td class="value">${formatCurrency(data.income.invoicePayments)}</td></tr>
+            <tr><td>Other Income</td><td class="value">${formatCurrency(data.income.otherIncome)}</td></tr>
+            <tr class="total-row"><td><strong>TOTAL INCOME</strong></td><td class="value">${formatCurrency(data.income.totalIncome)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- EXPENSES -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 12H4"/></svg>
+          </div>
+          <div class="section-title">Money Out (Expenses)</div>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Category</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>GRN Payments (Suppliers)</td><td class="value">${formatCurrency(data.expenses.grnPayments)}</td></tr>
+            <tr><td>Business Expenses</td><td class="value">${formatCurrency(data.expenses.businessExpenses)}</td></tr>
+            <tr class="total-row"><td><strong>TOTAL EXPENSES</strong></td><td class="value">${formatCurrency(data.expenses.totalExpenses)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- INVOICE SUMMARY -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <div class="section-title">Invoice Summary</div>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Metric</th><th style="text-align:right">Value</th></tr></thead>
+        <tbody>
+          <tr><td>Total Sales Revenue</td><td class="value">${formatCurrency(data.invoices.totalSales)}</td></tr>
+          <tr><td>Cash Received</td><td class="value">${formatCurrency(data.invoices.cashReceived)}</td></tr>
+          <tr><td>Pending Collection</td><td class="value">${formatCurrency(data.invoices.pending)}</td></tr>
+        </tbody>
+      </table>
+      <div class="stats-row">
+        <div class="stat-item"><div class="stat-value">${data.invoices.count}</div><div class="stat-label">Total</div></div>
+        <div class="stat-item"><div class="stat-value">${data.invoices.fullPaid}</div><div class="stat-label">Full Paid</div></div>
+        <div class="stat-item"><div class="stat-value">${data.invoices.partialPaid}</div><div class="stat-label">Partial</div></div>
+        <div class="stat-item"><div class="stat-value">${data.invoices.unpaid}</div><div class="stat-label">Unpaid</div></div>
+      </div>
+    </div>
+    
+    <!-- GRN SUMMARY -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        </div>
+        <div class="section-title">GRN Summary (Purchases)</div>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Metric</th><th style="text-align:right">Value</th></tr></thead>
+        <tbody>
+          <tr><td>Total Purchases</td><td class="value">${formatCurrency(data.grn.totalPurchases)}</td></tr>
+          <tr><td>Paid to Suppliers</td><td class="value">${formatCurrency(data.grn.paid)}</td></tr>
+          <tr><td>Pending Payment</td><td class="value">${formatCurrency(data.grn.pending)}</td></tr>
+        </tbody>
+      </table>
+      <div class="stats-row cols-2">
+        <div class="stat-item"><div class="stat-value">${data.grn.count}</div><div class="stat-label">Total GRNs</div></div>
+        <div class="stat-item"><div class="stat-value">${data.grn.productsAdded}</div><div class="stat-label">Products Added</div></div>
+      </div>
+    </div>
+    
+    <!-- ACCOUNT BALANCES -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        </div>
+        <div class="section-title">Account Balances</div>
+      </div>
+      <div class="accounts-grid">
+        <div class="account-item">
+          <div class="acc-label">Cash Drawer</div>
+          <div class="acc-value">${formatCurrency(data.accounts.drawer)}</div>
+        </div>
+        <div class="account-item">
+          <div class="acc-label">Cash in Hand</div>
+          <div class="acc-value">${formatCurrency(data.accounts.cashInHand)}</div>
+        </div>
+        <div class="account-item">
+          <div class="acc-label">Business Account</div>
+          <div class="acc-value">${formatCurrency(data.accounts.business)}</div>
+        </div>
+      </div>
+      <div class="total-balance-bar">
+        <div class="tbl-label">Total Available Balance</div>
+        <div class="tbl-value">${formatCurrency(data.summary.totalBalance)}</div>
+      </div>
+    </div>
+    
+    ${expensesCategoryHTML}
+    
+    <!-- FOOTER -->
+    <div class="footer">
+      <div class="footer-brand">
+        <strong>ECOTEC</strong> COMPUTER SOLUTIONS - Financial Report
+      </div>
+      <div class="footer-legal">
+        <div>Generated by ECOTEC System v2.0</div>
+        <div>© ${new Date().getFullYear()} ECOTEC COMPUTER SOLUTIONS</div>
+      </div>
+    </div>
+  </div>
+  <script>window.onload = function() { window.print(); }</script>
+</body>
+</html>`;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  }, [generateReportData, formatCurrency]);
 
   // Generate page numbers
   const getPageNumbers = useMemo(() => {
@@ -574,629 +1524,693 @@ export const CashManagement: React.FC = () => {
     })),
   ];
 
+  // Page configuration based on active view
+  const pageConfig = useMemo(() => {
+    switch (activeTab) {
+      case 'transactions':
+        return {
+          title: 'Transactions',
+          description: 'View and manage all cash transactions',
+          showAddButton: true,
+          showDateRange: true,
+        };
+      case 'summary':
+        return {
+          title: 'Financial Summary',
+          description: 'Complete analysis of your business finances',
+          showAddButton: false,
+          showDateRange: true,
+        };
+      default:
+        return {
+          title: 'Cash Overview',
+          description: 'Track sales, purchases, drawer cash & business finances',
+          showAddButton: false,
+          showDateRange: true,
+        };
+    }
+  }, [activeTab]);
+
   return (
     <div className="space-y-6 pb-8">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className={`text-2xl lg:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-            Cash Management
+            {pageConfig.title}
           </h1>
           <p className={`mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-            Track your cash drawer, petty cash, and business funds
+            {pageConfig.description}
           </p>
         </div>
-        <button 
-          onClick={handleAddTransaction}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus className="w-5 h-5" />
-          Add Transaction
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-              <PiggyBank className="w-5 h-5 text-emerald-400" />
+        <div className="flex items-center gap-3">
+          {/* Date Range Selector */}
+          {pageConfig.showDateRange && (
+            <div className="relative" ref={dateRangeRef}>
+              <button
+                onClick={() => setShowDateRangeDropdown(!showDateRangeDropdown)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-700/50 text-white' 
+                    : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'
+                }`}
+              >
+                <Calendar className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-medium">
+                  {dateRangeOptions.find(o => o.value === dateRange)?.label || 'Select'}
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showDateRangeDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              {showDateRangeDropdown && (
+                <div className={`absolute right-0 mt-2 w-40 rounded-xl border shadow-xl z-50 py-1 ${
+                  theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
+                  {dateRangeOptions.map(option => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setDateRange(option.value as DateRange);
+                        setShowDateRangeDropdown(false);
+                      }}
+                      className={`w-full px-4 py-2.5 text-sm text-left transition-colors ${
+                        dateRange === option.value
+                          ? 'bg-emerald-500/10 text-emerald-500'
+                          : theme === 'dark'
+                            ? 'text-slate-300 hover:bg-slate-700'
+                            : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div>
-              <p className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(totalBalance)}</p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Total Balance</p>
-            </div>
-          </div>
-        </div>
-        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-emerald-400" />
-            </div>
-            <div>
-              <p className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>+{formatCurrency(todayIncome)}</p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Today Income</p>
-            </div>
-          </div>
-        </div>
-        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center">
-              <TrendingDown className="w-5 h-5 text-red-400" />
-            </div>
-            <div>
-              <p className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>-{formatCurrency(todayExpense)}</p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Today Expense</p>
-            </div>
-          </div>
-        </div>
-        <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-400" />
-            </div>
-            <div>
-              <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{stats.totalTransactions}</p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-500'}`}>Total Transactions</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Account Balance Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {accounts.map((account) => {
-          const Icon = getAccountIcon(account.type);
-          const colorClass = getAccountColor(account.type, theme);
-          const iconColor = getAccountIconColor(account.type);
-          
-          return (
-            <div 
-              key={account.id}
-              onClick={() => setSelectedAccount(selectedAccount === account.id ? 'all' : account.id)}
-              className={`relative overflow-hidden rounded-2xl border p-5 cursor-pointer transition-all hover:scale-[1.02] ${
-                selectedAccount === account.id 
-                  ? 'ring-2 ring-emerald-500 ring-offset-2 ' + (theme === 'dark' ? 'ring-offset-slate-900' : 'ring-offset-white')
-                  : ''
-              } bg-gradient-to-br ${colorClass}`}
+          )}
+          {pageConfig.showAddButton && (
+            <button 
+              onClick={handleAddTransaction}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity shadow-lg shadow-emerald-500/25"
             >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">Add Transaction</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <>
+          {/* Quick Stats - Top Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Total Balance */}
+            <div className={`relative overflow-hidden p-5 rounded-2xl border ${
+              theme === 'dark' 
+                ? 'bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border-emerald-500/20' 
+                : 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200'
+            }`}>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
+                    <PiggyBank className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
+                  }`}>
+                    All Accounts
+                  </span>
+                </div>
+                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  {formatCurrency(financialSummary.totalBalance)}
+                </p>
+                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Total Cash Balance
+                </p>
+              </div>
+            </div>
+
+            {/* Invoice Cash Received */}
+            <div className={`relative overflow-hidden p-5 rounded-2xl border ${
+              theme === 'dark' 
+                ? 'bg-gradient-to-br from-blue-500/10 to-indigo-500/5 border-blue-500/20' 
+                : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200'
+            }`}>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                    <Receipt className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <TrendingUp className="w-4 h-4 text-emerald-500" />
+                </div>
+                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  {formatCurrency(financialSummary.invoiceCashReceived)}
+                </p>
+                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Invoice Cash Received
+                </p>
+              </div>
+            </div>
+
+            {/* GRN Purchases */}
+            <div className={`relative overflow-hidden p-5 rounded-2xl border ${
+              theme === 'dark' 
+                ? 'bg-gradient-to-br from-orange-500/10 to-amber-500/5 border-orange-500/20' 
+                : 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200'
+            }`}>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-500/20 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-orange-500/20' : 'bg-orange-100'}`}>
+                    <Truck className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <TrendingDown className="w-4 h-4 text-red-500" />
+                </div>
+                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  {formatCurrency(financialSummary.grnPaidAmount)}
+                </p>
+                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  GRN Paid Amount
+                </p>
+              </div>
+            </div>
+
+            {/* Net Cash Flow */}
+            <div className={`relative overflow-hidden p-5 rounded-2xl border ${
+              financialSummary.netCashFlow >= 0
+                ? theme === 'dark' 
+                  ? 'bg-gradient-to-br from-emerald-500/10 to-green-500/5 border-emerald-500/20' 
+                  : 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200'
+                : theme === 'dark' 
+                  ? 'bg-gradient-to-br from-red-500/10 to-rose-500/5 border-red-500/20' 
+                  : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200'
+            }`}>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-purple-500/20 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
               <div className="relative">
                 <div className="flex items-center justify-between">
                   <div className={`p-2.5 rounded-xl ${
-                    theme === 'dark' ? 'bg-white/10' : 'bg-white/80'
+                    financialSummary.netCashFlow >= 0
+                      ? theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'
+                      : theme === 'dark' ? 'bg-red-500/20' : 'bg-red-100'
                   }`}>
-                    <Icon className={`w-5 h-5 ${iconColor}`} />
+                    <DollarSign className={`w-5 h-5 ${financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
                   </div>
-                  {selectedAccount === account.id && (
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
-                    }`}>
-                      Filtered
+                  {financialSummary.netCashFlow >= 0 
+                    ? <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    : <TrendingDown className="w-4 h-4 text-red-500" />
+                  }
+                </div>
+                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${
+                  financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'
+                }`}>
+                  {financialSummary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(financialSummary.netCashFlow)}
+                </p>
+                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Net Cash Flow
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Account Balance Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {accounts.map((account) => {
+              const Icon = getAccountIcon(account.type);
+              const colorClass = getAccountColor(account.type, theme);
+              const iconColor = getAccountIconColor(account.type);
+              
+              return (
+                <div 
+                  key={account.id}
+                  onClick={() => {
+                    setSelectedAccount(selectedAccount === account.id ? 'all' : account.id);
+                    navigate('/cash-management/transactions');
+                  }}
+                  className={`relative overflow-hidden rounded-2xl border p-5 cursor-pointer transition-all hover:scale-[1.02] ${
+                    selectedAccount === account.id 
+                      ? 'ring-2 ring-emerald-500 ring-offset-2 ' + (theme === 'dark' ? 'ring-offset-slate-900' : 'ring-offset-white')
+                      : ''
+                  } bg-gradient-to-br ${colorClass}`}
+                >
+                  <div className="relative">
+                    <div className="flex items-center justify-between">
+                      <div className={`p-2.5 rounded-xl ${
+                        theme === 'dark' ? 'bg-white/10' : 'bg-white/80'
+                      }`}>
+                        <Icon className={`w-5 h-5 ${iconColor}`} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Eye className={`w-4 h-4 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {account.name}
+                      </p>
+                      <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        {formatCurrency(account.balance)}
+                      </p>
+                      <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {account.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Financial Overview Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Invoice Summary Card */}
+            <div className={`rounded-2xl border overflow-hidden ${
+              theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+            }`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                      <Receipt className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        Invoice Summary
+                      </h3>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Sales & receivables
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
+                  }`}>
+                    {financialSummary.invoiceCount} Invoices
+                  </span>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Total Sales
+                  </span>
+                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                    {formatCurrency(financialSummary.totalInvoiceSales)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    Cash Received
+                  </span>
+                  <span className="font-semibold text-emerald-500">
+                    {formatCurrency(financialSummary.invoiceCashReceived)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    Pending Amount
+                  </span>
+                  <span className="font-semibold text-amber-500">
+                    {formatCurrency(financialSummary.invoicePendingAmount)}
+                  </span>
+                </div>
+                <div className={`pt-4 border-t grid grid-cols-3 gap-3 ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                  <div className={`text-center p-2 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                    <p className="text-lg font-bold text-emerald-500">{financialSummary.fullPaidInvoices}</p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Full Paid</p>
+                  </div>
+                  <div className={`text-center p-2 rounded-xl ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
+                    <p className="text-lg font-bold text-amber-500">{financialSummary.partialPaidInvoices}</p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Partial</p>
+                  </div>
+                  <div className={`text-center p-2 rounded-xl ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
+                    <p className="text-lg font-bold text-red-500">{financialSummary.unpaidInvoices}</p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Unpaid</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* GRN Summary Card */}
+            <div className={`rounded-2xl border overflow-hidden ${
+              theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+            }`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-orange-500/20' : 'bg-orange-100'}`}>
+                      <Truck className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        GRN Summary
+                      </h3>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Purchases & inventory additions
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    theme === 'dark' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'
+                  }`}>
+                    {financialSummary.grnCount} GRNs
+                  </span>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Total Purchases
+                  </span>
+                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                    {formatCurrency(financialSummary.totalGRNPurchases)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    Paid to Suppliers
+                  </span>
+                  <span className="font-semibold text-emerald-500">
+                    {formatCurrency(financialSummary.grnPaidAmount)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                    Pending Payment
+                  </span>
+                  <span className="font-semibold text-red-500">
+                    {formatCurrency(financialSummary.grnPendingAmount)}
+                  </span>
+                </div>
+                <div className={`pt-4 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                  <div className={`flex items-center justify-between p-3 rounded-xl ${
+                    theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <Package className="w-5 h-5 text-purple-500" />
+                      <div>
+                        <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                          Products Added
+                        </p>
+                        <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                          To inventory from GRNs
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xl font-bold text-purple-500">
+                      {financialSummary.grnProductsAdded}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Today's Activity */}
+          <div className={`rounded-2xl border p-5 ${
+            theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+          }`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
+                  <Clock className="w-5 h-5 text-purple-500" />
+                </div>
+                <div>
+                  <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                    Today's Activity
+                  </h3>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/cash-management/transactions')}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  theme === 'dark' 
+                    ? 'text-emerald-400 hover:bg-emerald-500/10' 
+                    : 'text-emerald-600 hover:bg-emerald-50'
+                }`}
+              >
+                View All
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
+                  <span className={`text-xs font-medium ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                    Income
+                  </span>
+                </div>
+                <p className="text-xl font-bold text-emerald-500">+{formatCurrency(todayIncome)}</p>
+              </div>
+              <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <ArrowUpCircle className="w-4 h-4 text-red-500" />
+                  <span className={`text-xs font-medium ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>
+                    Expense
+                  </span>
+                </div>
+                <p className="text-xl font-bold text-red-500">-{formatCurrency(todayExpense)}</p>
+              </div>
+              <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-4 h-4 text-blue-500" />
+                  <span className={`text-xs font-medium ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                    Transactions
+                  </span>
+                </div>
+                <p className="text-xl font-bold text-blue-500">{todayTransactions.length}</p>
+              </div>
+              <div className={`p-4 rounded-xl ${
+                (todayIncome - todayExpense) >= 0
+                  ? theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'
+                  : theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Minus className={`w-4 h-4 ${(todayIncome - todayExpense) >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                  <span className={`text-xs font-medium ${
+                    (todayIncome - todayExpense) >= 0 
+                      ? theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
+                      : theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                  }`}>
+                    Net
+                  </span>
+                </div>
+                <p className={`text-xl font-bold ${(todayIncome - todayExpense) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {(todayIncome - todayExpense) >= 0 ? '+' : ''}{formatCurrency(todayIncome - todayExpense)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Transactions Tab */}
+      {activeTab === 'transactions' && (
+        <>
+          {/* Search and Filters */}
+          <div className={`p-3 sm:p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200'}`}>
+            <div className="flex flex-col lg:flex-row gap-3">
+              {/* Search */}
+              <div className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border flex-1 ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                <Search className={`w-5 h-5 flex-shrink-0 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
+                <input
+                  type="text"
+                  placeholder="Search transactions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`bg-transparent border-none outline-none flex-1 min-w-0 text-sm ${theme === 'dark' ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'}`}
+                />
+              </div>
+
+              {/* Filters Row */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
+                    showFilters || hasActiveFilters
+                      ? 'bg-emerald-500 text-white'
+                      : theme === 'dark'
+                        ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  <span className="text-sm hidden sm:inline">Filters</span>
+                  {hasActiveFilters && (
+                    <span className="px-1.5 py-0.5 text-xs bg-white/20 rounded-full">
+                      {[selectedAccount !== 'all', selectedType !== 'all', selectedCategory !== 'all', startDate, endDate].filter(Boolean).length}
                     </span>
                   )}
-                </div>
-                <div className="mt-3">
-                  <p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {account.name}
-                  </p>
-                  <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {formatCurrency(account.balance)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                </button>
 
-      {/* Search and Filters */}
-      <div className={`p-3 sm:p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200'}`}>
-        <div className="flex flex-col lg:flex-row gap-3">
-          {/* Search */}
-          <div className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border flex-1 ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
-            <Search className={`w-5 h-5 flex-shrink-0 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
-            <input
-              type="text"
-              placeholder="Search transactions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`bg-transparent border-none outline-none flex-1 min-w-0 text-sm ${theme === 'dark' ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'}`}
-            />
-          </div>
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className={`p-2 rounded-xl border transition-colors ${theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400' : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}
+                >
+                  {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+                </button>
 
-          {/* Filters Row */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Filter Toggle Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                showFilters || hasActiveFilters
-                  ? 'bg-emerald-500 text-white'
-                  : theme === 'dark'
-                    ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-              }`}
-            >
-              <Filter className="w-4 h-4" />
-              <span className="text-sm hidden sm:inline">Filters</span>
-              {hasActiveFilters && (
-                <span className="px-1.5 py-0.5 text-xs bg-white/20 rounded-full">
-                  {[selectedAccount !== 'all', selectedType !== 'all', selectedCategory !== 'all', startDate, endDate].filter(Boolean).length}
-                </span>
-              )}
-            </button>
-
-            {/* Sort Button */}
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className={`p-2 rounded-xl border transition-colors ${theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400' : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}
-              title={sortOrder === 'asc' ? 'Sort Descending' : 'Sort Ascending'}
-            >
-              {sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
-            </button>
-
-            {/* View Mode Toggle */}
-            <div className={`flex items-center rounded-xl overflow-hidden border ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`p-2 transition-colors ${
-                  viewMode === 'table'
-                    ? 'bg-emerald-500 text-white'
-                    : theme === 'dark'
-                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                      : 'bg-white hover:bg-slate-100 text-slate-700'
-                }`}
-                title="Table view"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-emerald-500 text-white'
-                    : theme === 'dark'
-                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                      : 'bg-white hover:bg-slate-100 text-slate-700'
-                }`}
-                title="Card view"
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Clear Filters */}
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-colors ${theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Expanded Filters */}
-        {showFilters && (
-          <div className={`pt-3 sm:pt-4 mt-3 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Type Filter */}
-              <div className="w-full sm:w-40">
-                <SearchableSelect
-                  value={selectedType}
-                  onValueChange={(value) => setSelectedType(value)}
-                  placeholder="All Types"
-                  searchPlaceholder="Search..."
-                  emptyMessage="No options"
-                  theme={theme}
-                  options={typeOptions}
-                />
-              </div>
-
-              {/* Account Filter */}
-              <div className="w-full sm:w-48">
-                <SearchableSelect
-                  value={selectedAccount}
-                  onValueChange={(value) => setSelectedAccount(value)}
-                  placeholder="All Accounts"
-                  searchPlaceholder="Search..."
-                  emptyMessage="No accounts"
-                  theme={theme}
-                  options={accountOptions}
-                />
-              </div>
-
-              {/* Category Filter */}
-              <div className="w-full sm:w-44">
-                <SearchableSelect
-                  value={selectedCategory}
-                  onValueChange={(value) => setSelectedCategory(value)}
-                  placeholder="All Categories"
-                  searchPlaceholder="Search..."
-                  emptyMessage="No categories"
-                  theme={theme}
-                  options={categoryOptions}
-                />
-              </div>
-
-              {/* Date Range with Calendar */}
-              <div className="flex items-center gap-2">
-                <Calendar className={`w-4 h-4 flex-shrink-0 ${theme === 'dark' ? 'text-emerald-500' : 'text-emerald-600'}`} />
-                <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Date:</span>
-                
-                {/* Start Date */}
-                <div className="relative" ref={startCalendarRef}>
+                <div className={`flex items-center rounded-xl overflow-hidden border ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
                   <button
-                    onClick={() => {
-                      setShowStartCalendar(!showStartCalendar);
-                      setShowEndCalendar(false);
-                      setCalendarMonth(startDate ? new Date(startDate) : new Date());
-                    }}
-                    className={`px-3 py-1.5 rounded-xl border text-sm min-w-[110px] text-left ${
-                      theme === 'dark' 
-                        ? 'bg-slate-800/50 border-slate-700/50 text-white hover:bg-slate-700/50' 
-                        : 'bg-slate-50 border-slate-200 text-slate-900 hover:bg-slate-100'
+                    onClick={() => setViewMode('table')}
+                    className={`p-2 transition-colors ${
+                      viewMode === 'table'
+                        ? 'bg-emerald-500 text-white'
+                        : theme === 'dark'
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                          : 'bg-white hover:bg-slate-100 text-slate-700'
                     }`}
                   >
-                    {startDate ? formatDateDisplay(startDate) : 'Start Date'}
+                    <List className="w-4 h-4" />
                   </button>
-                  {showStartCalendar && renderCalendar(startDate, setStartDate, setShowStartCalendar)}
-                </div>
-                
-                <span className={`${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
-                
-                {/* End Date */}
-                <div className="relative" ref={endCalendarRef}>
                   <button
-                    onClick={() => {
-                      setShowEndCalendar(!showEndCalendar);
-                      setShowStartCalendar(false);
-                      setCalendarMonth(endDate ? new Date(endDate) : new Date());
-                    }}
-                    className={`px-3 py-1.5 rounded-xl border text-sm min-w-[110px] text-left ${
-                      theme === 'dark' 
-                        ? 'bg-slate-800/50 border-slate-700/50 text-white hover:bg-slate-700/50' 
-                        : 'bg-slate-50 border-slate-200 text-slate-900 hover:bg-slate-100'
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 transition-colors ${
+                      viewMode === 'grid'
+                        ? 'bg-emerald-500 text-white'
+                        : theme === 'dark'
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                          : 'bg-white hover:bg-slate-100 text-slate-700'
                     }`}
                   >
-                    {endDate ? formatDateDisplay(endDate) : 'End Date'}
+                    <LayoutGrid className="w-4 h-4" />
                   </button>
-                  {showEndCalendar && renderCalendar(endDate, setEndDate, setShowEndCalendar)}
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Transactions Display */}
-      {sortedTransactions.length > 0 ? (
-        viewMode === 'grid' ? (
-          /* Card View */
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {paginatedTransactions.map((transaction) => {
-                const TypeIcon = getTransactionTypeIcon(transaction.type);
-                const typeColor = getTransactionTypeColor(transaction.type, theme);
-                const account = accounts.find(a => a.id === transaction.accountId);
-                const AccountIcon = account ? getAccountIcon(account.type) : Wallet;
-                const { date, time } = formatDateTime(transaction.transactionDate);
-                
-                return (
-                  <div
-                    key={transaction.id}
-                    className={`group rounded-2xl border overflow-hidden transition-all duration-300 ${
-                      theme === 'dark' 
-                        ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600' 
-                        : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
-                    }`}
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-colors ${theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
                   >
-                    {/* Type bar */}
-                    <div className={`h-1 ${
-                      transaction.type === 'income' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
-                        : transaction.type === 'expense' ? 'bg-gradient-to-r from-red-500 to-rose-500'
-                        : 'bg-gradient-to-r from-blue-500 to-indigo-500'
-                    }`} />
-                    <div className="p-4">
-                      {/* Header */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-xl ${typeColor}`}>
-                            <TypeIcon className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                              {transaction.name}
-                            </p>
-                            <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                              {transaction.transactionNumber}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="relative">
-                          <button
-                            onClick={() => setOpenActionMenu(openActionMenu === transaction.id ? null : transaction.id)}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
-                            }`}
-                          >
-                            <MoreVertical className={`w-4 h-4 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`} />
-                          </button>
-                          {openActionMenu === transaction.id && (
-                            <div 
-                              ref={actionMenuRef}
-                              className={`absolute right-0 top-full mt-1 w-32 rounded-xl border shadow-lg z-10 py-1 ${
-                                theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-                              }`}
-                            >
-                              <button
-                                onClick={() => handleEditTransaction(transaction)}
-                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${
-                                  theme === 'dark' ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-700 hover:bg-slate-50'
-                                }`}
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(transaction)}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Account */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <AccountIcon className={`w-4 h-4 ${account ? getAccountIconColor(account.type) : 'text-slate-400'}`} />
-                        <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                          {account?.name || 'Unknown'}
-                        </span>
-                        {transaction.type === 'transfer' && transaction.transferToAccountId && (
-                          <>
-                            <ArrowLeftRight className="w-3 h-3 text-blue-500" />
-                            <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                              {accounts.find(a => a.id === transaction.transferToAccountId)?.name}
-                            </span>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Description */}
-                      {transaction.description && (
-                        <p className={`text-sm mb-3 line-clamp-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                          {transaction.description}
-                        </p>
-                      )}
-
-                      {/* Footer */}
-                      <div className="flex items-center justify-between pt-3 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}">
-                        <div className="flex items-center gap-2">
-                          {transaction.category && (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                              theme === 'dark' ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              <Tag className="w-3 h-3" />
-                              {transaction.category}
-                            </span>
-                          )}
-                        </div>
-                        <p className={`text-lg font-bold ${
-                          transaction.type === 'income' ? 'text-emerald-500' 
-                            : transaction.type === 'expense' ? 'text-red-500' 
-                            : 'text-blue-500'
-                        }`}>
-                          {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : '↔'}
-                          {formatCurrency(transaction.amount)}
-                        </p>
-                      </div>
-
-                      {/* Date/Time */}
-                      <div className={`flex items-center gap-2 mt-2 text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                        <Clock className="w-3 h-3" />
-                        <span>{date} at {time}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Pagination - Invoice Style */}
-            <div className={`mt-4 p-4 rounded-2xl border ${
-              theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200'
-            }`}>
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                {/* Left side - Info and Items Per Page */}
-                <div className="flex flex-wrap items-center gap-4">
-                  {/* Result Info */}
-                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, sortedTransactions.length)} of {sortedTransactions.length} transactions
-                  </p>
-                  
-                  {/* Items Per Page Selector */}
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Show:</span>
-                    <div className={`flex items-center rounded-full p-0.5 ${
-                      theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
-                    }`}>
-                      {[6, 9, 12, 18].map((num) => (
-                        <button
-                          key={num}
-                          onClick={() => {
-                            setItemsPerPage(num);
-                            setCurrentPage(1);
-                          }}
-                          className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
-                            itemsPerPage === num
-                              ? 'bg-emerald-500 text-white shadow-md'
-                              : theme === 'dark'
-                                ? 'text-slate-400 hover:text-white'
-                                : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right side - Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="flex items-center gap-1">
-                    {/* First Page */}
-                    <button
-                      onClick={() => setCurrentPage(1)}
-                      disabled={currentPage === 1}
-                      className={`p-2 rounded-lg transition-colors ${
-                        currentPage === 1
-                          ? theme === 'dark' ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                          : theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
-                      }`}
-                      title="First page"
-                    >
-                      <ChevronsLeft className="w-4 h-4" />
-                    </button>
-
-                    {/* Previous Page */}
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className={`p-2 rounded-lg transition-colors ${
-                        currentPage === 1
-                          ? theme === 'dark' ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                          : theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
-                      }`}
-                      title="Previous page"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-
-                    {/* Page Numbers */}
-                    <div className="hidden sm:flex items-center gap-1">
-                      {getPageNumbers.map((page, index) => (
-                        page === '...' ? (
-                          <span key={`ellipsis-${index}`} className={`px-2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                            ...
-                          </span>
-                        ) : (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page as number)}
-                            className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
-                              currentPage === page
-                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                                : theme === 'dark'
-                                  ? 'hover:bg-slate-700 text-slate-300'
-                                  : 'hover:bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        )
-                      ))}
-                    </div>
-
-                    {/* Mobile Page Indicator */}
-                    <div className={`sm:hidden px-3 py-1 rounded-lg text-sm font-medium ${
-                      theme === 'dark' ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-700'
-                    }`}>
-                      {currentPage} / {totalPages}
-                    </div>
-
-                    {/* Next Page */}
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className={`p-2 rounded-lg transition-colors ${
-                        currentPage === totalPages
-                          ? theme === 'dark' ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                          : theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
-                      }`}
-                      title="Next page"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-
-                    {/* Last Page */}
-                    <button
-                      onClick={() => setCurrentPage(totalPages)}
-                      disabled={currentPage === totalPages}
-                      className={`p-2 rounded-lg transition-colors ${
-                        currentPage === totalPages
-                          ? theme === 'dark' ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                          : theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
-                      }`}
-                      title="Last page"
-                    >
-                      <ChevronsRight className="w-4 h-4" />
-                    </button>
-                  </div>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Clear
+                  </button>
                 )}
               </div>
             </div>
-          </>
-        ) : (
-          /* Table View */
-          <div className={`rounded-2xl border overflow-hidden ${
-            theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'
-          }`}>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={`${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                  <tr>
-                    <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                    }`}>Transaction</th>
-                    <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                    }`}>Account</th>
-                    <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                    }`}>Type</th>
-                    <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                    }`}>Category</th>
-                    <th className={`px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                    }`}>Amount</th>
-                    <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                    }`}>Date & Time</th>
-                    <th className={`px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-                    }`}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700/50' : 'divide-slate-200'}`}>
-                  {paginatedTransactions.map((transaction) => {
-                    const TypeIcon = getTransactionTypeIcon(transaction.type);
-                    const typeColor = getTransactionTypeColor(transaction.type, theme);
-                    const account = accounts.find(a => a.id === transaction.accountId);
-                    const AccountIcon = account ? getAccountIcon(account.type) : Wallet;
-                    const { date, time } = formatDateTime(transaction.transactionDate);
-                    
-                    return (
-                      <tr 
-                        key={transaction.id}
-                        className={`transition-colors ${
-                          theme === 'dark' ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'
+
+            {showFilters && (
+              <div className={`pt-3 sm:pt-4 mt-3 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="w-full sm:w-40">
+                    <SearchableSelect
+                      value={selectedType}
+                      onValueChange={(value) => setSelectedType(value)}
+                      placeholder="All Types"
+                      searchPlaceholder="Search..."
+                      emptyMessage="No options"
+                      theme={theme}
+                      options={typeOptions}
+                    />
+                  </div>
+                  <div className="w-full sm:w-48">
+                    <SearchableSelect
+                      value={selectedAccount}
+                      onValueChange={(value) => setSelectedAccount(value)}
+                      placeholder="All Accounts"
+                      searchPlaceholder="Search..."
+                      emptyMessage="No accounts"
+                      theme={theme}
+                      options={accountOptions}
+                    />
+                  </div>
+                  <div className="w-full sm:w-44">
+                    <SearchableSelect
+                      value={selectedCategory}
+                      onValueChange={(value) => setSelectedCategory(value)}
+                      placeholder="All Categories"
+                      searchPlaceholder="Search..."
+                      emptyMessage="No categories"
+                      theme={theme}
+                      options={categoryOptions}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className={`w-4 h-4 flex-shrink-0 ${theme === 'dark' ? 'text-emerald-500' : 'text-emerald-600'}`} />
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Date:</span>
+                    <div className="relative" ref={startCalendarRef}>
+                      <button
+                        onClick={() => {
+                          setShowStartCalendar(!showStartCalendar);
+                          setShowEndCalendar(false);
+                          setCalendarMonth(startDate ? new Date(startDate) : new Date());
+                        }}
+                        className={`px-3 py-1.5 rounded-xl border text-sm min-w-[110px] text-left ${
+                          theme === 'dark' 
+                            ? 'bg-slate-800/50 border-slate-700/50 text-white hover:bg-slate-700/50' 
+                            : 'bg-slate-50 border-slate-200 text-slate-900 hover:bg-slate-100'
                         }`}
                       >
-                        <td className="px-6 py-4">
+                        {startDate ? formatDateDisplay(startDate) : 'Start Date'}
+                      </button>
+                      {showStartCalendar && renderCalendar(startDate, setStartDate, setShowStartCalendar)}
+                    </div>
+                    <span className={`${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
+                    <div className="relative" ref={endCalendarRef}>
+                      <button
+                        onClick={() => {
+                          setShowEndCalendar(!showEndCalendar);
+                          setShowStartCalendar(false);
+                          setCalendarMonth(endDate ? new Date(endDate) : new Date());
+                        }}
+                        className={`px-3 py-1.5 rounded-xl border text-sm min-w-[110px] text-left ${
+                          theme === 'dark' 
+                            ? 'bg-slate-800/50 border-slate-700/50 text-white hover:bg-slate-700/50' 
+                            : 'bg-slate-50 border-slate-200 text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        {endDate ? formatDateDisplay(endDate) : 'End Date'}
+                      </button>
+                      {showEndCalendar && renderCalendar(endDate, setEndDate, setShowEndCalendar)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Transaction List */}
+          {sortedTransactions.length > 0 ? (
+            viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {paginatedTransactions.map((transaction) => {
+                  const TypeIcon = getTransactionTypeIcon(transaction.type);
+                  const typeColor = getTransactionTypeColor(transaction.type, theme);
+                  const account = accounts.find(a => a.id === transaction.accountId);
+                  const AccountIcon = account ? getAccountIcon(account.type) : Wallet;
+                  const { date, time } = formatDateTime(transaction.transactionDate);
+                  
+                  return (
+                    <div
+                      key={transaction.id}
+                      className={`group rounded-2xl border overflow-hidden transition-all duration-300 ${
+                        theme === 'dark' 
+                          ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600' 
+                          : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
+                      }`}
+                    >
+                      <div className={`h-1 ${
+                        transaction.type === 'income' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
+                          : transaction.type === 'expense' ? 'bg-gradient-to-r from-red-500 to-rose-500'
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                      }`} />
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg border ${typeColor}`}>
-                              <TypeIcon className="w-4 h-4" />
+                            <div className={`p-2 rounded-xl ${typeColor}`}>
+                              <TypeIcon className="w-5 h-5" />
                             </div>
                             <div>
-                              <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                              <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                                 {transaction.name}
                               </p>
                               <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -1204,275 +2218,491 @@ export const CashManagement: React.FC = () => {
                               </p>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <AccountIcon className={`w-4 h-4 ${account ? getAccountIconColor(account.type) : 'text-slate-400'}`} />
-                            <span className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                              {account?.name || 'Unknown'}
-                            </span>
+                          <div className="relative">
+                            <button
+                              onClick={() => setOpenActionMenu(openActionMenu === transaction.id ? null : transaction.id)}
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
+                              }`}
+                            >
+                              <MoreVertical className={`w-4 h-4 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`} />
+                            </button>
+                            {openActionMenu === transaction.id && (
+                              <div 
+                                ref={actionMenuRef}
+                                className={`absolute right-0 top-full mt-1 w-32 rounded-xl border shadow-lg z-10 py-1 ${
+                                  theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                                }`}
+                              >
+                                <button
+                                  onClick={() => handleEditTransaction(transaction)}
+                                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${
+                                    theme === 'dark' ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-700 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <Edit className="w-3.5 h-3.5" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(transaction)}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-500/10"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
-                          {transaction.type === 'transfer' && transaction.transferToAccountId && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <ArrowLeftRight className="w-3 h-3 text-blue-500" />
-                              <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                                → {accounts.find(a => a.id === transaction.transferToAccountId)?.name}
-                              </span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${typeColor}`}>
-                            {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                        </div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <AccountIcon className={`w-4 h-4 ${account ? getAccountIconColor(account.type) : 'text-slate-400'}`} />
+                          <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {account?.name || 'Unknown'}
                           </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {transaction.category ? (
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                              theme === 'dark' ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              <Tag className="w-3 h-3" />
-                              {transaction.category}
-                            </span>
-                          ) : (
-                            <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
+                          {transaction.type === 'transfer' && transaction.transferToAccountId && (
+                            <>
+                              <ArrowLeftRight className="w-3 h-3 text-blue-500" />
+                              <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                                {accounts.find(a => a.id === transaction.transferToAccountId)?.name}
+                              </span>
+                            </>
                           )}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className={`text-lg font-semibold ${
+                        </div>
+                        {transaction.description && (
+                          <p className={`text-sm mb-3 line-clamp-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {transaction.description}
+                          </p>
+                        )}
+                        <div className={`flex items-center justify-between pt-3 border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                          <div className="flex items-center gap-2">
+                            {transaction.category && (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                theme === 'dark' ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                <Tag className="w-3 h-3" />
+                                {transaction.category}
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-lg font-bold ${
                             transaction.type === 'income' ? 'text-emerald-500' 
                               : transaction.type === 'expense' ? 'text-red-500' 
                               : 'text-blue-500'
                           }`}>
                             {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : '↔'}
                             {formatCurrency(transaction.amount)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                              {date}
-                            </span>
-                            <span className={`text-xs flex items-center gap-1 ${
-                              theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
-                            }`}>
-                              <Clock className="w-3 h-3" />
-                              {time}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => handleEditTransaction(transaction)}
-                              className={`p-2 rounded-lg transition-colors ${
-                                theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
-                              }`}
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClick(transaction)}
-                              className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination for Table View - Invoice Style */}
-            <div className={`rounded-b-2xl p-4 border-t ${
-              theme === 'dark' ? 'border-slate-700/50 bg-slate-800/30' : 'border-slate-200 bg-white'
-            }`}>
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                {/* Left side - Info and Items Per Page */}
-                <div className="flex flex-wrap items-center gap-4">
-                  {/* Result Info */}
-                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, sortedTransactions.length)} of {sortedTransactions.length} transactions
-                  </p>
-                  
-                  {/* Items Per Page Selector */}
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Show:</span>
-                    <div className={`flex items-center rounded-full p-0.5 ${
-                      theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
-                    }`}>
-                      {[10, 20].map((num) => (
-                        <button
-                          key={num}
-                          onClick={() => {
-                            setItemsPerPage(num);
-                            setCurrentPage(1);
-                          }}
-                          className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
-                            itemsPerPage === num
-                              ? 'bg-emerald-500 text-white shadow-md'
-                              : theme === 'dark'
-                                ? 'text-slate-400 hover:text-white'
-                                : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
+                          </p>
+                        </div>
+                        <div className={`flex items-center gap-2 mt-2 text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                          <Clock className="w-3 h-3" />
+                          <span>{date} at {time}</span>
+                        </div>
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className={theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}>
+                      <tr>
+                        <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Transaction</th>
+                        <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Account</th>
+                        <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Type</th>
+                        <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Category</th>
+                        <th className={`px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Amount</th>
+                        <th className={`px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Date</th>
+                        <th className={`px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700/50' : 'divide-slate-200'}`}>
+                      {paginatedTransactions.map((transaction) => {
+                        const TypeIcon = getTransactionTypeIcon(transaction.type);
+                        const typeColor = getTransactionTypeColor(transaction.type, theme);
+                        const account = accounts.find(a => a.id === transaction.accountId);
+                        const AccountIcon = account ? getAccountIcon(account.type) : Wallet;
+                        const { date, time } = formatDateTime(transaction.transactionDate);
+                        
+                        return (
+                          <tr key={transaction.id} className={`transition-colors ${theme === 'dark' ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}`}>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg border ${typeColor}`}>
+                                  <TypeIcon className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{transaction.name}</p>
+                                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{transaction.transactionNumber}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <AccountIcon className={`w-4 h-4 ${account ? getAccountIconColor(account.type) : 'text-slate-400'}`} />
+                                <span className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>{account?.name || 'Unknown'}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${typeColor}`}>
+                                {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              {transaction.category ? (
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${theme === 'dark' ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
+                                  <Tag className="w-3 h-3" />
+                                  {transaction.category}
+                                </span>
+                              ) : (
+                                <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <span className={`text-lg font-semibold ${
+                                transaction.type === 'income' ? 'text-emerald-500' : transaction.type === 'expense' ? 'text-red-500' : 'text-blue-500'
+                              }`}>
+                                {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : '↔'}{formatCurrency(transaction.amount)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>{date}</span>
+                                <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{time}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-end gap-1">
+                                <button onClick={() => handleEditTransaction(transaction)} className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'}`}>
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => handleDeleteClick(transaction)} className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          ) : (
+            <div className={`rounded-2xl border p-12 text-center ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200'}`}>
+              <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-100'}`}>
+                <FileText className={`w-8 h-8 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
+              </div>
+              <h3 className={`mt-4 text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>No transactions found</h3>
+              <p className={`mt-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                {hasActiveFilters ? 'Try adjusting your filters' : 'Add your first transaction to get started'}
+              </p>
+              {!hasActiveFilters && (
+                <button onClick={handleAddTransaction} className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium">
+                  <Plus className="w-4 h-4" />
+                  Add Transaction
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200'}`}>
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, sortedTransactions.length)} of {sortedTransactions.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className={`p-2 rounded-lg ${currentPage === 1 ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className={`p-2 rounded-lg ${currentPage === 1 ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  {getPageNumbers.map((page, idx) => (
+                    page === '...' ? (
+                      <span key={`dots-${idx}`} className={`px-2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>...</span>
+                    ) : (
+                      <button key={page} onClick={() => setCurrentPage(page as number)} className={`w-9 h-9 rounded-lg text-sm font-medium ${currentPage === page ? 'bg-emerald-500 text-white' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
+                        {page}
+                      </button>
+                    )
+                  ))}
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                    <ChevronsRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Financial Summary Tab */}
+      {activeTab === 'summary' && (
+        <>
+          <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-gradient-to-br from-white to-slate-50 border-slate-200 shadow-sm'}`}>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Financial Summary</h2>
+                <p className={`mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Complete analysis of your business finances for {dateRangeOptions.find(o => o.value === dateRange)?.label?.toLowerCase()}
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                {/* Export Buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={exportToPDF}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+                      theme === 'dark'
+                        ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'
+                        : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                    }`}
+                    title="Export as PDF"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span className="text-sm font-medium hidden sm:inline">PDF</span>
+                  </button>
+                  <button
+                    onClick={exportToCSV}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+                      theme === 'dark'
+                        ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
+                        : 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100'
+                    }`}
+                    title="Export as CSV"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span className="text-sm font-medium hidden sm:inline">CSV</span>
+                  </button>
+                  <button
+                    onClick={exportToExcel}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+                      theme === 'dark'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100'
+                    }`}
+                    title="Export as Excel"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span className="text-sm font-medium hidden sm:inline">Excel</span>
+                  </button>
+                </div>
+                {/* Profit Card */}
+                <div className={`flex items-center gap-4 p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-100'}`}>
+                  <div className="text-center">
+                    <p className={`text-2xl font-bold ${financialSummary.estimatedProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {financialSummary.estimatedProfit >= 0 ? '+' : ''}{formatCurrency(financialSummary.estimatedProfit)}
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Estimated Profit</p>
                   </div>
                 </div>
-
-                {/* Right side - Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="flex items-center gap-1">
-                    {/* First Page */}
-                    <button
-                      onClick={() => setCurrentPage(1)}
-                      disabled={currentPage === 1}
-                      className={`p-2 rounded-lg transition-colors ${
-                        currentPage === 1
-                          ? theme === 'dark' ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                          : theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
-                      }`}
-                      title="First page"
-                    >
-                      <ChevronsLeft className="w-4 h-4" />
-                    </button>
-
-                    {/* Previous Page */}
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className={`p-2 rounded-lg transition-colors ${
-                        currentPage === 1
-                          ? theme === 'dark' ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                          : theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
-                      }`}
-                      title="Previous page"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-
-                    {/* Page Numbers */}
-                    <div className="hidden sm:flex items-center gap-1">
-                      {getPageNumbers.map((page, index) => (
-                        page === '...' ? (
-                          <span key={`ellipsis-${index}`} className={`px-2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                            ...
-                          </span>
-                        ) : (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page as number)}
-                            className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
-                              currentPage === page
-                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
-                                : theme === 'dark'
-                                  ? 'hover:bg-slate-700 text-slate-300'
-                                  : 'hover:bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        )
-                      ))}
-                    </div>
-
-                    {/* Mobile Page Indicator */}
-                    <div className={`sm:hidden px-3 py-1 rounded-lg text-sm font-medium ${
-                      theme === 'dark' ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-700'
-                    }`}>
-                      {currentPage} / {totalPages}
-                    </div>
-
-                    {/* Next Page */}
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className={`p-2 rounded-lg transition-colors ${
-                        currentPage === totalPages
-                          ? theme === 'dark' ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                          : theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
-                      }`}
-                      title="Next page"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-
-                    {/* Last Page */}
-                    <button
-                      onClick={() => setCurrentPage(totalPages)}
-                      disabled={currentPage === totalPages}
-                      className={`p-2 rounded-lg transition-colors ${
-                        currentPage === totalPages
-                          ? theme === 'dark' ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                          : theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
-                      }`}
-                      title="Last page"
-                    >
-                      <ChevronsRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           </div>
-        )
-      ) : (
-        /* Empty State */
-        <div className={`rounded-2xl border p-12 text-center ${
-          theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200'
-        }`}>
-          <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
-            theme === 'dark' ? 'bg-slate-700' : 'bg-slate-100'
-          }`}>
-            <FileText className={`w-8 h-8 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Income Sources */}
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-emerald-500/10' : 'border-slate-200 bg-emerald-50'}`}>
+                <div className="flex items-center gap-3">
+                  <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
+                  <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Money In (Income)</h3>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="w-4 h-4 text-blue-500" />
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Invoice Payments</span>
+                  </div>
+                  <span className="font-semibold text-emerald-500">{formatCurrency(financialSummary.invoiceCashReceived)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-purple-500" />
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Other Income</span>
+                  </div>
+                  <span className="font-semibold text-emerald-500">{formatCurrency(financialSummary.totalIncome)}</span>
+                </div>
+                <div className={`pt-4 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Total Income</span>
+                    <span className="text-xl font-bold text-emerald-500">{formatCurrency(financialSummary.invoiceCashReceived + financialSummary.totalIncome)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Expense Sources */}
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-red-500/10' : 'border-slate-200 bg-red-50'}`}>
+                <div className="flex items-center gap-3">
+                  <ArrowUpCircle className="w-5 h-5 text-red-500" />
+                  <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Money Out (Expenses)</h3>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-orange-500" />
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>GRN Payments</span>
+                  </div>
+                  <span className="font-semibold text-red-500">{formatCurrency(financialSummary.grnPaidAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-amber-500" />
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Business Expenses</span>
+                  </div>
+                  <span className="font-semibold text-red-500">{formatCurrency(financialSummary.totalExpenses)}</span>
+                </div>
+                <div className={`pt-4 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Total Expenses</span>
+                    <span className="text-xl font-bold text-red-500">{formatCurrency(financialSummary.grnPaidAmount + financialSummary.totalExpenses)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Net Balance */}
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${financialSummary.netCashFlow >= 0 ? theme === 'dark' ? 'border-slate-700/50 bg-emerald-500/10' : 'border-slate-200 bg-emerald-50' : theme === 'dark' ? 'border-slate-700/50 bg-red-500/10' : 'border-slate-200 bg-red-50'}`}>
+                <div className="flex items-center gap-3">
+                  <BarChart3 className={`w-5 h-5 ${financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                  <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Net Cash Flow</h3>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="text-center py-4">
+                  <p className={`text-4xl font-bold ${financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {financialSummary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(financialSummary.netCashFlow)}
+                  </p>
+                  <p className={`mt-2 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {financialSummary.netCashFlow >= 0 ? 'Positive cash flow' : 'Negative cash flow'}
+                  </p>
+                </div>
+                <div className={`pt-4 border-t space-y-2 ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}>Total In</span>
+                    <span className="text-emerald-500 font-medium">+{formatCurrency(financialSummary.invoiceCashReceived + financialSummary.totalIncome)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}>Total Out</span>
+                    <span className="text-red-500 font-medium">-{formatCurrency(financialSummary.grnPaidAmount + financialSummary.totalExpenses)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <h3 className={`mt-4 text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-            No transactions found
-          </h3>
-          <p className={`mt-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-            {hasActiveFilters ? 'Try adjusting your filters' : 'Add your first transaction to get started'}
-          </p>
-          {!hasActiveFilters && (
-            <button
-              onClick={handleAddTransaction}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              Add Transaction
-            </button>
-          )}
-        </div>
+
+          {/* Expense Breakdown */}
+          <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+              <div className="flex items-center gap-3">
+                <BadgePercent className="w-5 h-5 text-purple-500" />
+                <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Expense Breakdown by Category</h3>
+              </div>
+            </div>
+            <div className="p-5">
+              {Object.keys(financialSummary.expensesByCategory).length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {Object.entries(financialSummary.expensesByCategory).sort(([, a], [, b]) => b - a).map(([category, amount]) => (
+                    <div key={category} className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{category}</p>
+                      <p className={`text-lg font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(amount)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={`text-center py-8 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>No expense categories found for this period</p>
+              )}
+            </div>
+          </div>
+
+          {/* Pending Amounts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-amber-500/10' : 'border-slate-200 bg-amber-50'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Accounts Receivable</h3>
+                  </div>
+                  <span className="text-xl font-bold text-amber-500">{formatCurrency(financialSummary.invoicePendingAmount)}</span>
+                </div>
+              </div>
+              <div className="p-5">
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Pending payments from {financialSummary.unpaidInvoices + financialSummary.partialPaidInvoices} invoice(s)
+                </p>
+                <div className={`mt-4 p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Collection Rate</span>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      {financialSummary.totalInvoiceSales > 0 ? ((financialSummary.invoiceCashReceived / financialSummary.totalInvoiceSales) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                  <div className={`h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                    <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all" style={{ width: `${financialSummary.totalInvoiceSales > 0 ? (financialSummary.invoiceCashReceived / financialSummary.totalInvoiceSales) * 100 : 0}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-red-500/10' : 'border-slate-200 bg-red-50'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Accounts Payable</h3>
+                  </div>
+                  <span className="text-xl font-bold text-red-500">{formatCurrency(financialSummary.grnPendingAmount)}</span>
+                </div>
+              </div>
+              <div className="p-5">
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Outstanding payments to suppliers from {financialSummary.grnCount} GRN(s)
+                </p>
+                <div className={`mt-4 p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Payment Rate</span>
+                    <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      {financialSummary.totalGRNPurchases > 0 ? ((financialSummary.grnPaidAmount / financialSummary.totalGRNPurchases) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                  <div className={`h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                    <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all" style={{ width: `${financialSummary.totalGRNPurchases > 0 ? (financialSummary.grnPaidAmount / financialSummary.totalGRNPurchases) * 100 : 0}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
-      {/* Transaction Modal */}
+      {/* Modals */}
       <CashTransactionModal
         isOpen={isTransactionModalOpen}
         transaction={selectedTransaction}
         accounts={accounts}
-        onClose={() => {
-          setIsTransactionModalOpen(false);
-          setSelectedTransaction(null);
-        }}
+        onClose={() => { setIsTransactionModalOpen(false); setSelectedTransaction(null); }}
         onSave={handleSaveTransaction}
       />
 
-      {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}
         title="Delete Transaction"
-        message={`Are you sure you want to delete "${transactionToDelete?.name}"? This action cannot be undone and will adjust the account balance.`}
-        onCancel={() => {
-          setIsDeleteModalOpen(false);
-          setTransactionToDelete(null);
-        }}
+        message={`Are you sure you want to delete "${transactionToDelete?.name}"? This action cannot be undone.`}
+        onCancel={() => { setIsDeleteModalOpen(false); setTransactionToDelete(null); }}
         onConfirm={handleDeleteConfirm}
       />
     </div>

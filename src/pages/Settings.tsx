@@ -99,7 +99,7 @@ export const Settings: React.FC = () => {
               </label>
               <input
                 type="text"
-                defaultValue="Ecotec Computer Solutions"
+                defaultValue="ECOTEC Computer Solutions"
                 className={`w-full px-4 py-2.5 rounded-xl border ${
                   theme === 'dark' 
                     ? 'bg-slate-800/50 border-slate-700 text-white' 

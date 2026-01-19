@@ -35,15 +35,15 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
     return (
       <div ref={ref} className="print-grn">
         <style>{`
+          /* ═══════════════════════════════════════════════════════════════
+             INK-EFFICIENT B&W PRINT OPTIMIZED - ECOTEC GRN
+             Designed for black laser/inkjet printers to minimize ink usage
+             ═══════════════════════════════════════════════════════════════ */
+          
           @media print {
             @page {
               size: A4 portrait;
               margin: 10mm 12mm;
-            }
-            
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
             }
             
             html, body {
@@ -88,14 +88,14 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
             box-sizing: border-box;
           }
 
-          /* HEADER - Company Info */
+          /* HEADER - Company Info - INK EFFICIENT */
           .grn-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 2px solid #333;
+            border-bottom: 2px solid #000;
           }
 
           .company-section {
@@ -127,13 +127,13 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
           .company-info .sub-name {
             font-size: 9pt;
             font-weight: 600;
-            color: #333;
+            color: #000;
             margin-bottom: 6px;
           }
 
           .company-info .details {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             line-height: 1.4;
           }
 
@@ -146,23 +146,24 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
             font-weight: 600;
             color: #000;
             margin: 0 0 4px 0;
+            text-decoration: underline;
           }
 
           .contact-box .info {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             line-height: 1.5;
           }
 
-          /* TITLE SECTION */
+          /* TITLE SECTION - NO BACKGROUND */
           .grn-title-section {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             padding: 15px 18px;
             margin-bottom: 15px;
-            background: #f5f5f5;
-            border: 1px solid #ddd;
+            background: white;
+            border: 2px solid #000;
           }
 
           .grn-title h2 {
@@ -170,12 +171,14 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
             font-weight: 700;
             color: #000;
             margin: 0 0 2px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
           }
 
           .grn-title .company-label {
             font-size: 8pt;
-            color: #555;
-            font-weight: 600;
+            color: #000;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
           }
@@ -187,35 +190,38 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
           .grn-status .status-badge {
             display: inline-block;
             padding: 6px 12px;
-            border-radius: 20px;
+            border-radius: 4px;
             font-size: 9pt;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            background: white;
+            color: #000;
+            border: 2px solid #000;
           }
 
           .grn-status .status-badge.completed {
-            background: #e5e5e5;
-            color: #333;
-            border: 1px solid #999;
+            background: white;
+            color: #000;
+            border: 2px solid #000;
           }
 
           .grn-status .status-badge.pending {
-            background: #e5e5e5;
-            color: #333;
-            border: 1px solid #999;
+            background: white;
+            color: #000;
+            border: 2px dashed #000;
           }
 
           .grn-status .status-badge.partial {
-            background: #e5e5e5;
-            color: #333;
-            border: 1px solid #999;
+            background: white;
+            color: #000;
+            border: 2px dotted #000;
           }
 
           .grn-status .status-badge.rejected {
-            background: #e5e5e5;
-            color: #333;
-            border: 1px solid #999;
+            background: white;
+            color: #000;
+            border: 2px double #000;
           }
 
           .grn-status .total-amount {
@@ -237,30 +243,32 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
           .supplier-info {
             flex: 1;
             padding: 12px;
-            background: #f8f8f8;
-            border: 1px solid #ddd;
+            background: white;
+            border: 1px solid #000;
           }
 
           .supplier-info label {
             font-size: 7pt;
-            color: #555;
-            font-weight: 600;
+            color: #000;
+            font-weight: 700;
             display: block;
             margin-bottom: 4px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
           }
 
           .supplier-info .name {
             font-size: 11pt;
-            font-weight: 600;
+            font-weight: 700;
             color: #000;
             margin-bottom: 2px;
           }
 
           .supplier-info .info {
             font-size: 8pt;
-            color: #555;
+            color: #000;
             line-height: 1.4;
           }
 
@@ -277,22 +285,23 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
           }
 
           .grn-details .row label {
-            color: #888;
+            color: #000;
+            font-weight: 500;
           }
 
           .grn-details .row .value {
             color: #000;
-            font-weight: 500;
+            font-weight: 600;
             min-width: 100px;
             text-align: right;
           }
 
           .grn-details .row .value.highlight {
             color: #000;
-            font-weight: 600;
+            font-weight: 700;
           }
 
-          /* ITEMS TABLE */
+          /* ITEMS TABLE - MINIMAL INK */
           .items-table {
             width: 100%;
             border-collapse: collapse;
@@ -300,13 +309,15 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
           }
 
           .items-table thead th {
-            background: #f0f0f0;
+            background: white;
             color: #000;
             font-size: 8pt;
-            font-weight: 600;
+            font-weight: 700;
             padding: 8px 10px;
             text-align: left;
-            border: 1px solid #ccc;
+            border: 1px solid #000;
+            border-bottom: 2px solid #000;
+            text-transform: uppercase;
           }
 
           .items-table thead th:first-child {
@@ -314,11 +325,11 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
           }
 
           .items-table tbody tr {
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #000;
           }
 
           .items-table tbody tr:nth-child(even) {
-            background: #fafafa;
+            background: white;
           }
 
           .items-table tbody td {
@@ -326,8 +337,8 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
             font-size: 9pt;
             color: #000;
             vertical-align: top;
-            border-left: 1px solid #ddd;
-            border-right: 1px solid #ddd;
+            border-left: 1px solid #000;
+            border-right: 1px solid #000;
           }
 
           .items-table tbody td .product-name {
@@ -338,7 +349,8 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
 
           .items-table tbody td .product-category {
             font-size: 7pt;
-            color: #777;
+            color: #000;
+            font-style: italic;
           }
 
           .items-table tbody td.text-center {
@@ -353,57 +365,59 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
 
           .items-table tbody td .qty-accepted {
             color: #000;
-            font-weight: 600;
+            font-weight: 700;
           }
 
           .items-table tbody td .qty-rejected {
             color: #000;
-            font-weight: 600;
+            font-weight: 700;
+            text-decoration: underline;
           }
 
           .items-table tbody td .price-original {
             text-decoration: line-through;
-            color: #999;
+            color: #000;
             font-size: 7pt;
             margin-right: 4px;
           }
 
           .items-table tbody td .price-discounted {
             color: #000;
-            font-weight: 600;
+            font-weight: 700;
           }
 
           .items-table tbody td .discount-badge {
             display: inline-block;
-            background: #e5e5e5;
+            background: white;
             color: #000;
             padding: 1px 4px;
             border-radius: 3px;
             font-size: 6pt;
-            font-weight: 600;
+            font-weight: 700;
             margin-left: 4px;
-            border: 1px solid #999;
+            border: 1px solid #000;
           }
 
           .items-table tbody td .selling-price-info {
             font-size: 7pt;
-            color: #666;
+            color: #000;
             margin-top: 2px;
+            font-style: italic;
           }
 
-          /* Payment Info */
+          /* Payment Info - NO BACKGROUND */
           .payment-info {
             margin-top: 8px;
             padding: 8px 10px;
-            background: #f5f5f5;
-            border: 1px solid #333;
+            background: white;
+            border: 2px solid #000;
             border-radius: 4px;
           }
 
           .payment-info .payment-label {
             font-size: 7pt;
             color: #000;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             margin-bottom: 4px;
           }
@@ -417,26 +431,31 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
           .payment-info .payment-status {
             display: inline-block;
             padding: 2px 8px;
-            border-radius: 10px;
+            border-radius: 4px;
             font-size: 8pt;
-            font-weight: 600;
+            font-weight: 700;
             margin-left: 8px;
-            border: 1px solid #333;
+            border: 1px solid #000;
+            background: white;
+            color: #000;
           }
 
           .payment-info .payment-status.paid {
-            background: #e5e5e5;
+            background: white;
             color: #000;
+            border: 2px solid #000;
           }
 
           .payment-info .payment-status.unpaid {
-            background: #e5e5e5;
+            background: white;
             color: #000;
+            border: 2px dashed #000;
           }
 
           .payment-info .payment-status.partial {
-            background: #e5e5e5;
+            background: white;
             color: #000;
+            border: 2px dotted #000;
           }
 
           /* SUMMARY SECTION */
@@ -629,7 +648,7 @@ export const PrintableGRN = forwardRef<HTMLDivElement, PrintableGRNProps>(
         <div className="grn-header">
           <div className="company-section">
             <div className="company-logo">
-              <img src={logo} alt="Ecotec Logo" style={{ width: 40, height: 40, borderRadius: '50%' }} />
+              <img src={logo} alt="ECOTEC Logo" style={{ width: 40, height: 40, borderRadius: '50%' }} />
             </div>
             <div className="company-info">
               <h1>ECOTEC COMPUTER</h1>
