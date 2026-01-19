@@ -10,4 +10,19 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-scroll-area', 'cmdk'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-lucide': ['lucide-react'],
+          'vendor-utils': ['clsx', 'class-variance-authority', 'date-fns'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600, // Increased from 500kB to 600kB
+  },
 })

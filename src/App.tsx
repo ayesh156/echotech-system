@@ -36,6 +36,7 @@ const JobNotes = lazy(() => import('./pages/JobNotes').then(m => ({ default: m.J
 const JobNoteForm = lazy(() => import('./pages/JobNoteForm').then(m => ({ default: m.JobNoteForm })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })));
+const CashManagement = lazy(() => import('./pages/CashManagement').then(m => ({ default: m.CashManagement })));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -87,6 +88,7 @@ function App() {
                   <Route path="/job-notes/create" element={<JobNoteForm />} />
                   <Route path="/job-notes/edit/:id" element={<JobNoteForm />} />
                   <Route path="/reports" element={<Reports />} />
+                  <Route path="/cash-management" element={<CashManagement />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/help" element={<Help />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
