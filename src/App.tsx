@@ -37,6 +37,7 @@ const JobNoteForm = lazy(() => import('./pages/JobNoteForm').then(m => ({ defaul
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })));
 const CashManagement = lazy(() => import('./pages/CashManagement').then(m => ({ default: m.CashManagement })));
+const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AIChat })));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -94,6 +95,7 @@ function App() {
                   <Route path="/cash-management/summary" element={<CashManagement />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/help" element={<Help />} />
+                  <Route path="/ai-chat" element={<AIChat />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

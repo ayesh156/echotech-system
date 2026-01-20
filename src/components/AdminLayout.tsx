@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import logoImage from '../assets/logo.jpg';
+import { AIAssistant } from './AIAssistant';
 
 interface SubNavItem {
   path: string;
@@ -803,6 +804,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
+
+      {/* AI Assistant - Floating Chat */}
+      <AIAssistant />
     </div>
   );
 };
