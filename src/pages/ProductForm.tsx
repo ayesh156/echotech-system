@@ -10,7 +10,7 @@ import { SearchableSelect } from '../components/ui/searchable-select';
 import { 
   Package, Tag, DollarSign, Boxes, FileText, Save, ArrowLeft, 
   Building2, Layers, Hash, Barcode, RefreshCw, ImageIcon, Upload, X, Shield, AlertCircle, Clipboard, CheckCircle2,
-  Search, Sparkles, Brain, Loader2, Wand2, Globe, TrendingUp, Zap
+  Search, Sparkles, Brain, Loader2, Wand2, Globe, TrendingUp
 } from 'lucide-react';
 
 // Computer shop categories
@@ -153,7 +153,7 @@ export const ProductForm: React.FC = () => {
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [aiAutoFillSuccess, setAiAutoFillSuccess] = useState(false);
-  const suggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const suggestionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
