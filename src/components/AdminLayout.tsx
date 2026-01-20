@@ -42,6 +42,46 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [collapsedPopover, setCollapsedPopover] = useState<string | null>(null);
   const [popoverPosition, setPopoverPosition] = useState<number>(0);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const sidebarNavRef = useRef<HTMLElement>(null);
+  const mobileSidebarNavRef = useRef<HTMLElement>(null);
+  const sidebarScrollPositionRef = useRef<number>(0);
+  const mobileSidebarScrollPositionRef = useRef<number>(0);
+
+  // Save sidebar scroll position before route change
+  useEffect(() => {
+    const saveScrollPosition = () => {
+      if (sidebarNavRef.current) {
+        sidebarScrollPositionRef.current = sidebarNavRef.current.scrollTop;
+      }
+      if (mobileSidebarNavRef.current) {
+        mobileSidebarScrollPositionRef.current = mobileSidebarNavRef.current.scrollTop;
+      }
+    };
+
+    // Save position when clicking on links
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('a')) {
+        saveScrollPosition();
+      }
+    };
+
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
+  // Restore sidebar scroll position after route change
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure DOM has updated
+    requestAnimationFrame(() => {
+      if (sidebarNavRef.current && sidebarScrollPositionRef.current > 0) {
+        sidebarNavRef.current.scrollTop = sidebarScrollPositionRef.current;
+      }
+      if (mobileSidebarNavRef.current && mobileSidebarScrollPositionRef.current > 0) {
+        mobileSidebarNavRef.current.scrollTop = mobileSidebarScrollPositionRef.current;
+      }
+    });
+  }, [location.pathname]);
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -201,7 +241,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col h-[calc(100%-4rem)] px-3 py-4 overflow-y-auto overflow-x-hidden">
+      <nav ref={sidebarNavRef} className="flex flex-col h-[calc(100%-4rem)] px-3 py-4 overflow-y-auto overflow-x-hidden">
         {/* Main Navigation */}
         <div className="flex-1 space-y-1">
           {!sidebarCollapsed && (
@@ -532,7 +572,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="px-3 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-5rem)]">
+        <nav ref={mobileSidebarNavRef} className="px-3 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-5rem)]">
           {navItems.map((item) => {
             const Icon = item.icon;
             const hasSubItems = item.subItems && item.subItems.length > 0;
