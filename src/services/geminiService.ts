@@ -609,18 +609,34 @@ ${doNotTranslateRule}`;
     const dataSummary = this.buildDataSummary(systemData);
 
     const analysisPrompt = `ROLE: You are the INTELLIGENT DATA ENGINE for ECOTEC Computer Shop.
-You are NOT a support agent. You are a DATA TERMINAL.
+You are NOT a support agent. You are a DATA TERMINAL that DIRECTLY SHOWS DATA.
 Your ONLY job is to query the "CURRENT SYSTEM DATA" block below and answer the user's question using that specific data.
 
 ${languageInstruction}
 
-CRITICAL RULES (FOLLOW STRICTLY):
-1. ⚠️ DO NOT tell the user to "check the system", "go to settings", or "search the database".
-2. ⚠️ YOU HAVE THE DATA. It is pasted right below. USE IT.
-3. If the user asks for "Invoice 10260011", FIND "ID:10260011" in the data below and list EVERY detail.
-4. If the data is NOT in the text below, ONLY THEN say "I cannot find that record in the current loaded data."
-5. NEVER apologize or say "I will help you find it". JUST SHOW THE DATA.
-6. ⚠️ NEVER translate product names, brand names, technical terms, customer names - keep them EXACTLY as they appear in the data!
+🚫 ABSOLUTELY FORBIDDEN RESPONSES (NEVER SAY THESE):
+- "Go to the Supplier Management section"
+- "Check the system"
+- "Navigate to settings"
+- "You can find this in..."
+- "Please check..."
+- "I recommend going to..."
+- "The system has this feature..."
+- "ඔබට system එකේ බලන්න පුළුවන්"
+- "Supplier Management section එකට ගිහින්"
+
+✅ CORRECT BEHAVIOR:
+1. User asks "overdue suppliers kauda?" → You SEARCH the data below, FIND suppliers with PaymentStatus:overdue, and LIST them with all details!
+2. User asks "Peripheral Hub contact details denna" → You FIND "Peripheral Hub" in supplier data and SHOW: Name, Phone, Email, Address!
+3. User asks "denata payment enna thiyana suppliers" → You LIST all suppliers where PaymentStatus=overdue with amounts!
+
+CRITICAL RULES:
+1. ⚠️ YOU HAVE ALL THE DATA BELOW. Search it and show results directly!
+2. ⚠️ If user asks for contact details → Show: Phone, Email, Address from the data
+3. ⚠️ If user asks for overdue → Find PaymentStatus:overdue in supplier data
+4. ⚠️ NEVER tell user to "go somewhere" - YOU show the data!
+5. ⚠️ Keep product names, company names, technical terms in English
+6. ⚠️ If data not found, say "I cannot find [X] in the current data" - don't redirect!
 
 FORMAT GUIDELINES:
 - Use emojis for sections (👤, 📅, 💰, 🛒, 📦).
@@ -660,6 +676,30 @@ For PRODUCTS:
 💰 **Price:** Rs. 52,000
 📦 **Stock:** 35 units
 ━━━━━━━━━━━━━━━━━━━━━━━━
+
+For SUPPLIER CONTACT DETAILS:
+👔 **SUPPLIER: Peripheral Hub**
+━━━━━━━━━━━━━━━━━━━━━━━━
+👤 **Contact Person:** Kamal Jayasuriya
+📞 **Phone:** 078-3233760
+📧 **Email:** kamal@peripheralhub.lk
+📍 **Address:** Shop 12, Majestic City, Colombo 4
+🏷️ **Categories:** Peripherals, Cooling
+━━━━━━━━━━━━━━━━━━━━━━━━
+💰 **Total Purchases:** Rs. 1,800,000
+📦 **Orders:** 52 orders
+⚠️ **We Owe:** Rs. 95,000 (OVERDUE!)
+📅 **Due Date:** 2026-01-02
+
+For OVERDUE SUPPLIERS LIST:
+🚨 **OVERDUE SUPPLIER PAYMENTS**
+━━━━━━━━━━━━━━━━━━━━━━━━
+1. ⚠️ **Peripheral Hub** - Rs. 95,000 overdue (Due: 2026-01-02)
+   📞 078-3233760 | 📧 kamal@peripheralhub.lk
+2. ⚠️ **PC Parts Lanka** - Rs. 420,000 overdue (Due: 2026-01-05)
+   📞 078-3233760 | 📧 chamara@pcparts.lk
+━━━━━━━━━━━━━━━━━━━━━━━━
+💰 **Total Overdue:** Rs. 515,000
 `;
 
     try {
@@ -891,7 +931,7 @@ For PRODUCTS:
   ${jobDetails}`);
     }
 
-    // Suppliers Summary
+    // Suppliers Summary - ENHANCED with overdue details
     if (data.suppliers && data.suppliers.length > 0) {
       const suppliers = data.suppliers;
       const totalSuppliers = suppliers.length;
@@ -901,19 +941,31 @@ For PRODUCTS:
       const totalPurchasesValue = suppliers.reduce((sum: number, s: any) => sum + (s.totalPurchases || 0), 0);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const overdueSuppliers = suppliers.filter((s: any) => s.creditStatus === 'overdue');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const activeSuppliers = suppliers.filter((s: any) => s.creditStatus === 'active');
 
-      // All supplier details - COMPLETE DATA
+      // Detailed OVERDUE suppliers list
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const overdueDetails = overdueSuppliers.map((s: any) => 
+        `⚠️ ${s.company || s.name} (Contact: ${s.name}) - Phone: ${s.phone} - Email: ${s.email} - OVERDUE Amount: Rs. ${(s.creditBalance || 0).toLocaleString()} - Due Date: ${s.creditDueDate || 'N/A'}`
+      ).join('\n  ');
+
+      // All supplier details - COMPLETE DATA with better formatting
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const supplierDetails = suppliers.map((s: any) => 
-        `ID:${s.id}|Name:${s.name}|Company:${s.company || 'N/A'}|Email:${s.email || 'N/A'}|Phone:${s.phone || 'N/A'}|Address:${s.address || 'N/A'}|TotalPurchases:Rs.${(s.totalPurchases || 0).toLocaleString()}|TotalOrders:${s.totalOrders || 0}|LastOrder:${s.lastOrder || 'N/A'}|CreditBalance:Rs.${(s.creditBalance || 0).toLocaleString()}|CreditLimit:Rs.${(s.creditLimit || 0).toLocaleString()}|CreditStatus:${s.creditStatus || 'clear'}|CreditDueDate:${s.creditDueDate || 'N/A'}|Rating:${s.rating || 'N/A'}/5|Categories:${s.categories?.join(', ') || 'N/A'}`
+        `[${s.company || s.name}] ContactPerson:${s.name}|Phone:${s.phone || 'N/A'}|Email:${s.email || 'N/A'}|Address:${s.address || 'N/A'}|Categories:${s.categories?.join(', ') || 'N/A'}|TotalPurchases:Rs.${(s.totalPurchases || 0).toLocaleString()}|TotalOrders:${s.totalOrders || 0}|LastOrder:${s.lastOrder || 'N/A'}|CreditBalance(WeOwe):Rs.${(s.creditBalance || 0).toLocaleString()}|CreditLimit:Rs.${(s.creditLimit || 0).toLocaleString()}|PaymentStatus:${s.creditStatus || 'clear'}|DueDate:${s.creditDueDate || 'N/A'}|Rating:${s.rating || 'N/A'}/5`
       ).join('\n  ');
 
       sections.push(`👔 SUPPLIERS (${totalSuppliers}):
 - Total Purchases Value: Rs. ${totalPurchasesValue.toLocaleString()}
-- Total Outstanding (We Owe): Rs. ${totalOutstanding.toLocaleString()}
-- Overdue Payments: ${overdueSuppliers.length}
-- Suppliers with Balance: ${suppliers.filter((s: { creditBalance?: number }) => (s.creditBalance || 0) > 0).map((s: { name: string; creditBalance?: number }) => `${s.name}(Rs.${(s.creditBalance || 0).toLocaleString()})`).join(', ') || 'None'}
-- ALL SUPPLIER DATA (search by ID, name, company, phone):
+- Total Outstanding (We Owe Suppliers): Rs. ${totalOutstanding.toLocaleString()}
+- ⚠️ OVERDUE PAYMENTS: ${overdueSuppliers.length} suppliers
+- Active Credit: ${activeSuppliers.length} suppliers
+
+🚨 OVERDUE SUPPLIER PAYMENTS (We need to pay these!):
+  ${overdueDetails || 'None'}
+
+📋 ALL SUPPLIER CONTACT & PAYMENT DATA:
   ${supplierDetails}`);
     }
 
@@ -991,13 +1043,20 @@ For PRODUCTS:
       // Profit & Margin
       'profit', 'margin', 'profit margin', 'earnings',
       'labha', 'margin eka',
-      // Suppliers
-      'supplier', 'suppliers', 'purchase', 'purchases',
+      // Suppliers - Enhanced
+      'supplier', 'suppliers', 'purchase', 'purchases', 'overdue', 'payment enna',
+      'denata', 'ganna ona', 'contact', 'details', 'phone', 'email', 'address',
+      'supplier ge', 'supplier eka', 'supplier kenek',
       // Warranty
       'warranty', 'warranties', 'expiring', 'claim',
-      // Questions
-      'how many', 'how much', 'what is', 'which', 'list', 'show', 'give me',
-      'keeya', 'keeyada', 'mokakda', 'monawada', 'pennanna', 'denna'
+      // Questions & Actions - Enhanced
+      'how many', 'how much', 'what is', 'which', 'list', 'show', 'give me', 'find',
+      'keeya', 'keeyada', 'mokakda', 'monawada', 'pennanna', 'denna', 'kauda', 'kawda',
+      'thiyana', 'thiyena', 'inna', 'innawa', 'wela', 'details denna', 'info',
+      // Specific company/person name patterns
+      'hub', 'solutions', 'tech', 'zone', 'masters', 'elite', 'pro', 'kingdom',
+      // Common business terms
+      'naya', 'owed', 'due', 'pay', 'payment', 'owes', 'debt'
     ];
 
     const lowerMessage = message.toLowerCase();
