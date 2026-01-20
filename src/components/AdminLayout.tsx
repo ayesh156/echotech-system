@@ -6,7 +6,7 @@ import {
   Moon, Sun, Menu, X, ChevronLeft, ChevronRight, Bell, Search,
   User, HelpCircle, ChevronDown, Sparkles, TrendingUp,
   FolderTree, Building, Shield, Truck, ClipboardCheck, Wrench, Layers, ClipboardList,
-  Calculator, FileCheck, Wallet
+  Calculator, FileCheck, Wallet, Brain, Zap
 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import logoImage from '../assets/logo.jpg';
@@ -31,7 +31,7 @@ interface AdminLayoutProps {
 }
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, aiAutoFillEnabled, toggleAiAutoFill } = useTheme();
   const location = useLocation();
   const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -746,6 +746,44 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               >
                 <Sun className={`w-5 h-5 text-amber-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${theme === 'dark' ? 'opacity-0 rotate-90 scale-0' : 'opacity-100 rotate-0 scale-100'}`} />
                 <Moon className={`w-5 h-5 text-blue-400 transition-all duration-300 ${theme === 'dark' ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-0'}`} />
+              </button>
+
+              {/* AI Auto-Fill Toggle */}
+              <button
+                onClick={toggleAiAutoFill}
+                title={aiAutoFillEnabled ? 'AI Auto-Fill: ON' : 'AI Auto-Fill: OFF'}
+                className={`relative p-2.5 rounded-xl border transition-all group ${
+                  aiAutoFillEnabled
+                    ? theme === 'dark'
+                      ? 'bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-emerald-500/30 hover:from-emerald-500/30 hover:to-blue-500/30'
+                      : 'bg-gradient-to-r from-emerald-50 to-blue-50 border-emerald-200 hover:from-emerald-100 hover:to-blue-100'
+                    : theme === 'dark' 
+                      ? 'bg-slate-800/30 border-slate-700/50 hover:bg-slate-700/50' 
+                      : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className="relative">
+                  <Brain className={`w-5 h-5 transition-colors ${
+                    aiAutoFillEnabled 
+                      ? 'text-emerald-500' 
+                      : theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+                  }`} />
+                  {aiAutoFillEnabled && (
+                    <Zap className="w-2.5 h-2.5 text-amber-400 absolute -top-1 -right-1" />
+                  )}
+                </div>
+                {/* Tooltip */}
+                <div className={`absolute top-full mt-2 right-0 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 ${
+                  theme === 'dark' ? 'bg-slate-800 text-white shadow-xl border border-slate-700' : 'bg-slate-900 text-white shadow-xl'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${aiAutoFillEnabled ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+                    AI Auto-Fill: {aiAutoFillEnabled ? 'ON' : 'OFF'}
+                  </div>
+                  <p className={`mt-1 text-[10px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-300'}`}>
+                    Click to {aiAutoFillEnabled ? 'disable' : 'enable'}
+                  </p>
+                </div>
               </button>
 
               {/* Profile Dropdown */}

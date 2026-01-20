@@ -16,10 +16,10 @@ export default defineConfig({
         manualChunks: {
           // Vendor chunks
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-scroll-area', 'cmdk'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-popover', 'cmdk'],
           'vendor-query': ['@tanstack/react-query'],
           'vendor-lucide': ['lucide-react'],
-          'vendor-utils': ['clsx', 'class-variance-authority', 'date-fns'],
+          'vendor-utils': ['clsx', 'class-variance-authority', 'tailwind-merge'],
         },
       },
     },

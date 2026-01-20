@@ -336,6 +336,201 @@ ${finalInstructions}`;
       throw new Error('An unexpected error occurred. Please try again.');
     }
   }
+
+  /**
+   * Get global product suggestions based on partial name
+   * Searches for real-world computer/mobile products with Sri Lankan prices
+   */
+  async suggestProducts(query: string): Promise<Array<{ name: string; brand: string; category: string; estimatedPrice?: number }>> {
+    const apiKey = this.getApiKey();
+    
+    if (!apiKey || query.length < 2) {
+      return [];
+    }
+
+    try {
+      const prompt = `You are a global tech product database expert with knowledge of Sri Lankan market prices.
+
+Based on the partial search "${query}", suggest up to 6 real-world computer/mobile/tech products that match.
+
+IMPORTANT PRICING RULES:
+1. First, check if you know the Sri Lankan retail price (LKR) for this product
+2. If you only know USD price, convert to LKR using rate: 1 USD = 298 LKR (current rate)
+3. Always return price in LKR (Sri Lankan Rupees)
+4. Be realistic - Sri Lankan prices are often 10-20% higher than US prices due to import costs
+
+Return ONLY a valid JSON array with this exact structure (no markdown, no explanation):
+[
+  {
+    "name": "Full Product Name with Model",
+    "brand": "Brand Name",
+    "category": "Category",
+    "estimatedPrice": estimated price in LKR as number (must be in Sri Lankan Rupees)
+  }
+]
+
+Categories: processors, graphics-cards, memory, storage, motherboards, power-supply, cooling, cases, monitors, peripherals, networking, software, laptops, smartphones, tablets, accessories
+
+Focus on accuracy with real product names and realistic Sri Lankan market prices.`;
+
+      const response = await fetch(`${this.baseUrl}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
+        })
+      });
+
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      
+      // Extract JSON array from response
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return [];
+    } catch (error) {
+      console.error('Product suggestion error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Analyze product image using Gemini Vision
+   * Extracts product details from the image with Sri Lankan market prices
+   */
+  async analyzeProductImage(base64Image: string): Promise<{
+    name: string;
+    brand: string;
+    category: string;
+    description: string;
+    estimatedPrice: number;
+    costPrice: number;
+    specs: string[];
+    warranty: string;
+    barcode: string;
+  } | null> {
+    const apiKey = this.getApiKey();
+    
+    if (!apiKey) {
+      throw new Error('API key not configured');
+    }
+
+    try {
+      // Use Gemini Vision model
+      const visionUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+      
+      const prompt = `You are an expert tech product identifier with knowledge of Sri Lankan market prices.
+
+Analyze this product image carefully and extract ALL possible details.
+
+IMPORTANT PRICING RULES:
+1. First, check if you know the Sri Lankan retail price (LKR) for this product
+2. If you only know USD price, convert to LKR using rate: 1 USD = 298 LKR (current rate)
+3. costPrice should be approximately 75-85% of the selling price (typical markup)
+4. Always return prices in LKR (Sri Lankan Rupees)
+
+Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
+{
+  "name": "Full product name with exact model number",
+  "brand": "Brand name (AMD, Intel, NVIDIA, ASUS, MSI, Gigabyte, Corsair, Samsung, etc.)",
+  "category": "processors|graphics-cards|memory|storage|motherboards|power-supply|cooling|cases|monitors|peripherals|networking|software|laptops|smartphones|tablets|accessories",
+  "description": "Professional 2-3 sentence description highlighting key features and benefits",
+  "estimatedPrice": selling price in LKR as number,
+  "costPrice": cost/wholesale price in LKR as number (75-85% of selling price),
+  "specs": ["spec 1", "spec 2", "spec 3", "spec 4", "spec 5"],
+  "warranty": "1 year|2 years|3 years|5 years|lifetime",
+  "barcode": "barcode/UPC if visible, otherwise empty string"
+}
+
+Be accurate and extract as much detail as possible from the image. If you cannot identify something, make an educated guess based on visible details.`;
+
+      // Extract base64 data (remove data URL prefix if present)
+      const imageData = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
+      
+      // Detect mime type
+      let mimeType = 'image/jpeg';
+      if (base64Image.includes('data:image/png')) mimeType = 'image/png';
+      else if (base64Image.includes('data:image/webp')) mimeType = 'image/webp';
+      else if (base64Image.includes('data:image/gif')) mimeType = 'image/gif';
+
+      const response = await fetch(`${visionUrl}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: imageData
+                }
+              }
+            ]
+          }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Vision API error:', response.status, errorData);
+        throw new Error('Failed to analyze image');
+      }
+
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      
+      // Extract JSON object from response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return null;
+    } catch (error) {
+      console.error('Image analysis error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate SEO-friendly product description
+   */
+  async generateProductDescription(productName: string, brand: string, category: string): Promise<string> {
+    const apiKey = this.getApiKey();
+    
+    if (!apiKey) return '';
+
+    try {
+      const prompt = `Write a professional, SEO-friendly product description for:
+Product: ${productName}
+Brand: ${brand}
+Category: ${category}
+
+Keep it concise (2-3 sentences), highlight key features and benefits. Use professional language suitable for an e-commerce site in Sri Lanka.`;
+
+      const response = await fetch(`${this.baseUrl}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 256 },
+        })
+      });
+
+      if (!response.ok) return '';
+
+      const data = await response.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    } catch {
+      return '';
+    }
+  }
 }
 
 // Export singleton instance
