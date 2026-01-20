@@ -25,13 +25,13 @@ import {
   ChevronsRight, Banknote, Building2, PiggyBank, TrendingUp, TrendingDown,
   Clock, Tag, FileText, MoreVertical, RefreshCw, List, LayoutGrid,
   SortAsc, SortDesc, Calendar, Receipt, Package, 
-  CreditCard, DollarSign, BarChart3, Eye, ArrowRight, ChevronDown,
-  Truck, HandCoins, BadgePercent, Minus, AlertTriangle,
+  CreditCard, DollarSign, BarChart3, Eye, ChevronDown,
+  Truck, HandCoins, BadgePercent, AlertTriangle,
   CheckCircle2, FileSpreadsheet, Printer, Download
 } from 'lucide-react';
 
 type ViewMode = 'grid' | 'table';
-type TabView = 'overview' | 'transactions' | 'summary';
+type TabView = 'transactions' | 'insights';
 type DateRange = 'today' | 'week' | 'month' | 'year' | 'custom';
 
 const getAccountIcon = (type: CashAccountType) => {
@@ -120,8 +120,7 @@ export const CashManagement: React.FC = () => {
   // Determine active view from URL
   const activeTab: TabView = useMemo(() => {
     if (location.pathname === '/cash-management/transactions') return 'transactions';
-    if (location.pathname === '/cash-management/summary') return 'summary';
-    return 'overview';
+    return 'insights';
   }, [location.pathname]);
   
   const [dateRange, setDateRange] = useState<DateRange>('month');
@@ -208,6 +207,13 @@ export const CashManagement: React.FC = () => {
     }
     setCurrentPage(1);
   }, [viewMode]);
+
+  // Default to card/grid view when on Transactions tab
+  useEffect(() => {
+    if (activeTab === 'transactions') {
+      setViewMode('grid');
+    }
+  }, [activeTab]);
 
   // Format helpers
   const formatCurrency = (amount: number) => `Rs. ${amount.toLocaleString('en-LK')}`;
@@ -1535,19 +1541,12 @@ export const CashManagement: React.FC = () => {
           title: 'Transactions',
           description: 'View and manage all cash transactions',
           showAddButton: true,
-          showDateRange: true,
-        };
-      case 'summary':
-        return {
-          title: 'Financial Summary',
-          description: 'Complete analysis of your business finances',
-          showAddButton: false,
-          showDateRange: true,
+          showDateRange: false,
         };
       default:
         return {
-          title: 'Cash Overview',
-          description: 'Track sales, purchases, drawer cash & business finances',
+          title: 'Financial Insights',
+          description: 'Complete overview of your business cash flow & finances',
           showAddButton: false,
           showDateRange: true,
         };
@@ -1557,75 +1556,166 @@ export const CashManagement: React.FC = () => {
   return (
     <div className="space-y-6 pb-8">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className={`text-2xl lg:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        {/* Title Section */}
+        <div className="flex-1">
+          <h1 className={`text-3xl lg:text-4xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
             {pageConfig.title}
           </h1>
-          <p className={`mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+          <p className={`mt-2 text-sm lg:text-base ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
             {pageConfig.description}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Date Range Selector */}
-          {pageConfig.showDateRange && (
+
+        {/* Controls Section */}
+        {pageConfig.showAddButton && activeTab === 'transactions' ? (
+          <button
+            onClick={() => setIsTransactionModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 via-emerald-500 to-blue-500 text-white rounded-2xl font-semibold shadow-lg hover:shadow-emerald-500/30 focus:outline-none focus:ring-2 focus:ring-emerald-300 transition-all duration-200"
+          >
+            <Plus className="w-5 h-5" />
+            Add Transaction
+          </button>
+        ) : pageConfig.showDateRange ? (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Date Range Selector */}
             <div className="relative" ref={dateRangeRef}>
               <button
                 onClick={() => setShowDateRangeDropdown(!showDateRangeDropdown)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all ${
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border font-medium text-sm transition-all duration-200 ${
                   theme === 'dark' 
-                    ? 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-700/50 text-white' 
-                    : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'
+                    ? 'bg-slate-800/80 border-slate-700/80 hover:border-emerald-500/50 hover:bg-slate-700/80 text-slate-200 hover:text-white' 
+                    : 'bg-white border-slate-300 hover:border-emerald-500 hover:bg-emerald-50 text-slate-700 hover:text-emerald-600'
                 }`}
               >
-                <Calendar className="w-4 h-4 text-emerald-500" />
-                <span className="text-sm font-medium">
-                  {dateRangeOptions.find(o => o.value === dateRange)?.label || 'Select'}
+                <Calendar className="w-4 h-4" />
+                <span className="whitespace-nowrap">
+                  {dateRangeOptions.find(o => o.value === dateRange)?.label || 'Select Period'}
                 </span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showDateRangeDropdown ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showDateRangeDropdown ? 'rotate-180' : ''}`} />
               </button>
               {showDateRangeDropdown && (
-                <div className={`absolute right-0 mt-2 w-40 rounded-xl border shadow-xl z-50 py-1 ${
+                <div className={`absolute right-0 mt-2 w-44 rounded-xl border shadow-2xl z-50 overflow-hidden ${
                   theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
                 }`}>
-                  {dateRangeOptions.map(option => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setDateRange(option.value as DateRange);
-                        setShowDateRangeDropdown(false);
-                      }}
-                      className={`w-full px-4 py-2.5 text-sm text-left transition-colors ${
-                        dateRange === option.value
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : theme === 'dark'
-                            ? 'text-slate-300 hover:bg-slate-700'
-                            : 'text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                  <div className={`py-2 ${theme === 'dark' ? 'divide-y divide-slate-700' : 'divide-y divide-slate-200'}`}>
+                    {dateRangeOptions.map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setDateRange(option.value as DateRange);
+                          setShowDateRangeDropdown(false);
+                        }}
+                        className={`w-full px-4 py-2.5 text-sm text-left transition-colors ${
+                          dateRange === option.value
+                            ? theme === 'dark' 
+                              ? 'bg-emerald-500/20 text-emerald-400 font-medium' 
+                              : 'bg-emerald-50 text-emerald-600 font-medium'
+                            : theme === 'dark'
+                              ? 'text-slate-300 hover:bg-slate-700'
+                              : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{option.label}</span>
+                          {dateRange === option.value && <span className="text-xs">✓</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-          )}
-          {pageConfig.showAddButton && (
-            <button 
-              onClick={handleAddTransaction}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity shadow-lg shadow-emerald-500/25"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">Add Transaction</span>
-            </button>
-          )}
-        </div>
+
+            {/* Export Button with Dropdown */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border font-medium text-sm transition-all duration-200 ${
+                  theme === 'dark'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-500/50 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20'
+                    : 'bg-gradient-to-r from-emerald-500 to-teal-500 border-emerald-300 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/30'
+                }`}
+              >
+                <Download className="w-4 h-4" />
+                <span className="whitespace-nowrap">Export Report</span>
+                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showExportMenu && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-xl border shadow-2xl z-[9999] overflow-hidden ${
+                  theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
+                  <div className={`py-2 ${theme === 'dark' ? 'divide-y divide-slate-700' : 'divide-y divide-slate-200'}`}>
+                    <button
+                      onClick={() => {
+                        exportToPDF();
+                        setShowExportMenu(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
+                        theme === 'dark'
+                          ? 'text-slate-300 hover:bg-slate-700'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                        <Printer className="w-4 h-4 text-red-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium">PDF Report</p>
+                        <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Print-ready format</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportToCSV();
+                        setShowExportMenu(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
+                        theme === 'dark'
+                          ? 'text-slate-300 hover:bg-slate-700'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                        <FileText className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium">CSV File</p>
+                        <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Spreadsheet format</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportToExcel();
+                        setShowExportMenu(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
+                        theme === 'dark'
+                          ? 'text-slate-300 hover:bg-slate-700'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Excel Sheet</p>
+                        <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Excel workbook</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      {/* Overview Tab */}
-      {activeTab === 'overview' && (
+      {/* Financial Insights Tab - Combined Overview & Summary */}
+      {activeTab === 'insights' && (
         <>
-          {/* Quick Stats - Top Row */}
+          {/* Hero Stats Row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Total Balance */}
             <div className={`relative overflow-hidden p-5 rounded-2xl border ${
@@ -1639,377 +1729,255 @@ export const CashManagement: React.FC = () => {
                   <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
                     <PiggyBank className="w-5 h-5 text-emerald-500" />
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
-                  }`}>
-                    All Accounts
-                  </span>
                 </div>
                 <p className={`mt-3 text-2xl lg:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                   {formatCurrency(financialSummary.totalBalance)}
                 </p>
-                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Total Cash Balance
-                </p>
-              </div>
-            </div>
-
-            {/* Invoice Cash Received */}
-            <div className={`relative overflow-hidden p-5 rounded-2xl border ${
-              theme === 'dark' 
-                ? 'bg-gradient-to-br from-blue-500/10 to-indigo-500/5 border-blue-500/20' 
-                : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200'
-            }`}>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-              <div className="relative">
-                <div className="flex items-center justify-between">
-                  <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
-                    <Receipt className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <TrendingUp className="w-4 h-4 text-emerald-500" />
-                </div>
-                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                  {formatCurrency(financialSummary.invoiceCashReceived)}
-                </p>
-                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Invoice Cash Received
-                </p>
-              </div>
-            </div>
-
-            {/* GRN Purchases */}
-            <div className={`relative overflow-hidden p-5 rounded-2xl border ${
-              theme === 'dark' 
-                ? 'bg-gradient-to-br from-orange-500/10 to-amber-500/5 border-orange-500/20' 
-                : 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200'
-            }`}>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-500/20 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-              <div className="relative">
-                <div className="flex items-center justify-between">
-                  <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-orange-500/20' : 'bg-orange-100'}`}>
-                    <Truck className="w-5 h-5 text-orange-500" />
-                  </div>
-                  <TrendingDown className="w-4 h-4 text-red-500" />
-                </div>
-                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                  {formatCurrency(financialSummary.grnPaidAmount)}
-                </p>
-                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  GRN Paid Amount
-                </p>
+                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total Cash Balance</p>
               </div>
             </div>
 
             {/* Net Cash Flow */}
             <div className={`relative overflow-hidden p-5 rounded-2xl border ${
               financialSummary.netCashFlow >= 0
-                ? theme === 'dark' 
-                  ? 'bg-gradient-to-br from-emerald-500/10 to-green-500/5 border-emerald-500/20' 
-                  : 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200'
-                : theme === 'dark' 
-                  ? 'bg-gradient-to-br from-red-500/10 to-rose-500/5 border-red-500/20' 
-                  : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200'
+                ? theme === 'dark' ? 'bg-gradient-to-br from-emerald-500/10 to-green-500/5 border-emerald-500/20' : 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200'
+                : theme === 'dark' ? 'bg-gradient-to-br from-red-500/10 to-rose-500/5 border-red-500/20' : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200'
+            }`}>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <div className={`p-2.5 rounded-xl ${financialSummary.netCashFlow >= 0 ? theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100' : theme === 'dark' ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                    <DollarSign className={`w-5 h-5 ${financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                  </div>
+                  {financialSummary.netCashFlow >= 0 ? <TrendingUp className="w-4 h-4 text-emerald-500" /> : <TrendingDown className="w-4 h-4 text-red-500" />}
+                </div>
+                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {financialSummary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(financialSummary.netCashFlow)}
+                </p>
+                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Net Cash Flow</p>
+              </div>
+            </div>
+
+            {/* Estimated Profit */}
+            <div className={`relative overflow-hidden p-5 rounded-2xl border ${
+              financialSummary.estimatedProfit >= 0
+                ? theme === 'dark' ? 'bg-gradient-to-br from-purple-500/10 to-indigo-500/5 border-purple-500/20' : 'bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200'
+                : theme === 'dark' ? 'bg-gradient-to-br from-red-500/10 to-rose-500/5 border-red-500/20' : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200'
             }`}>
               <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-purple-500/20 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
               <div className="relative">
                 <div className="flex items-center justify-between">
-                  <div className={`p-2.5 rounded-xl ${
-                    financialSummary.netCashFlow >= 0
-                      ? theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'
-                      : theme === 'dark' ? 'bg-red-500/20' : 'bg-red-100'
-                  }`}>
-                    <DollarSign className={`w-5 h-5 ${financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                  <div className={`p-2.5 rounded-xl ${financialSummary.estimatedProfit >= 0 ? theme === 'dark' ? 'bg-purple-500/20' : 'bg-purple-100' : theme === 'dark' ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                    <BarChart3 className={`w-5 h-5 ${financialSummary.estimatedProfit >= 0 ? 'text-purple-500' : 'text-red-500'}`} />
                   </div>
-                  {financialSummary.netCashFlow >= 0 
-                    ? <TrendingUp className="w-4 h-4 text-emerald-500" />
-                    : <TrendingDown className="w-4 h-4 text-red-500" />
-                  }
+                  {financialSummary.estimatedProfit >= 0 ? <TrendingUp className="w-4 h-4 text-purple-500" /> : <TrendingDown className="w-4 h-4 text-red-500" />}
                 </div>
-                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${
-                  financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'
-                }`}>
-                  {financialSummary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(financialSummary.netCashFlow)}
+                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${financialSummary.estimatedProfit >= 0 ? 'text-purple-500' : 'text-red-500'}`}>
+                  {financialSummary.estimatedProfit >= 0 ? '+' : ''}{formatCurrency(financialSummary.estimatedProfit)}
                 </p>
-                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Net Cash Flow
+                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Estimated Profit</p>
+              </div>
+            </div>
+
+            {/* Today's Net */}
+            <div className={`relative overflow-hidden p-5 rounded-2xl border ${
+              (todayIncome - todayExpense) >= 0
+                ? theme === 'dark' ? 'bg-gradient-to-br from-sky-500/10 to-cyan-500/5 border-sky-500/20' : 'bg-gradient-to-br from-sky-50 to-cyan-50 border-sky-200'
+                : theme === 'dark' ? 'bg-gradient-to-br from-red-500/10 to-rose-500/5 border-red-500/20' : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200'
+            }`}>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-sky-500/20 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-sky-500/20' : 'bg-sky-100'}`}>
+                    <Clock className="w-5 h-5 text-sky-500" />
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${theme === 'dark' ? 'bg-sky-500/20 text-sky-400' : 'bg-sky-100 text-sky-600'}`}>Today</span>
+                </div>
+                <p className={`mt-3 text-2xl lg:text-3xl font-bold ${(todayIncome - todayExpense) >= 0 ? 'text-sky-500' : 'text-red-500'}`}>
+                  {(todayIncome - todayExpense) >= 0 ? '+' : ''}{formatCurrency(todayIncome - todayExpense)}
                 </p>
+                <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Today's Net</p>
               </div>
             </div>
           </div>
 
-          {/* Account Balance Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Account Balances + Today's Activity Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {accounts.map((account) => {
               const Icon = getAccountIcon(account.type);
               const colorClass = getAccountColor(account.type, theme);
               const iconColor = getAccountIconColor(account.type);
-              
               return (
-                <div 
-                  key={account.id}
-                  onClick={() => {
-                    setSelectedAccount(selectedAccount === account.id ? 'all' : account.id);
-                    navigate('/cash-management/transactions');
-                  }}
-                  className={`relative overflow-hidden rounded-2xl border p-5 cursor-pointer transition-all hover:scale-[1.02] ${
-                    selectedAccount === account.id 
-                      ? 'ring-2 ring-emerald-500 ring-offset-2 ' + (theme === 'dark' ? 'ring-offset-slate-900' : 'ring-offset-white')
-                      : ''
-                  } bg-gradient-to-br ${colorClass}`}
-                >
+                <div key={account.id} onClick={() => { setSelectedAccount(account.id); navigate('/cash-management/transactions'); }}
+                  className={`relative overflow-hidden rounded-2xl border p-5 cursor-pointer transition-all hover:scale-[1.02] bg-gradient-to-br ${colorClass}`}>
                   <div className="relative">
                     <div className="flex items-center justify-between">
-                      <div className={`p-2.5 rounded-xl ${
-                        theme === 'dark' ? 'bg-white/10' : 'bg-white/80'
-                      }`}>
+                      <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-white/10' : 'bg-white/80'}`}>
                         <Icon className={`w-5 h-5 ${iconColor}`} />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Eye className={`w-4 h-4 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
-                      </div>
+                      <Eye className={`w-4 h-4 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
                     </div>
-                    <div className="mt-3">
-                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                        {account.name}
-                      </p>
-                      <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                        {formatCurrency(account.balance)}
-                      </p>
-                      <p className={`text-xs mt-2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {account.description}
-                      </p>
-                    </div>
+                    <p className={`mt-3 text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{account.name}</p>
+                    <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(account.balance)}</p>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Financial Overview Cards */}
+          {/* Income vs Expenses Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Invoice Summary Card */}
-            <div className={`rounded-2xl border overflow-hidden ${
-              theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+            {/* Money In Card */}
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-emerald-500/10' : 'border-slate-200 bg-emerald-50'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
-                      <Receipt className="w-5 h-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                        Invoice Summary
-                      </h3>
-                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                        Sales & receivables
-                      </p>
-                    </div>
+                    <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
+                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Money In (Income)</h3>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
-                  }`}>
-                    {financialSummary.invoiceCount} Invoices
-                  </span>
+                  <span className="text-lg font-bold text-emerald-500">+{formatCurrency(financialSummary.invoiceCashReceived + financialSummary.totalIncome)}</span>
                 </div>
               </div>
-              <div className="p-5 space-y-4">
+              <div className="p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Total Sales
-                  </span>
-                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {formatCurrency(financialSummary.totalInvoiceSales)}
-                  </span>
+                  <div className="flex items-center gap-2"><Receipt className="w-4 h-4 text-blue-500" /><span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Invoice Payments</span></div>
+                  <span className="font-semibold text-emerald-500">{formatCurrency(financialSummary.invoiceCashReceived)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Cash Received
-                  </span>
-                  <span className="font-semibold text-emerald-500">
-                    {formatCurrency(financialSummary.invoiceCashReceived)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    <AlertTriangle className="w-4 h-4 text-amber-500" />
-                    Pending Amount
-                  </span>
-                  <span className="font-semibold text-amber-500">
-                    {formatCurrency(financialSummary.invoicePendingAmount)}
-                  </span>
-                </div>
-                <div className={`pt-4 border-t grid grid-cols-3 gap-3 ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-                  <div className={`text-center p-2 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
-                    <p className="text-lg font-bold text-emerald-500">{financialSummary.fullPaidInvoices}</p>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Full Paid</p>
-                  </div>
-                  <div className={`text-center p-2 rounded-xl ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
-                    <p className="text-lg font-bold text-amber-500">{financialSummary.partialPaidInvoices}</p>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Partial</p>
-                  </div>
-                  <div className={`text-center p-2 rounded-xl ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
-                    <p className="text-lg font-bold text-red-500">{financialSummary.unpaidInvoices}</p>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Unpaid</p>
-                  </div>
+                  <div className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-purple-500" /><span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Other Income</span></div>
+                  <span className="font-semibold text-emerald-500">{formatCurrency(financialSummary.totalIncome)}</span>
                 </div>
               </div>
             </div>
 
-            {/* GRN Summary Card */}
-            <div className={`rounded-2xl border overflow-hidden ${
-              theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
+            {/* Money Out Card */}
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-red-500/10' : 'border-slate-200 bg-red-50'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <ArrowUpCircle className="w-5 h-5 text-red-500" />
+                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Money Out (Expenses)</h3>
+                  </div>
+                  <span className="text-lg font-bold text-red-500">-{formatCurrency(financialSummary.grnPaidAmount + financialSummary.totalExpenses)}</span>
+                </div>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2"><Truck className="w-4 h-4 text-orange-500" /><span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>GRN Payments</span></div>
+                  <span className="font-semibold text-red-500">{formatCurrency(financialSummary.grnPaidAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2"><CreditCard className="w-4 h-4 text-amber-500" /><span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Business Expenses</span></div>
+                  <span className="font-semibold text-red-500">{formatCurrency(financialSummary.totalExpenses)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Invoice & GRN Summary Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Invoice Summary */}
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
               <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-orange-500/20' : 'bg-orange-100'}`}>
-                      <Truck className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <div>
-                      <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                        GRN Summary
-                      </h3>
-                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                        Purchases & inventory additions
-                      </p>
-                    </div>
+                    <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'}`}><Receipt className="w-5 h-5 text-blue-500" /></div>
+                    <div><h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Invoice Summary</h3><p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Sales & receivables</p></div>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    theme === 'dark' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'
-                  }`}>
-                    {financialSummary.grnCount} GRNs
-                  </span>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>{financialSummary.invoiceCount} Invoices</span>
                 </div>
               </div>
               <div className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Total Purchases
-                  </span>
-                  <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {formatCurrency(financialSummary.totalGRNPurchases)}
-                  </span>
+                <div className="flex items-center justify-between"><span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total Sales</span><span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(financialSummary.totalInvoiceSales)}</span></div>
+                <div className="flex items-center justify-between"><span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}><CheckCircle2 className="w-4 h-4 text-emerald-500" />Cash Received</span><span className="font-semibold text-emerald-500">{formatCurrency(financialSummary.invoiceCashReceived)}</span></div>
+                <div className="flex items-center justify-between"><span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}><AlertTriangle className="w-4 h-4 text-amber-500" />Pending</span><span className="font-semibold text-amber-500">{formatCurrency(financialSummary.invoicePendingAmount)}</span></div>
+                <div className={`pt-4 border-t grid grid-cols-3 gap-3 ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                  <div className={`text-center p-2 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}><p className="text-lg font-bold text-emerald-500">{financialSummary.fullPaidInvoices}</p><p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Full Paid</p></div>
+                  <div className={`text-center p-2 rounded-xl ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}><p className="text-lg font-bold text-amber-500">{financialSummary.partialPaidInvoices}</p><p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Partial</p></div>
+                  <div className={`text-center p-2 rounded-xl ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}><p className="text-lg font-bold text-red-500">{financialSummary.unpaidInvoices}</p><p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Unpaid</p></div>
                 </div>
+              </div>
+            </div>
+
+            {/* GRN Summary */}
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
                 <div className="flex items-center justify-between">
-                  <span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Paid to Suppliers
-                  </span>
-                  <span className="font-semibold text-emerald-500">
-                    {formatCurrency(financialSummary.grnPaidAmount)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-orange-500/20' : 'bg-orange-100'}`}><Truck className="w-5 h-5 text-orange-500" /></div>
+                    <div><h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>GRN Summary</h3><p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Purchases & inventory</p></div>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'}`}>{financialSummary.grnCount} GRNs</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    <AlertTriangle className="w-4 h-4 text-red-500" />
-                    Pending Payment
-                  </span>
-                  <span className="font-semibold text-red-500">
-                    {formatCurrency(financialSummary.grnPendingAmount)}
-                  </span>
-                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="flex items-center justify-between"><span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total Purchases</span><span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(financialSummary.totalGRNPurchases)}</span></div>
+                <div className="flex items-center justify-between"><span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}><CheckCircle2 className="w-4 h-4 text-emerald-500" />Paid to Suppliers</span><span className="font-semibold text-emerald-500">{formatCurrency(financialSummary.grnPaidAmount)}</span></div>
+                <div className="flex items-center justify-between"><span className={`text-sm flex items-center gap-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}><AlertTriangle className="w-4 h-4 text-red-500" />Pending Payment</span><span className="font-semibold text-red-500">{formatCurrency(financialSummary.grnPendingAmount)}</span></div>
                 <div className={`pt-4 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-                  <div className={`flex items-center justify-between p-3 rounded-xl ${
-                    theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <Package className="w-5 h-5 text-purple-500" />
-                      <div>
-                        <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                          Products Added
-                        </p>
-                        <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                          To inventory from GRNs
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-xl font-bold text-purple-500">
-                      {financialSummary.grnProductsAdded}
-                    </span>
+                  <div className={`flex items-center justify-between p-3 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                    <div className="flex items-center gap-3"><Package className="w-5 h-5 text-purple-500" /><div><p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Products Added</p><p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>To inventory</p></div></div>
+                    <span className="text-xl font-bold text-purple-500">{financialSummary.grnProductsAdded}</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Today's Activity */}
-          <div className={`rounded-2xl border p-5 ${
-            theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
-          }`}>
-            <div className="flex items-center justify-between mb-4">
+          {/* Expense Breakdown */}
+          <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+            <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
               <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
-                  <Clock className="w-5 h-5 text-purple-500" />
-                </div>
-                <div>
-                  <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    Today's Activity
-                  </h3>
-                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                    {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
-                  </p>
-                </div>
+                <BadgePercent className="w-5 h-5 text-purple-500" />
+                <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Expense Categories</h3>
               </div>
-              <button
-                onClick={() => navigate('/cash-management/transactions')}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  theme === 'dark' 
-                    ? 'text-emerald-400 hover:bg-emerald-500/10' 
-                    : 'text-emerald-600 hover:bg-emerald-50'
-                }`}
-              >
-                View All
-                <ArrowRight className="w-4 h-4" />
-              </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
-                  <span className={`text-xs font-medium ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                    Income
-                  </span>
+            <div className="p-5">
+              {Object.keys(financialSummary.expensesByCategory).length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {Object.entries(financialSummary.expensesByCategory).sort(([, a], [, b]) => b - a).map(([category, amount]) => (
+                    <div key={category} className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{category}</p>
+                      <p className={`text-lg font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(amount)}</p>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xl font-bold text-emerald-500">+{formatCurrency(todayIncome)}</p>
+              ) : (
+                <p className={`text-center py-8 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>No expense categories found for this period</p>
+              )}
+            </div>
+          </div>
+
+          {/* Receivables & Payables */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-amber-500/10' : 'border-slate-200 bg-amber-50'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3"><AlertTriangle className="w-5 h-5 text-amber-500" /><h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Accounts Receivable</h3></div>
+                  <span className="text-xl font-bold text-amber-500">{formatCurrency(financialSummary.invoicePendingAmount)}</span>
+                </div>
               </div>
-              <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <ArrowUpCircle className="w-4 h-4 text-red-500" />
-                  <span className={`text-xs font-medium ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>
-                    Expense
-                  </span>
+              <div className="p-5">
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Pending from {financialSummary.unpaidInvoices + financialSummary.partialPaidInvoices} invoice(s)</p>
+                <div className={`mt-4 p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                  <div className="flex items-center justify-between mb-2"><span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Collection Rate</span><span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{financialSummary.totalInvoiceSales > 0 ? ((financialSummary.invoiceCashReceived / financialSummary.totalInvoiceSales) * 100).toFixed(1) : 0}%</span></div>
+                  <div className={`h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}><div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full" style={{ width: `${financialSummary.totalInvoiceSales > 0 ? (financialSummary.invoiceCashReceived / financialSummary.totalInvoiceSales) * 100 : 0}%` }} /></div>
                 </div>
-                <p className="text-xl font-bold text-red-500">-{formatCurrency(todayExpense)}</p>
               </div>
-              <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="w-4 h-4 text-blue-500" />
-                  <span className={`text-xs font-medium ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                    Transactions
-                  </span>
+            </div>
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-red-500/10' : 'border-slate-200 bg-red-50'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3"><AlertTriangle className="w-5 h-5 text-red-500" /><h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Accounts Payable</h3></div>
+                  <span className="text-xl font-bold text-red-500">{formatCurrency(financialSummary.grnPendingAmount)}</span>
                 </div>
-                <p className="text-xl font-bold text-blue-500">{todayTransactions.length}</p>
               </div>
-              <div className={`p-4 rounded-xl ${
-                (todayIncome - todayExpense) >= 0
-                  ? theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'
-                  : theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'
-              }`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Minus className={`w-4 h-4 ${(todayIncome - todayExpense) >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
-                  <span className={`text-xs font-medium ${
-                    (todayIncome - todayExpense) >= 0 
-                      ? theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'
-                      : theme === 'dark' ? 'text-red-400' : 'text-red-600'
-                  }`}>
-                    Net
-                  </span>
+              <div className="p-5">
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Outstanding to suppliers from {financialSummary.grnCount} GRN(s)</p>
+                <div className={`mt-4 p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                  <div className="flex items-center justify-between mb-2"><span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Payment Rate</span><span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{financialSummary.totalGRNPurchases > 0 ? ((financialSummary.grnPaidAmount / financialSummary.totalGRNPurchases) * 100).toFixed(1) : 0}%</span></div>
+                  <div className={`h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}><div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full" style={{ width: `${financialSummary.totalGRNPurchases > 0 ? (financialSummary.grnPaidAmount / financialSummary.totalGRNPurchases) * 100 : 0}%` }} /></div>
                 </div>
-                <p className={`text-xl font-bold ${(todayIncome - todayExpense) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                  {(todayIncome - todayExpense) >= 0 ? '+' : ''}{formatCurrency(todayIncome - todayExpense)}
-                </p>
               </div>
             </div>
           </div>
@@ -2412,310 +2380,71 @@ export const CashManagement: React.FC = () => {
           )}
 
           {/* Pagination */}
-          {totalPages > 1 && (
+          {totalPages >= 1 && (
             <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200'}`}>
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, sortedTransactions.length)} of {sortedTransactions.length}
-                </p>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className={`p-2 rounded-lg ${currentPage === 1 ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
-                    <ChevronsLeft className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className={`p-2 rounded-lg ${currentPage === 1 ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  {getPageNumbers.map((page, idx) => (
-                    page === '...' ? (
-                      <span key={`dots-${idx}`} className={`px-2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>...</span>
-                    ) : (
-                      <button key={page} onClick={() => setCurrentPage(page as number)} className={`w-9 h-9 rounded-lg text-sm font-medium ${currentPage === page ? 'bg-emerald-500 text-white' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
-                        {page}
-                      </button>
-                    )
-                  ))}
-                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
-                    <ChevronsRight className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center gap-4">
+                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Showing <span className="font-medium">{startIndex + 1}</span> - <span className="font-medium">{Math.min(startIndex + itemsPerPage, sortedTransactions.length)}</span> of <span className="font-medium">{sortedTransactions.length}</span> transactions
+                  </p>
+                  
+                  {/* Items Per Page Selector - Creative Pill Buttons */}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Show:</span>
+                    <div className={`flex items-center rounded-full p-0.5 ${
+                      theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
+                    }`}>
+                      {(viewMode === 'table' ? [10, 20] : [9, 15]).map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => {
+                            setItemsPerPage(num);
+                            setCurrentPage(1);
+                          }}
+                          className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                            itemsPerPage === num
+                              ? 'bg-emerald-500 text-white shadow-md'
+                              : theme === 'dark'
+                                ? 'text-slate-400 hover:text-white'
+                                : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className={`p-2 rounded-lg ${currentPage === 1 ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className={`p-2 rounded-lg ${currentPage === 1 ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    {getPageNumbers.map((page, idx) => (
+                      page === '...' ? (
+                        <span key={`dots-${idx}`} className={`px-2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>...</span>
+                      ) : (
+                        <button key={page} onClick={() => setCurrentPage(page as number)} className={`w-9 h-9 rounded-lg text-sm font-medium ${currentPage === page ? 'bg-emerald-500 text-white' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
+                          {page}
+                        </button>
+                      )
+                    ))}
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className={`p-2 rounded-lg ${currentPage === totalPages ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
-        </>
-      )}
-
-      {/* Financial Summary Tab */}
-      {activeTab === 'summary' && (
-        <>
-          <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-gradient-to-br from-white to-slate-50 border-slate-200 shadow-sm'}`}>
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Financial Summary</h2>
-                <p className={`mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Complete analysis of your business finances for {dateRangeOptions.find(o => o.value === dateRange)?.label?.toLowerCase()}
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                {/* Export Button with Dropdown */}
-                <div className="relative" ref={exportMenuRef}>
-                  <button
-                    onClick={() => setShowExportMenu(!showExportMenu)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity shadow-lg shadow-emerald-500/25"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="text-sm font-medium">Export</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {showExportMenu && (
-                    <div className={`absolute right-0 mt-2 w-48 rounded-xl border shadow-xl z-50 py-2 ${
-                      theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-                    }`}>
-                      <button
-                        onClick={() => {
-                          exportToPDF();
-                          setShowExportMenu(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
-                          theme === 'dark'
-                            ? 'text-slate-300 hover:bg-slate-700'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg ${theme === 'dark' ? 'bg-red-500/20' : 'bg-red-100'}`}>
-                          <Printer className="w-4 h-4 text-red-500" />
-                        </div>
-                        <span>Export as PDF</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          exportToCSV();
-                          setShowExportMenu(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
-                          theme === 'dark'
-                            ? 'text-slate-300 hover:bg-slate-700'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
-                          <FileText className="w-4 h-4 text-blue-500" />
-                        </div>
-                        <span>Export as CSV</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          exportToExcel();
-                          setShowExportMenu(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
-                          theme === 'dark'
-                            ? 'text-slate-300 hover:bg-slate-700'
-                            : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg ${theme === 'dark' ? 'bg-emerald-500/20' : 'bg-emerald-100'}`}>
-                          <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <span>Export as Excel</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {/* Profit Card */}
-                <div className={`flex items-center gap-4 p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-100'}`}>
-                  <div className="text-center">
-                    <p className={`text-2xl font-bold ${financialSummary.estimatedProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {financialSummary.estimatedProfit >= 0 ? '+' : ''}{formatCurrency(financialSummary.estimatedProfit)}
-                    </p>
-                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Estimated Profit</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Income Sources */}
-            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-emerald-500/10' : 'border-slate-200 bg-emerald-50'}`}>
-                <div className="flex items-center gap-3">
-                  <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
-                  <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Money In (Income)</h3>
-                </div>
-              </div>
-              <div className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="w-4 h-4 text-blue-500" />
-                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Invoice Payments</span>
-                  </div>
-                  <span className="font-semibold text-emerald-500">{formatCurrency(financialSummary.invoiceCashReceived)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-purple-500" />
-                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Other Income</span>
-                  </div>
-                  <span className="font-semibold text-emerald-500">{formatCurrency(financialSummary.totalIncome)}</span>
-                </div>
-                <div className={`pt-4 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-                  <div className="flex items-center justify-between">
-                    <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Total Income</span>
-                    <span className="text-xl font-bold text-emerald-500">{formatCurrency(financialSummary.invoiceCashReceived + financialSummary.totalIncome)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Expense Sources */}
-            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-red-500/10' : 'border-slate-200 bg-red-50'}`}>
-                <div className="flex items-center gap-3">
-                  <ArrowUpCircle className="w-5 h-5 text-red-500" />
-                  <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Money Out (Expenses)</h3>
-                </div>
-              </div>
-              <div className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-orange-500" />
-                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>GRN Payments</span>
-                  </div>
-                  <span className="font-semibold text-red-500">{formatCurrency(financialSummary.grnPaidAmount)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-amber-500" />
-                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Business Expenses</span>
-                  </div>
-                  <span className="font-semibold text-red-500">{formatCurrency(financialSummary.totalExpenses)}</span>
-                </div>
-                <div className={`pt-4 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-                  <div className="flex items-center justify-between">
-                    <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Total Expenses</span>
-                    <span className="text-xl font-bold text-red-500">{formatCurrency(financialSummary.grnPaidAmount + financialSummary.totalExpenses)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Net Balance */}
-            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-              <div className={`px-5 py-4 border-b ${financialSummary.netCashFlow >= 0 ? theme === 'dark' ? 'border-slate-700/50 bg-emerald-500/10' : 'border-slate-200 bg-emerald-50' : theme === 'dark' ? 'border-slate-700/50 bg-red-500/10' : 'border-slate-200 bg-red-50'}`}>
-                <div className="flex items-center gap-3">
-                  <BarChart3 className={`w-5 h-5 ${financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
-                  <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Net Cash Flow</h3>
-                </div>
-              </div>
-              <div className="p-5 space-y-4">
-                <div className="text-center py-4">
-                  <p className={`text-4xl font-bold ${financialSummary.netCashFlow >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {financialSummary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(financialSummary.netCashFlow)}
-                  </p>
-                  <p className={`mt-2 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {financialSummary.netCashFlow >= 0 ? 'Positive cash flow' : 'Negative cash flow'}
-                  </p>
-                </div>
-                <div className={`pt-4 border-t space-y-2 ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}>Total In</span>
-                    <span className="text-emerald-500 font-medium">+{formatCurrency(financialSummary.invoiceCashReceived + financialSummary.totalIncome)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}>Total Out</span>
-                    <span className="text-red-500 font-medium">-{formatCurrency(financialSummary.grnPaidAmount + financialSummary.totalExpenses)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Expense Breakdown */}
-          <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-            <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-              <div className="flex items-center gap-3">
-                <BadgePercent className="w-5 h-5 text-purple-500" />
-                <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Expense Breakdown by Category</h3>
-              </div>
-            </div>
-            <div className="p-5">
-              {Object.keys(financialSummary.expensesByCategory).length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {Object.entries(financialSummary.expensesByCategory).sort(([, a], [, b]) => b - a).map(([category, amount]) => (
-                    <div key={category} className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{category}</p>
-                      <p className={`text-lg font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(amount)}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className={`text-center py-8 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>No expense categories found for this period</p>
-              )}
-            </div>
-          </div>
-
-          {/* Pending Amounts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-amber-500/10' : 'border-slate-200 bg-amber-50'}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-500" />
-                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Accounts Receivable</h3>
-                  </div>
-                  <span className="text-xl font-bold text-amber-500">{formatCurrency(financialSummary.invoicePendingAmount)}</span>
-                </div>
-              </div>
-              <div className="p-5">
-                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Pending payments from {financialSummary.unpaidInvoices + financialSummary.partialPaidInvoices} invoice(s)
-                </p>
-                <div className={`mt-4 p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Collection Rate</span>
-                    <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                      {financialSummary.totalInvoiceSales > 0 ? ((financialSummary.invoiceCashReceived / financialSummary.totalInvoiceSales) * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                  <div className={`h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                    <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all" style={{ width: `${financialSummary.totalInvoiceSales > 0 ? (financialSummary.invoiceCashReceived / financialSummary.totalInvoiceSales) * 100 : 0}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
-              <div className={`px-5 py-4 border-b ${theme === 'dark' ? 'border-slate-700/50 bg-red-500/10' : 'border-slate-200 bg-red-50'}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Accounts Payable</h3>
-                  </div>
-                  <span className="text-xl font-bold text-red-500">{formatCurrency(financialSummary.grnPendingAmount)}</span>
-                </div>
-              </div>
-              <div className="p-5">
-                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Outstanding payments to suppliers from {financialSummary.grnCount} GRN(s)
-                </p>
-                <div className={`mt-4 p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Payment Rate</span>
-                    <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                      {financialSummary.totalGRNPurchases > 0 ? ((financialSummary.grnPaidAmount / financialSummary.totalGRNPurchases) * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                  <div className={`h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                    <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all" style={{ width: `${financialSummary.totalGRNPurchases > 0 ? (financialSummary.grnPaidAmount / financialSummary.totalGRNPurchases) * 100 : 0}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </>
       )}
 

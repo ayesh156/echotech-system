@@ -90,9 +90,8 @@ function App() {
                   <Route path="/job-notes/edit/:id" element={<JobNoteForm />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/cash-management" element={<CashManagement />} />
-                  <Route path="/cash-management/overview" element={<CashManagement />} />
                   <Route path="/cash-management/transactions" element={<CashManagement />} />
-                  <Route path="/cash-management/summary" element={<CashManagement />} />
+                  <Route path="/cash-management/insights" element={<CashManagement />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/help" element={<Help />} />
                   <Route path="/ai-chat" element={<AIChat />} />

@@ -137,9 +137,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       label: 'Cash Management', 
       badge: null,
       subItems: [
-        { path: '/cash-management/overview', icon: Wallet, label: 'Overview' },
         { path: '/cash-management/transactions', icon: FileText, label: 'Transactions' },
-        { path: '/cash-management/summary', icon: TrendingUp, label: 'Financial Summary' },
+        { path: '/cash-management/insights', icon: TrendingUp, label: 'Financial Insights' },
       ]
     },
     { path: '/reports', icon: TrendingUp, label: 'Reports', badge: null },
