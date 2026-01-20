@@ -626,9 +626,16 @@ ${languageInstruction}
 - "Supplier Management section එකට ගිහින්"
 
 ✅ CORRECT BEHAVIOR:
-1. User asks "overdue suppliers kauda?" → You SEARCH the data below, FIND suppliers with PaymentStatus:overdue, and LIST them with all details!
-2. User asks "Peripheral Hub contact details denna" → You FIND "Peripheral Hub" in supplier data and SHOW: Name, Phone, Email, Address!
-3. User asks "denata payment enna thiyana suppliers" → You LIST all suppliers where PaymentStatus=overdue with amounts!
+1. User asks "overdue suppliers kauda?" → SEARCH suppliers with PaymentStatus:overdue, LIST them with all details!
+2. User asks "Peripheral Hub contact details denna" → FIND "Peripheral Hub" in supplier data, SHOW: Name, Phone, Email, Address!
+3. User asks "denata payment enna thiyana suppliers" → LIST all suppliers where PaymentStatus=overdue with amounts!
+4. User asks "pending grn monawada" → SEARCH GRN data for Status:pending, LIST all with supplier, items, amounts!
+5. User asks "grn keeya thiyenne" → COUNT GRNs and show breakdown by status (pending, inspecting, completed)!
+6. User asks "cash drawer balance" → SHOW Cash Drawer balance from cashAccounts data!
+7. User asks "expenses list denna" → LIST all expense transactions with amounts and categories!
+8. User asks "today expenses" → FILTER transactions by today's date and type:expense, SHOW list!
+9. User asks "completed grn" → FILTER GRNs by status:completed, LIST with details!
+10. User asks "GRN-2026-0003 details" → FIND this specific GRN and show ALL details including items!
 
 CRITICAL RULES:
 1. ⚠️ YOU HAVE ALL THE DATA BELOW. Search it and show results directly!
@@ -700,6 +707,57 @@ For OVERDUE SUPPLIERS LIST:
    📞 078-3233760 | 📧 chamara@pcparts.lk
 ━━━━━━━━━━━━━━━━━━━━━━━━
 💰 **Total Overdue:** Rs. 515,000
+
+For GRN (Goods Received Notes):
+📥 **GRN: GRN-2026-0003**
+━━━━━━━━━━━━━━━━━━━━━━━━
+🏢 **Supplier:** Digital Hub Pvt Ltd
+📅 **Order Date:** 2026-01-13
+📦 **Status:** Pending
+━━━━━━━━━━━━━━━━━━━━━━━━
+📋 **Items:**
+1. Samsung 980 PRO 2TB NVMe SSD (Ordered: 15)
+2. Corsair RM1000x 1000W PSU (Ordered: 10)
+━━━━━━━━━━━━━━━━━━━━━━━━
+📊 **Totals:**
+- Ordered: 25 units
+- Received: 0 units
+- Accepted: 0 units
+💰 **Total Amount:** Rs. 1,455,000
+💳 **Payment Status:** Unpaid
+
+For PENDING GRN LIST:
+⏳ **PENDING GRNs** (awaiting delivery)
+━━━━━━━━━━━━━━━━━━━━━━━━
+1. 📦 **GRN-2026-0003** - Digital Hub Pvt Ltd
+   → 25 items ordered | Rs. 1,455,000 | Due: 2026-01-14
+2. 📦 **GRN-2026-0014** - PC Parts Lanka
+   → 27 items ordered | Rs. 1,194,000 | Due: 2026-01-15
+━━━━━━━━━━━━━━━━━━━━━━━━
+📊 **Total Pending:** 52 items worth Rs. 2,649,000
+
+For CASH MANAGEMENT:
+💰 **CASH SUMMARY**
+━━━━━━━━━━━━━━━━━━━━━━━━
+💵 **Cash Drawer:** Rs. 75,000
+👛 **Cash in Hand:** Rs. 125,000
+🏦 **Business Fund:** Rs. 450,000
+━━━━━━━━━━━━━━━━━━━━━━━━
+💰 **Total Cash:** Rs. 650,000
+
+📈 **Income:** Rs. 65,500
+📉 **Expenses:** Rs. 37,100
+━━━━━━━━━━━━━━━━━━━━━━━━
+✅ **Net:** Rs. 28,400
+
+For EXPENSE LIST:
+📉 **RECENT EXPENSES**
+━━━━━━━━━━━━━━━━━━━━━━━━
+1. Electricity Bill - Rs. 2,500 (Utilities)
+2. Staff Salary Advance - Rs. 15,000 (Salaries)
+3. Shop Rent Payment - Rs. 8,500 (Rent)
+━━━━━━━━━━━━━━━━━━━━━━━━
+💸 **Total Expenses:** Rs. 37,100
 `;
 
     try {
@@ -1008,6 +1066,134 @@ For OVERDUE SUPPLIERS LIST:
   ${warrantyDetails}`);
     }
 
+    // GRN (Goods Received Notes) Summary - NEW SECTION
+    if (data.grns && data.grns.length > 0) {
+      const grns = data.grns;
+      const totalGRNs = grns.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pendingGRNs = grns.filter((g: any) => g.status === 'pending');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const inspectingGRNs = grns.filter((g: any) => g.status === 'inspecting');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const completedGRNs = grns.filter((g: any) => g.status === 'completed');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const partialGRNs = grns.filter((g: any) => g.status === 'partial');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalGRNValue = grns.reduce((sum: number, g: any) => sum + (g.totalAmount || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalPaidGRN = grns.reduce((sum: number, g: any) => sum + (g.paidAmount || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalUnpaidGRN = grns.filter((g: any) => g.paymentStatus === 'unpaid' || g.paymentStatus === 'partial')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .reduce((sum: number, g: any) => sum + ((g.totalAmount || 0) - (g.paidAmount || 0)), 0);
+
+      // Group by status
+      const byStatus: Record<string, number> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      grns.forEach((g: any) => {
+        byStatus[g.status] = (byStatus[g.status] || 0) + 1;
+      });
+
+      // Group by supplier
+      const bySupplier: Record<string, { count: number; value: number }> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      grns.forEach((g: any) => {
+        const supplier = g.supplierName || 'Unknown';
+        if (!bySupplier[supplier]) bySupplier[supplier] = { count: 0, value: 0 };
+        bySupplier[supplier].count++;
+        bySupplier[supplier].value += g.totalAmount || 0;
+      });
+
+      // All GRN details - COMPLETE DATA
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const grnDetails = grns.map((g: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const itemsSummary = g.items?.map((item: any) => 
+          `${item.productName}(Ordered:${item.orderedQuantity},Received:${item.receivedQuantity},Accepted:${item.acceptedQuantity},Rejected:${item.rejectedQuantity},Price:Rs.${(item.unitPrice || 0).toLocaleString()})`
+        ).join('; ') || 'No items';
+        
+        return `[${g.grnNumber}] Supplier:${g.supplierName}|OrderDate:${g.orderDate}|ExpectedDate:${g.expectedDeliveryDate}|ReceivedDate:${g.receivedDate || 'Not yet'}|TotalOrdered:${g.totalOrderedQuantity}|TotalReceived:${g.totalReceivedQuantity}|TotalAccepted:${g.totalAcceptedQuantity}|TotalRejected:${g.totalRejectedQuantity}|Subtotal:Rs.${(g.subtotal || 0).toLocaleString()}|Discount:Rs.${(g.discountAmount || 0).toLocaleString()}|TotalAmount:Rs.${(g.totalAmount || 0).toLocaleString()}|PaidAmount:Rs.${(g.paidAmount || 0).toLocaleString()}|Balance:Rs.${((g.totalAmount || 0) - (g.paidAmount || 0)).toLocaleString()}|PaymentStatus:${g.paymentStatus}|Status:${g.status}|ReceivedBy:${g.receivedBy || 'N/A'}|Notes:${g.notes || 'N/A'}|Items:[${itemsSummary}]`;
+      }).join('\n  ');
+
+      sections.push(`📥 GRN - GOODS RECEIVED NOTES (${totalGRNs}):
+- Total GRN Value: Rs. ${totalGRNValue.toLocaleString()}
+- Total Paid: Rs. ${totalPaidGRN.toLocaleString()}
+- Total Unpaid: Rs. ${totalUnpaidGRN.toLocaleString()}
+- Status Breakdown: ${Object.entries(byStatus).map(([s, c]) => `${s}(${c})`).join(', ')}
+- Pending: ${pendingGRNs.length} GRNs (awaiting delivery)
+- Inspecting: ${inspectingGRNs.length} GRNs (being checked)
+- Partial: ${partialGRNs.length} GRNs (some items accepted)
+- Completed: ${completedGRNs.length} GRNs (fully processed)
+- By Supplier: ${Object.entries(bySupplier).map(([s, d]) => `${s}(${d.count}GRNs/Rs.${d.value.toLocaleString()})`).join(', ')}
+- ALL GRN DATA (search by GRN number, supplier, status, date):
+  ${grnDetails}`);
+    }
+
+    // Cash Management Summary - NEW SECTION
+    if (data.cashAccounts && data.cashAccounts.length > 0) {
+      const accounts = data.cashAccounts;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalCash = accounts.reduce((sum: number, a: any) => sum + (a.balance || 0), 0);
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const accountDetails = accounts.map((a: any) => 
+        `${a.name}(${a.type}):Rs.${(a.balance || 0).toLocaleString()}`
+      ).join(', ');
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const accountFullDetails = accounts.map((a: any) => 
+        `[${a.name}] Type:${a.type}|Balance:Rs.${(a.balance || 0).toLocaleString()}|Description:${a.description || 'N/A'}`
+      ).join('\n  ');
+
+      let transactionDetails = '';
+      let transactionSummary = '';
+      
+      if (data.cashTransactions && data.cashTransactions.length > 0) {
+        const transactions = data.cashTransactions;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const incomeTotal = transactions.filter((t: any) => t.type === 'income')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const expenseTotal = transactions.filter((t: any) => t.type === 'expense')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transferTotal = transactions.filter((t: any) => t.type === 'transfer')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
+        
+        // Group by category
+        const byCategory: Record<string, number> = {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        transactions.filter((t: any) => t.type === 'expense').forEach((t: any) => {
+          const cat = t.category || 'Other';
+          byCategory[cat] = (byCategory[cat] || 0) + (t.amount || 0);
+        });
+
+        transactionSummary = `
+- Total Income: Rs. ${incomeTotal.toLocaleString()}
+- Total Expenses: Rs. ${expenseTotal.toLocaleString()}
+- Total Transfers: Rs. ${transferTotal.toLocaleString()}
+- Net (Income - Expense): Rs. ${(incomeTotal - expenseTotal).toLocaleString()}
+- Expense Categories: ${Object.entries(byCategory).map(([c, v]) => `${c}(Rs.${v.toLocaleString()})`).join(', ')}`;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        transactionDetails = transactions.map((t: any) => 
+          `[${t.transactionNumber}] Type:${t.type}|Account:${t.accountType}|Amount:Rs.${(t.amount || 0).toLocaleString()}|Name:${t.name}|Category:${t.category || 'N/A'}|Date:${t.transactionDate}|BalanceBefore:Rs.${(t.balanceBefore || 0).toLocaleString()}|BalanceAfter:Rs.${(t.balanceAfter || 0).toLocaleString()}|Reference:${t.referenceType || 'N/A'}|Description:${t.description || 'N/A'}`
+        ).join('\n  ');
+      }
+
+      sections.push(`💰 CASH MANAGEMENT:
+- Total Cash Balance: Rs. ${totalCash.toLocaleString()}
+- Account Balances: ${accountDetails}
+${transactionSummary}
+- ALL CASH ACCOUNTS:
+  ${accountFullDetails}
+- ALL CASH TRANSACTIONS (search by transaction number, type, category, date):
+  ${transactionDetails || 'No transactions'}`);
+    }
+
     return sections.join('\n\n');
   }
 
@@ -1049,14 +1235,22 @@ For OVERDUE SUPPLIERS LIST:
       'supplier ge', 'supplier eka', 'supplier kenek',
       // Warranty
       'warranty', 'warranties', 'expiring', 'claim',
+      // GRN - Goods Received Notes - NEW
+      'grn', 'goods received', 'received', 'delivery', 'deliveries',
+      'grn eka', 'grn keeya', 'pending grn', 'inspecting', 'accepted', 'rejected',
+      'grn status', 'awith', 'aawa', 'labuna', 'labuna de',
+      // Cash Management - NEW
+      'cash', 'drawer', 'expense', 'expenses', 'income', 'transaction',
+      'cash eka', 'salli', 'kharcha', 'ganu denu', 'drawer balance',
+      'business fund', 'petty cash', 'transfer',
       // Questions & Actions - Enhanced
       'how many', 'how much', 'what is', 'which', 'list', 'show', 'give me', 'find',
       'keeya', 'keeyada', 'mokakda', 'monawada', 'pennanna', 'denna', 'kauda', 'kawda',
       'thiyana', 'thiyena', 'inna', 'innawa', 'wela', 'details denna', 'info',
       // Specific company/person name patterns
-      'hub', 'solutions', 'tech', 'zone', 'masters', 'elite', 'pro', 'kingdom',
+      'hub', 'solutions', 'tech', 'zone', 'masters', 'elite', 'pro', 'kingdom', 'digital',
       // Common business terms
-      'naya', 'owed', 'due', 'pay', 'payment', 'owes', 'debt'
+      'naya', 'owed', 'due', 'pay', 'payment', 'owes', 'debt', 'completed', 'status'
     ];
 
     const lowerMessage = message.toLowerCase();

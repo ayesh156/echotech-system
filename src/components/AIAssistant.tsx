@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import type { ChatMessage } from '../services/geminiService';
-// Import REAL system data for AI analysis
+// Import REAL system data for AI analysis - ALL SECTIONS
 import { 
   mockProducts, 
   mockCustomers, 
@@ -15,7 +15,10 @@ import {
   mockServices, 
   mockJobNotes, 
   mockSuppliers,
-  mockWarrantyClaims
+  mockWarrantyClaims,
+  mockGRNs,
+  mockCashTransactions,
+  mockCashAccounts
 } from '../data/mockData';
 
 type ResponseLanguage = 'auto' | 'english' | 'sinhala';
@@ -89,14 +92,18 @@ I can analyze your **actual system data** including:
 • 👥 Customers & Credit Balances
 • 📄 Invoices & Sales Data
 • 🔧 Services & Job Notes
-• 👔 Suppliers & Purchases
+• 👔 Suppliers & Overdue Payments
+• 📥 GRN (Goods Received Notes)
+• 💰 Cash & Expenses
 • 🛡️ Warranty Claims
 
 **Try asking:**
+• "Pending GRN monawada?"
+• "Cash drawer balance keeya?"
+• "Overdue suppliers kauda?"
 • "Show me invoice 10260012"
-• "Low stock products keeya?"
-• "Which customers have credit?"
-• "Today's sales total?"
+• "Low stock products?"
+• "Today expenses list denna"
 
 ඕනෑම භාෂාවකින් (English, සිංහල, Singlish) ඔබට ප්‍රශ්න අහන්න පුළුවන්!
 
@@ -285,6 +292,63 @@ How can I help you today? 😊`,
             isReplacement: w.isReplacement,
             replacementProductName: w.replacementProductName,
             handledBy: w.handledBy
+          })),
+          // GRN - Goods Received Notes
+          grns: mockGRNs.map(g => ({
+            id: g.id,
+            grnNumber: g.grnNumber,
+            supplierId: g.supplierId,
+            supplierName: g.supplierName,
+            orderDate: g.orderDate,
+            expectedDeliveryDate: g.expectedDeliveryDate,
+            receivedDate: g.receivedDate,
+            totalOrderedQuantity: g.totalOrderedQuantity,
+            totalReceivedQuantity: g.totalReceivedQuantity,
+            totalAcceptedQuantity: g.totalAcceptedQuantity,
+            totalRejectedQuantity: g.totalRejectedQuantity,
+            subtotal: g.subtotal,
+            discountAmount: g.discountAmount,
+            totalAmount: g.totalAmount,
+            paymentStatus: g.paymentStatus,
+            paidAmount: g.paidAmount,
+            status: g.status,
+            receivedBy: g.receivedBy,
+            notes: g.notes,
+            items: g.items?.map(item => ({
+              productId: item.productId,
+              productName: item.productName,
+              category: item.category,
+              orderedQuantity: item.orderedQuantity,
+              receivedQuantity: item.receivedQuantity,
+              acceptedQuantity: item.acceptedQuantity,
+              rejectedQuantity: item.rejectedQuantity,
+              unitPrice: item.unitPrice,
+              totalAmount: item.totalAmount,
+              status: item.status,
+              rejectionReason: item.rejectionReason
+            }))
+          })),
+          // Cash Management
+          cashAccounts: mockCashAccounts.map(acc => ({
+            id: acc.id,
+            name: acc.name,
+            type: acc.type,
+            balance: acc.balance,
+            description: acc.description
+          })),
+          cashTransactions: mockCashTransactions.map(txn => ({
+            id: txn.id,
+            transactionNumber: txn.transactionNumber,
+            type: txn.type,
+            accountType: txn.accountType,
+            amount: txn.amount,
+            name: txn.name,
+            description: txn.description,
+            category: txn.category,
+            balanceBefore: txn.balanceBefore,
+            balanceAfter: txn.balanceAfter,
+            transactionDate: txn.transactionDate,
+            referenceType: txn.referenceType
           }))
         };
         
