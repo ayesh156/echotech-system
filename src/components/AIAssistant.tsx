@@ -7,6 +7,16 @@ import {
 } from 'lucide-react';
 import { geminiService } from '../services/geminiService';
 import type { ChatMessage } from '../services/geminiService';
+// Import REAL system data for AI analysis
+import { 
+  mockProducts, 
+  mockCustomers, 
+  mockInvoices, 
+  mockServices, 
+  mockJobNotes, 
+  mockSuppliers,
+  mockWarrantyClaims
+} from '../data/mockData';
 
 type ResponseLanguage = 'auto' | 'english' | 'sinhala';
 
@@ -73,13 +83,20 @@ export const AIAssistant: React.FC = () => {
         role: 'assistant',
         content: `Ayubowan! 🙏 Welcome to ECOTEC AI Assistant!
 
-I can help you with:
-• 📦 Products & Inventory
-• 👥 Customers & Sales
-• 📄 Invoices & Quotations
-• 🔧 Services & Repairs
-• 📊 Reports & Analytics
-• ⚙️ Settings & More
+🔥 **Real-Time Data Access Enabled!**
+I can analyze your **actual system data** including:
+• 📦 Products, Stock & Inventory
+• 👥 Customers & Credit Balances
+• 📄 Invoices & Sales Data
+• 🔧 Services & Job Notes
+• 👔 Suppliers & Purchases
+• 🛡️ Warranty Claims
+
+**Try asking:**
+• "Show me invoice 10260012"
+• "Low stock products keeya?"
+• "Which customers have credit?"
+• "Today's sales total?"
 
 ඕනෑම භාෂාවකින් (English, සිංහල, Singlish) ඔබට ප්‍රශ්න අහන්න පුළුවන්!
 
@@ -125,7 +142,158 @@ How can I help you today? 😊`,
     setIsLoading(true);
 
     try {
-      const response = await geminiService.sendMessage(userMessage.content, responseLanguage);
+      let response: string;
+      
+      // Check if user is asking about system data
+      if (geminiService.isDataQuery(userMessage.content)) {
+        // Prepare COMPLETE system data for AI analysis - ALL fields included
+        const systemData = {
+          products: mockProducts.map(p => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            brand: p.brand,
+            price: p.price,
+            sellingPrice: p.sellingPrice || p.price,
+            costPrice: p.costPrice,
+            stock: p.stock,
+            serialNumber: p.serialNumber,
+            barcode: p.barcode,
+            description: p.description,
+            warranty: p.warranty,
+            lowStockThreshold: p.lowStockThreshold || 10,
+            totalPurchased: p.totalPurchased,
+            totalSold: p.totalSold,
+            createdAt: p.createdAt
+          })),
+          customers: mockCustomers.map(c => ({
+            id: c.id,
+            name: c.name,
+            email: c.email,
+            phone: c.phone,
+            address: c.address,
+            totalSpent: c.totalSpent,
+            totalOrders: c.totalOrders,
+            lastPurchase: c.lastPurchase,
+            creditBalance: c.creditBalance,
+            creditLimit: c.creditLimit,
+            creditDueDate: c.creditDueDate,
+            creditStatus: c.creditStatus
+          })),
+          invoices: mockInvoices.map(inv => ({
+            id: inv.id,
+            invoiceNumber: inv.id,
+            customerId: inv.customerId,
+            customerName: inv.customerName,
+            subtotal: inv.subtotal,
+            tax: inv.tax,
+            total: inv.total,
+            status: inv.status,
+            paidAmount: inv.paidAmount || 0,
+            balanceDue: inv.total - (inv.paidAmount || 0),
+            date: inv.date,
+            dueDate: inv.dueDate,
+            paymentMethod: inv.paymentMethod,
+            salesChannel: inv.salesChannel,
+            lastPaymentDate: inv.lastPaymentDate,
+            items: inv.items?.map(item => ({
+              productId: item.productId,
+              productName: item.productName,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.total,
+              warrantyDueDate: item.warrantyDueDate
+            }))
+          })),
+          services: mockServices.map(s => ({
+            id: s.id,
+            name: s.name,
+            category: s.category,
+            description: s.description,
+            basePrice: s.basePrice,
+            minPrice: s.minPrice,
+            maxPrice: s.maxPrice,
+            priceType: s.priceType,
+            estimatedDuration: s.estimatedDuration,
+            status: s.status,
+            isPopular: s.isPopular,
+            warranty: s.warranty,
+            totalCompleted: s.totalCompleted,
+            totalRevenue: s.totalRevenue,
+            lastPerformed: s.lastPerformed
+          })),
+          jobNotes: mockJobNotes.map(j => ({
+            id: j.id,
+            jobNumber: j.jobNumber,
+            customerId: j.customerId,
+            customerName: j.customerName,
+            customerPhone: j.customerPhone,
+            deviceType: j.deviceType,
+            deviceBrand: j.deviceBrand,
+            deviceModel: j.deviceModel,
+            serialNumber: j.serialNumber,
+            accessories: j.accessories,
+            deviceCondition: j.deviceCondition,
+            reportedIssue: j.reportedIssue,
+            diagnosisNotes: j.diagnosisNotes,
+            serviceRequired: j.serviceRequired,
+            estimatedCost: j.estimatedCost,
+            actualCost: j.actualCost,
+            advancePayment: j.advancePayment,
+            status: j.status,
+            priority: j.priority,
+            receivedDate: j.receivedDate,
+            expectedCompletionDate: j.expectedCompletionDate,
+            completedDate: j.completedDate,
+            deliveredDate: j.deliveredDate,
+            assignedTechnician: j.assignedTechnician,
+            createdAt: j.createdAt
+          })),
+          suppliers: mockSuppliers.map(s => ({
+            id: s.id,
+            name: s.name,
+            company: s.company,
+            email: s.email,
+            phone: s.phone,
+            address: s.address,
+            totalPurchases: s.totalPurchases,
+            totalOrders: s.totalOrders,
+            lastOrder: s.lastOrder,
+            creditBalance: s.creditBalance,
+            creditLimit: s.creditLimit,
+            creditDueDate: s.creditDueDate,
+            creditStatus: s.creditStatus,
+            rating: s.rating,
+            categories: s.categories
+          })),
+          warranties: mockWarrantyClaims.map(w => ({
+            id: w.id,
+            invoiceId: w.invoiceId,
+            productId: w.productId,
+            productName: w.productName,
+            productSerialNumber: w.productSerialNumber,
+            customerId: w.customerId,
+            customerName: w.customerName,
+            customerPhone: w.customerPhone,
+            claimDate: w.claimDate,
+            warrantyExpiryDate: w.warrantyExpiryDate,
+            status: w.status,
+            issueDescription: w.issueDescription,
+            issueCategory: w.issueCategory,
+            resolution: w.resolution,
+            resolutionDate: w.resolutionDate,
+            isReplacement: w.isReplacement,
+            replacementProductName: w.replacementProductName,
+            handledBy: w.handledBy
+          }))
+        };
+        
+        // Use data analysis for system queries
+        response = await geminiService.analyzeSystemData(userMessage.content, systemData, responseLanguage);
+      } else {
+        // Use regular chat for non-data queries
+        response = await geminiService.sendMessage(userMessage.content, responseLanguage);
+      }
       
       const assistantMessage: Message = {
         id: generateId(),
@@ -171,26 +339,173 @@ How can I help you today? 😊`,
     }]);
   };
 
+  // World-class message formatter with proper markdown rendering
   const formatMessage = (content: string) => {
-    // Convert markdown-like formatting to HTML
-    return content
-      .split('\n')
-      .map((line, index) => {
-        // Handle bullet points
-        if (line.startsWith('• ') || line.startsWith('- ')) {
-          return <li key={index} className="ml-4">{line.substring(2)}</li>;
+    // Process the content line by line with proper formatting
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
+    let listItems: React.ReactNode[] = [];
+    let inList = false;
+    let listType: 'ul' | 'ol' = 'ul';
+
+    const processInlineFormatting = (text: string): string => {
+      // Bold: **text** or __text__
+      let result = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+      result = result.replace(/__(.*?)__/g, '<strong class="font-semibold">$1</strong>');
+      // Italic: *text* or _text_
+      result = result.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      result = result.replace(/_([^_]+)_/g, '<em>$1</em>');
+      // Code: `text`
+      result = result.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-700/50 text-emerald-400 text-xs font-mono">$1</code>');
+      // Arrows and special formatting
+      result = result.replace(/→/g, '<span class="text-emerald-400">→</span>');
+      result = result.replace(/➔/g, '<span class="text-emerald-400">➔</span>');
+      result = result.replace(/✅/g, '<span class="text-green-400">✅</span>');
+      result = result.replace(/❌/g, '<span class="text-red-400">❌</span>');
+      result = result.replace(/⚠️/g, '<span class="text-amber-400">⚠️</span>');
+      // Currency formatting highlight
+      result = result.replace(/(Rs\.\s?[\d,]+(?:\.\d{2})?)/g, '<span class="text-emerald-400 font-medium">$1</span>');
+      return result;
+    };
+
+    const flushList = () => {
+      if (listItems.length > 0) {
+        if (listType === 'ol') {
+          elements.push(
+            <ol key={`list-${elements.length}`} className="list-decimal list-inside space-y-1 my-2 ml-2">
+              {listItems}
+            </ol>
+          );
+        } else {
+          elements.push(
+            <ul key={`list-${elements.length}`} className="space-y-1 my-2">
+              {listItems}
+            </ul>
+          );
         }
-        // Handle numbered lists
-        if (/^\d+\.\s/.test(line)) {
-          return <li key={index} className="ml-4">{line.replace(/^\d+\.\s/, '')}</li>;
-        }
-        // Handle bold text
-        const boldFormatted = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        return (
-          <p key={index} className={line === '' ? 'h-2' : ''} 
-             dangerouslySetInnerHTML={{ __html: boldFormatted }} />
+        listItems = [];
+        inList = false;
+      }
+    };
+
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+
+      // Empty line
+      if (trimmedLine === '') {
+        flushList();
+        elements.push(<div key={`empty-${index}`} className="h-2" />);
+        return;
+      }
+
+      // Horizontal rule (━━━ or --- or ___)
+      if (/^[━─\-_]{3,}$/.test(trimmedLine)) {
+        flushList();
+        elements.push(
+          <hr key={`hr-${index}`} className="my-2 border-t border-slate-600/50" />
         );
-      });
+        return;
+      }
+
+      // Headers with emojis (like 🔍 **INVOICE #10260011**)
+      if (/^[🔍📦📄👤💰🛒📋🔧👔🛡️💳📊📅✅⏳⚠️🎯💡🔥✨🚀📈📉🏷️🆔🏢]/.test(trimmedLine)) {
+        flushList();
+        const processed = processInlineFormatting(trimmedLine);
+        elements.push(
+          <div 
+            key={`header-${index}`} 
+            className="font-semibold text-sm py-1"
+            dangerouslySetInnerHTML={{ __html: processed }} 
+          />
+        );
+        return;
+      }
+
+      // Bullet points (• or - or *)
+      if (/^[•\-\*]\s/.test(trimmedLine)) {
+        if (!inList || listType !== 'ul') {
+          flushList();
+          inList = true;
+          listType = 'ul';
+        }
+        const content = trimmedLine.replace(/^[•\-\*]\s/, '');
+        const processed = processInlineFormatting(content);
+        listItems.push(
+          <li 
+            key={`li-${index}`} 
+            className="flex items-start gap-2 text-sm"
+          >
+            <span className="text-emerald-400 mt-0.5">•</span>
+            <span dangerouslySetInnerHTML={{ __html: processed }} />
+          </li>
+        );
+        return;
+      }
+
+      // Numbered lists
+      if (/^\d+\.\s/.test(trimmedLine)) {
+        if (!inList || listType !== 'ol') {
+          flushList();
+          inList = true;
+          listType = 'ol';
+        }
+        const content = trimmedLine.replace(/^\d+\.\s/, '');
+        const processed = processInlineFormatting(content);
+        listItems.push(
+          <li 
+            key={`li-${index}`} 
+            className="text-sm ml-4"
+            dangerouslySetInnerHTML={{ __html: processed }}
+          />
+        );
+        return;
+      }
+
+      // Arrow lines (→ or ➔ at start - sub-items)
+      if (/^[→➔]\s/.test(trimmedLine)) {
+        const content = trimmedLine.replace(/^[→➔]\s/, '');
+        const processed = processInlineFormatting(content);
+        // Add to current list if in one, otherwise as standalone
+        if (inList) {
+          listItems.push(
+            <li 
+              key={`arrow-${index}`} 
+              className="flex items-start gap-2 text-sm ml-4 text-slate-300"
+            >
+              <span className="text-emerald-400">→</span>
+              <span dangerouslySetInnerHTML={{ __html: processed }} />
+            </li>
+          );
+        } else {
+          elements.push(
+            <div 
+              key={`arrow-${index}`} 
+              className="flex items-start gap-2 text-sm ml-4 text-slate-300"
+            >
+              <span className="text-emerald-400">→</span>
+              <span dangerouslySetInnerHTML={{ __html: processed }} />
+            </div>
+          );
+        }
+        return;
+      }
+
+      // Regular paragraph
+      flushList();
+      const processed = processInlineFormatting(trimmedLine);
+      elements.push(
+        <p 
+          key={`p-${index}`} 
+          className="text-sm leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: processed }} 
+        />
+      );
+    });
+
+    // Flush any remaining list items
+    flushList();
+
+    return <div className="space-y-1">{elements}</div>;
   };
 
   // Hide completely on AI Chat page
@@ -239,7 +554,7 @@ How can I help you today? 😊`,
       className={`fixed z-50 transition-all duration-300 ease-out ${
         isMinimized 
           ? 'bottom-4 right-4 w-64 sm:w-72' 
-          : 'bottom-0 right-0 sm:bottom-4 sm:right-4 w-full sm:w-[380px] h-[100dvh] sm:h-[85vh] sm:max-h-[700px] sm:rounded-2xl'
+          : 'bottom-0 right-0 sm:bottom-4 sm:right-4 w-full sm:w-[420px] h-[100dvh] sm:h-[85vh] sm:max-h-[720px] sm:rounded-2xl'
       }`}
     >
       <div className={`h-full flex flex-col shadow-2xl border overflow-hidden ${
@@ -424,20 +739,20 @@ How can I help you today? 😊`,
                       </div>
 
                       {/* Message bubble */}
-                      <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                      <div className={`rounded-2xl px-4 py-3 overflow-hidden ${
                         message.role === 'user'
-                          ? theme === 'dark'
+                          ? `max-w-[80%] ${theme === 'dark'
                             ? 'bg-blue-600 text-white'
-                            : 'bg-blue-500 text-white'
+                            : 'bg-blue-500 text-white'}`
                           : message.isError
-                          ? theme === 'dark'
+                          ? `max-w-[85%] ${theme === 'dark'
                             ? 'bg-red-900/50 text-red-200 border border-red-700/50'
-                            : 'bg-red-50 text-red-700 border border-red-200'
-                          : theme === 'dark'
-                          ? 'bg-slate-800 text-slate-100'
-                          : 'bg-white text-slate-800 shadow-sm'
+                            : 'bg-red-50 text-red-700 border border-red-200'}`
+                          : `max-w-[90%] ${theme === 'dark'
+                          ? 'bg-slate-800/80 text-slate-100 border border-slate-700/50'
+                          : 'bg-white text-slate-800 shadow-sm border border-slate-200'}`
                       }`}>
-                        <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                        <div className="text-sm leading-relaxed overflow-x-auto">
                           {formatMessage(message.content)}
                         </div>
                         <p className={`text-[10px] mt-2 ${

@@ -32,6 +32,22 @@ IMPORTANT LANGUAGE RULES:
 2. Be natural and conversational in the chosen language
 3. Use appropriate greetings for each language
 
+⚠️ CRITICAL - DO NOT TRANSLATE THESE (Keep in English always):
+- Product names (e.g., "AMD Ryzen 9 7950X", "NVIDIA GeForce RTX 4090", "Samsung 990 Pro")
+- Brand names (e.g., "Apple", "Dell", "Corsair", "Logitech", "ASUS", "MSI")
+- Model numbers and serial numbers
+- Technical specifications (e.g., "DDR5", "NVMe SSD", "RGB", "1TB", "32GB")
+- Category names (e.g., "Processors", "Graphics Cards", "Memory", "Storage")
+- Status terms (e.g., "Full Paid", "Unpaid", "Pending", "Active")
+- Invoice numbers, Job numbers, GRN numbers (e.g., "10260011", "JOB-2026-0001")
+- Customer names, Supplier names, Company names
+- Currency format "Rs." (keep as Rs. not රු.)
+- English labels in data display (Customer, Date, Status, Total, etc.)
+
+Only translate: Conversational text, greetings, explanations, and general instructions.
+Example (Sinhala response): "🔍 **INVOICE #10260011** මේක GameZone Café ගේ invoice එක. Total: Rs. 1,345,500"
+NOT: "🔍 **ඉන්වොයිසය #10260011** පාරිභෝගිකයා: ගේම්සෝන් කැෆේ"
+
 ABOUT ECOTEC SYSTEM - You have knowledge about:
 
 📦 INVENTORY MANAGEMENT:
@@ -530,6 +546,469 @@ Keep it concise (2-3 sentences), highlight key features and benefits. Use profes
     } catch {
       return '';
     }
+  }
+
+  /**
+   * Analyze system data based on user query
+   * Detects if user is asking about system data and provides intelligent analysis
+   */
+  async analyzeSystemData(
+    userMessage: string, 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    systemData: any,
+    responseLanguage: 'auto' | 'english' | 'sinhala' | 'singlish' = 'auto'
+  ): Promise<string> {
+    const apiKey = this.getApiKey();
+    
+    if (!apiKey) {
+      throw new Error('API key not configured.');
+    }
+
+    // Language instruction with strict rules about what NOT to translate
+    let languageInstruction = '';
+    const doNotTranslateRule = `
+⚠️ CRITICAL - NEVER TRANSLATE THESE (Always keep in English):
+- Product names (AMD Ryzen 9 7950X, NVIDIA GeForce RTX 4090, Samsung 990 Pro, Lian Li O11, G.Skill Trident Z5, etc.)
+- Brand names (Apple, Dell, Corsair, Logitech, ASUS, MSI, Intel, AMD, NVIDIA, etc.)
+- Model numbers, serial numbers, barcodes
+- Technical specs (DDR5, NVMe, SSD, HDD, RGB, 1TB, 32GB, 4K, etc.)
+- Category names (Processors, Graphics Cards, Memory, Storage, Monitors, Peripherals, etc.)
+- Status words (Full Paid, Unpaid, Pending, Active, Completed, etc.)
+- Invoice/Job/GRN numbers (10260011, JOB-2026-0001, GRN-2026-0001)
+- Customer names, supplier names, company names
+- Currency "Rs." (NOT රු.)
+- Labels like: Customer, Date, Status, Total, Qty, Price, Invoice, Items
+
+ONLY translate: Conversational sentences, greetings, and explanations.
+`;
+    
+    if (responseLanguage === 'english') {
+      languageInstruction = 'Respond ONLY in English.';
+    } else if (responseLanguage === 'sinhala') {
+      languageInstruction = `Respond in Sinhala script (සිංහල) for conversational parts.
+${doNotTranslateRule}
+Example correct Sinhala response:
+"🔍 **INVOICE #10260009**
+මේක Priya Jayawardena ගේ invoice එක.
+📅 Date: 2026-01-14
+✅ Status: Full Paid
+🛒 Items:
+1. Lian Li O11 Dynamic EVO (Qty: 1 x Rs. 58,000)
+2. G.Skill Trident Z5 64GB DDR5 (Qty: 1 x Rs. 95,000)
+💰 Total: Rs. 175,950"`;
+    } else if (responseLanguage === 'singlish') {
+      languageInstruction = `Respond in Singlish - Sinhala words in English letters mixed with English.
+${doNotTranslateRule}
+Example: "Ow bro, meka Priya Jayawardena ge invoice eka. Total Rs. 175,950. Full paid already."`;
+    } else {
+      languageInstruction = `Respond in the same language the user used (English, Sinhala, or Singlish).
+${doNotTranslateRule}`;
+    }
+
+    // Build data summary for context
+    const dataSummary = this.buildDataSummary(systemData);
+
+    const analysisPrompt = `ROLE: You are the INTELLIGENT DATA ENGINE for ECOTEC Computer Shop.
+You are NOT a support agent. You are a DATA TERMINAL.
+Your ONLY job is to query the "CURRENT SYSTEM DATA" block below and answer the user's question using that specific data.
+
+${languageInstruction}
+
+CRITICAL RULES (FOLLOW STRICTLY):
+1. ⚠️ DO NOT tell the user to "check the system", "go to settings", or "search the database".
+2. ⚠️ YOU HAVE THE DATA. It is pasted right below. USE IT.
+3. If the user asks for "Invoice 10260011", FIND "ID:10260011" in the data below and list EVERY detail.
+4. If the data is NOT in the text below, ONLY THEN say "I cannot find that record in the current loaded data."
+5. NEVER apologize or say "I will help you find it". JUST SHOW THE DATA.
+6. ⚠️ NEVER translate product names, brand names, technical terms, customer names - keep them EXACTLY as they appear in the data!
+
+FORMAT GUIDELINES:
+- Use emojis for sections (👤, 📅, 💰, 🛒, 📦).
+- Use bold text for labels (**Label:**).
+- Keep all labels in English (Customer, Date, Status, Total, Items, Price, Qty)
+- Keep all data values in English (product names, brands, statuses, numbers)
+- Only use Sinhala/Singlish for conversational parts if user asked in that language
+
+CURRENT SYSTEM DATA (This is your database):
+${dataSummary}
+
+USER QUERY: "${userMessage}"
+
+RESPONSE FORMAT (Use this exact format - labels in English):
+
+🔍 **INVOICE #10260009**
+━━━━━━━━━━━━━━━━━━━━━━━━
+👤 **Customer:** Priya Jayawardena
+📅 **Date:** 2026-01-14
+✅ **Status:** Full Paid
+━━━━━━━━━━━━━━━━━━━━━━━━
+🛒 **Items:**
+1. Lian Li O11 Dynamic EVO (Qty: 1 x Rs. 58,000)
+   → Total: Rs. 58,000
+2. G.Skill Trident Z5 64GB DDR5 (Qty: 1 x Rs. 95,000)
+   → Total: Rs. 95,000
+━━━━━━━━━━━━━━━━━━━━━━━━
+💰 **Total:** Rs. 175,950
+💳 **Payment:** Cash
+
+For PRODUCTS:
+📦 **PRODUCT**
+━━━━━━━━━━━━━━━━━━━━━━━━
+🔖 **Name:** Logitech G Pro X Superlight 2
+🏢 **Brand:** Logitech
+🏷️ **Category:** Peripherals
+💰 **Price:** Rs. 52,000
+📦 **Stock:** 35 units
+━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+
+    try {
+      const response = await fetch(`${this.baseUrl}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: analysisPrompt }] }],
+          generationConfig: { 
+            temperature: 0.3, // Lower temperature for more factual responses
+            maxOutputTokens: 2048 
+          },
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze data');
+      }
+
+      const data = await response.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Unable to analyze data.';
+    } catch (error) {
+      console.error('Data analysis error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Build a summary of system data for AI context
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private buildDataSummary(data: any): string {
+    const sections: string[] = [];
+
+    // Products Summary
+    if (data.products && data.products.length > 0) {
+      const products = data.products;
+      const totalProducts = products.length;
+      const totalStock = products.reduce((sum: number, p: { stock: number }) => sum + p.stock, 0);
+      const lowStockItems = products.filter((p: { stock: number; lowStockThreshold?: number }) => p.stock <= (p.lowStockThreshold || 10));
+      const outOfStock = products.filter((p: { stock: number }) => p.stock === 0);
+      const totalInventoryValue = products.reduce((sum: number, p: { price: number; stock: number }) => sum + (p.price * p.stock), 0);
+      const totalCostValue = products.reduce((sum: number, p: { costPrice?: number; stock: number }) => sum + ((p.costPrice || 0) * p.stock), 0);
+      
+      // Group by category
+      const byCategory: Record<string, number> = {};
+      products.forEach((p: { category: string }) => {
+        byCategory[p.category] = (byCategory[p.category] || 0) + 1;
+      });
+
+      // Group by brand
+      const byBrand: Record<string, number> = {};
+      products.forEach((p: { brand: string }) => {
+        byBrand[p.brand] = (byBrand[p.brand] || 0) + 1;
+      });
+
+      // All products details for specific lookups - COMPLETE DATA
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const productDetails = products.map((p: any) => 
+        `ID:${p.id}|Name:${p.name}|Brand:${p.brand}|Category:${p.category}|SellingPrice:Rs.${p.price?.toLocaleString()}|CostPrice:Rs.${p.costPrice?.toLocaleString() || 'N/A'}|Stock:${p.stock}|SerialNo:${p.serialNumber || 'N/A'}|Barcode:${p.barcode || 'N/A'}|Warranty:${p.warranty || 'N/A'}|TotalSold:${p.totalSold || 0}|Description:${p.description || 'N/A'}`
+      ).join('\n  ');
+
+      sections.push(`📦 PRODUCTS (${totalProducts} items):
+- Total Stock Units: ${totalStock.toLocaleString()}
+- Inventory Retail Value: Rs. ${totalInventoryValue.toLocaleString()}
+- Inventory Cost Value: Rs. ${totalCostValue.toLocaleString()}
+- Potential Profit: Rs. ${(totalInventoryValue - totalCostValue).toLocaleString()}
+- Low Stock Items: ${lowStockItems.length} items
+- Out of Stock: ${outOfStock.length} items
+- Categories: ${Object.entries(byCategory).map(([k, v]) => `${k}(${v})`).join(', ')}
+- Brands: ${Object.entries(byBrand).map(([k, v]) => `${k}(${v})`).join(', ')}
+- Low Stock Alert: ${lowStockItems.slice(0, 10).map((p: { name: string; stock: number }) => `${p.name}(${p.stock})`).join(', ')}${lowStockItems.length > 10 ? '...' : ''}
+- ALL PRODUCT DATA (search by ID, name, brand, serial, barcode):
+  ${productDetails}`);
+    }
+
+    // Customers Summary
+    if (data.customers && data.customers.length > 0) {
+      const customers = data.customers;
+      const totalCustomers = customers.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalCredit = customers.reduce((sum: number, c: any) => sum + (c.creditBalance || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalSpentAll = customers.reduce((sum: number, c: any) => sum + (c.totalSpent || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const customersWithCredit = customers.filter((c: any) => (c.creditBalance || 0) > 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const overdueCustomers = customers.filter((c: any) => c.creditStatus === 'overdue');
+      
+      // All customer details - COMPLETE DATA
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const customerDetails = customers.map((c: any) => 
+        `ID:${c.id}|Name:${c.name}|Phone:${c.phone || 'N/A'}|Email:${c.email || 'N/A'}|Address:${c.address || 'N/A'}|TotalSpent:Rs.${(c.totalSpent || 0).toLocaleString()}|TotalOrders:${c.totalOrders || 0}|LastPurchase:${c.lastPurchase || 'N/A'}|CreditBalance:Rs.${(c.creditBalance || 0).toLocaleString()}|CreditLimit:Rs.${(c.creditLimit || 0).toLocaleString()}|CreditStatus:${c.creditStatus || 'clear'}|CreditDueDate:${c.creditDueDate || 'N/A'}`
+      ).join('\n  ');
+
+      sections.push(`👥 CUSTOMERS (${totalCustomers}):
+- Total Customer Spending: Rs. ${totalSpentAll.toLocaleString()}
+- Total Outstanding Credit: Rs. ${totalCredit.toLocaleString()}
+- Customers with Credit: ${customersWithCredit.length}
+- Overdue Accounts: ${overdueCustomers.length}
+- Top Credit Balances: ${customersWithCredit.sort((a: { creditBalance?: number }, b: { creditBalance?: number }) => (b.creditBalance || 0) - (a.creditBalance || 0)).slice(0, 5).map((c: { name: string; creditBalance?: number }) => `${c.name}(Rs.${(c.creditBalance || 0).toLocaleString()})`).join(', ')}
+- ALL CUSTOMER DATA (search by ID, name, phone, email):
+  ${customerDetails}`);
+    }
+
+    // Invoices Summary
+    if (data.invoices && data.invoices.length > 0) {
+      const invoices = data.invoices;
+      const totalInvoices = invoices.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalRevenue = invoices.reduce((sum: number, i: any) => sum + i.total, 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalPaid = invoices.reduce((sum: number, i: any) => sum + (i.paidAmount || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const paidInvoices = invoices.filter((i: any) => i.status === 'fullpaid');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const unpaidInvoices = invoices.filter((i: any) => i.status === 'unpaid');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const partialInvoices = invoices.filter((i: any) => i.status === 'halfpay');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalOutstanding = invoices.reduce((sum: number, i: any) => sum + (i.balanceDue || 0), 0);
+
+      // Monthly breakdown
+      const byMonth: Record<string, { count: number; total: number }> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      invoices.forEach((inv: any) => {
+        const month = inv.date?.substring(0, 7) || 'Unknown';
+        if (!byMonth[month]) byMonth[month] = { count: 0, total: 0 };
+        byMonth[month].count++;
+        byMonth[month].total += inv.total || 0;
+      });
+
+      // Best selling products from invoice items
+      const productSales: Record<string, { qty: number; revenue: number }> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      invoices.forEach((inv: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        inv.items?.forEach((item: any) => {
+          if (!productSales[item.productName]) productSales[item.productName] = { qty: 0, revenue: 0 };
+          productSales[item.productName].qty += item.quantity || 0;
+          productSales[item.productName].revenue += item.total || (item.quantity * item.unitPrice) || 0;
+        });
+      });
+      const topProducts = Object.entries(productSales)
+        .sort((a, b) => b[1].qty - a[1].qty)
+        .slice(0, 10);
+
+      // All invoice details - COMPLETE DATA
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const invoiceDetails = invoices.map((inv: any) => 
+        `InvoiceID:${inv.id}|Customer:${inv.customerName}|CustomerID:${inv.customerId}|Subtotal:Rs.${(inv.subtotal || 0).toLocaleString()}|Tax:Rs.${(inv.tax || 0).toLocaleString()}|Total:Rs.${(inv.total || 0).toLocaleString()}|PaidAmount:Rs.${(inv.paidAmount || 0).toLocaleString()}|BalanceDue:Rs.${(inv.balanceDue || 0).toLocaleString()}|Status:${inv.status}|Date:${inv.date}|DueDate:${inv.dueDate}|PaymentMethod:${inv.paymentMethod || 'N/A'}|SalesChannel:${inv.salesChannel || 'N/A'}|Items:[${inv.items?.map((i: { productName: string; quantity: number; unitPrice: number; total: number }) => `${i.productName}(Qty:${i.quantity},Price:Rs.${i.unitPrice},Total:Rs.${i.total})`).join('; ') || 'N/A'}]`
+      ).join('\n  ');
+
+      sections.push(`📄 INVOICES (${totalInvoices}):
+- Total Sales Revenue: Rs. ${totalRevenue.toLocaleString()}
+- Total Collected: Rs. ${totalPaid.toLocaleString()}
+- Total Outstanding: Rs. ${totalOutstanding.toLocaleString()}
+- Fully Paid: ${paidInvoices.length} invoices
+- Partially Paid: ${partialInvoices.length} invoices
+- Unpaid: ${unpaidInvoices.length} invoices
+- Monthly Sales: ${Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 6).map(([m, d]) => `${m}:${d.count}inv/Rs.${d.total.toLocaleString()}`).join(', ')}
+- Best Selling Products: ${topProducts.map(([name, d]) => `${name}(${d.qty}units/Rs.${d.revenue.toLocaleString()})`).join(', ')}
+- ALL INVOICE DATA (search by InvoiceID, customer name, date):
+  ${invoiceDetails}`);
+    }
+
+    // Services Summary
+    if (data.services && data.services.length > 0) {
+      const services = data.services;
+      const totalServices = services.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const activeServices = services.filter((s: any) => s.status === 'active');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalServiceRevenue = services.reduce((sum: number, s: any) => sum + (s.totalRevenue || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalCompleted = services.reduce((sum: number, s: any) => sum + (s.totalCompleted || 0), 0);
+
+      // All service details - COMPLETE DATA
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const serviceDetails = services.map((s: any) => 
+        `ID:${s.id}|Name:${s.name}|Category:${s.category}|Description:${s.description || 'N/A'}|BasePrice:Rs.${(s.basePrice || 0).toLocaleString()}|MinPrice:Rs.${(s.minPrice || 'N/A')}|MaxPrice:Rs.${(s.maxPrice || 'N/A')}|PriceType:${s.priceType || 'fixed'}|Duration:${s.estimatedDuration || 'N/A'}|Status:${s.status}|Popular:${s.isPopular ? 'Yes' : 'No'}|Warranty:${s.warranty || 'N/A'}|TotalCompleted:${s.totalCompleted || 0}|TotalRevenue:Rs.${(s.totalRevenue || 0).toLocaleString()}|LastPerformed:${s.lastPerformed || 'N/A'}`
+      ).join('\n  ');
+
+      sections.push(`🔧 SERVICES (${totalServices}):
+- Active Services: ${activeServices.length}
+- Total Services Completed: ${totalCompleted}
+- Total Service Revenue: Rs. ${totalServiceRevenue.toLocaleString()}
+- Top Revenue Services: ${services.sort((a: { totalRevenue?: number }, b: { totalRevenue?: number }) => (b.totalRevenue || 0) - (a.totalRevenue || 0)).slice(0, 5).map((s: { name: string; totalRevenue?: number }) => `${s.name}(Rs.${(s.totalRevenue || 0).toLocaleString()})`).join(', ')}
+- ALL SERVICE DATA (search by ID, name, category):
+  ${serviceDetails}`);
+    }
+
+    // Job Notes Summary
+    if (data.jobNotes && data.jobNotes.length > 0) {
+      const jobNotes = data.jobNotes;
+      const totalJobs = jobNotes.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pendingJobs = jobNotes.filter((j: any) => j.status !== 'completed' && j.status !== 'delivered');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const completedJobs = jobNotes.filter((j: any) => j.status === 'completed' || j.status === 'delivered');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalEstimatedRevenue = jobNotes.reduce((sum: number, j: any) => sum + (j.estimatedCost || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalActualRevenue = jobNotes.reduce((sum: number, j: any) => sum + (j.actualCost || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalAdvance = jobNotes.reduce((sum: number, j: any) => sum + (j.advancePayment || 0), 0);
+
+      // Group by status
+      const byStatus: Record<string, number> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      jobNotes.forEach((j: any) => {
+        byStatus[j.status] = (byStatus[j.status] || 0) + 1;
+      });
+
+      // All job note details - COMPLETE DATA
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const jobDetails = jobNotes.map((j: any) => 
+        `ID:${j.id}|JobNumber:${j.jobNumber}|Customer:${j.customerName}|Phone:${j.customerPhone || 'N/A'}|DeviceType:${j.deviceType}|Brand:${j.deviceBrand}|Model:${j.deviceModel}|SerialNo:${j.serialNumber || 'N/A'}|Accessories:${j.accessories?.join(', ') || 'None'}|Condition:${j.deviceCondition || 'N/A'}|Issue:${j.reportedIssue}|Diagnosis:${j.diagnosisNotes || 'N/A'}|ServiceRequired:${j.serviceRequired || 'N/A'}|EstimatedCost:Rs.${(j.estimatedCost || 0).toLocaleString()}|ActualCost:Rs.${(j.actualCost || 0).toLocaleString()}|AdvancePaid:Rs.${(j.advancePayment || 0).toLocaleString()}|Status:${j.status}|Priority:${j.priority}|ReceivedDate:${j.receivedDate}|ExpectedCompletion:${j.expectedCompletionDate || 'N/A'}|CompletedDate:${j.completedDate || 'N/A'}|Technician:${j.assignedTechnician || 'Unassigned'}`
+      ).join('\n  ');
+
+      sections.push(`📋 JOB NOTES/REPAIRS (${totalJobs}):
+- Pending/In Progress: ${pendingJobs.length}
+- Completed/Delivered: ${completedJobs.length}
+- Status Breakdown: ${Object.entries(byStatus).map(([s, c]) => `${s}(${c})`).join(', ')}
+- Total Estimated Revenue: Rs. ${totalEstimatedRevenue.toLocaleString()}
+- Total Actual Revenue: Rs. ${totalActualRevenue.toLocaleString()}
+- Total Advance Collected: Rs. ${totalAdvance.toLocaleString()}
+- ALL JOB DATA (search by ID, job number, customer, device, status):
+  ${jobDetails}`);
+    }
+
+    // Suppliers Summary
+    if (data.suppliers && data.suppliers.length > 0) {
+      const suppliers = data.suppliers;
+      const totalSuppliers = suppliers.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalOutstanding = suppliers.reduce((sum: number, s: any) => sum + (s.creditBalance || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalPurchasesValue = suppliers.reduce((sum: number, s: any) => sum + (s.totalPurchases || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const overdueSuppliers = suppliers.filter((s: any) => s.creditStatus === 'overdue');
+
+      // All supplier details - COMPLETE DATA
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const supplierDetails = suppliers.map((s: any) => 
+        `ID:${s.id}|Name:${s.name}|Company:${s.company || 'N/A'}|Email:${s.email || 'N/A'}|Phone:${s.phone || 'N/A'}|Address:${s.address || 'N/A'}|TotalPurchases:Rs.${(s.totalPurchases || 0).toLocaleString()}|TotalOrders:${s.totalOrders || 0}|LastOrder:${s.lastOrder || 'N/A'}|CreditBalance:Rs.${(s.creditBalance || 0).toLocaleString()}|CreditLimit:Rs.${(s.creditLimit || 0).toLocaleString()}|CreditStatus:${s.creditStatus || 'clear'}|CreditDueDate:${s.creditDueDate || 'N/A'}|Rating:${s.rating || 'N/A'}/5|Categories:${s.categories?.join(', ') || 'N/A'}`
+      ).join('\n  ');
+
+      sections.push(`👔 SUPPLIERS (${totalSuppliers}):
+- Total Purchases Value: Rs. ${totalPurchasesValue.toLocaleString()}
+- Total Outstanding (We Owe): Rs. ${totalOutstanding.toLocaleString()}
+- Overdue Payments: ${overdueSuppliers.length}
+- Suppliers with Balance: ${suppliers.filter((s: { creditBalance?: number }) => (s.creditBalance || 0) > 0).map((s: { name: string; creditBalance?: number }) => `${s.name}(Rs.${(s.creditBalance || 0).toLocaleString()})`).join(', ') || 'None'}
+- ALL SUPPLIER DATA (search by ID, name, company, phone):
+  ${supplierDetails}`);
+    }
+
+    // Warranties Summary
+    if (data.warranties && data.warranties.length > 0) {
+      const warranties = data.warranties;
+      const totalWarranties = warranties.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pendingClaims = warranties.filter((w: any) => w.status === 'pending' || w.status === 'under-review');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const approvedClaims = warranties.filter((w: any) => w.status === 'approved');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resolvedClaims = warranties.filter((w: any) => w.status === 'replaced' || w.status === 'repaired');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rejectedClaims = warranties.filter((w: any) => w.status === 'rejected');
+
+      // Group by status
+      const byStatus: Record<string, number> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      warranties.forEach((w: any) => {
+        byStatus[w.status] = (byStatus[w.status] || 0) + 1;
+      });
+
+      // All warranty details - COMPLETE DATA
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const warrantyDetails = warranties.map((w: any) => {
+        const expiry = new Date(w.warrantyExpiryDate);
+        const now = new Date();
+        const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return `ID:${w.id}|InvoiceID:${w.invoiceId}|ProductID:${w.productId}|Product:${w.productName}|SerialNo:${w.productSerialNumber || 'N/A'}|CustomerID:${w.customerId}|Customer:${w.customerName}|Phone:${w.customerPhone || 'N/A'}|ClaimDate:${w.claimDate}|WarrantyExpiry:${w.warrantyExpiryDate}|DaysLeft:${daysLeft > 0 ? daysLeft : 'Expired'}|Status:${w.status}|IssueCategory:${w.issueCategory}|IssueDescription:${w.issueDescription}|Resolution:${w.resolution || 'Pending'}|ResolutionDate:${w.resolutionDate || 'N/A'}|IsReplacement:${w.isReplacement ? 'Yes' : 'No'}|ReplacementProduct:${w.replacementProductName || 'N/A'}|HandledBy:${w.handledBy || 'Unassigned'}`;
+      }).join('\n  ');
+
+      sections.push(`🛡️ WARRANTY CLAIMS (${totalWarranties}):
+- Pending/Under Review: ${pendingClaims.length}
+- Approved: ${approvedClaims.length}
+- Resolved (Replaced/Repaired): ${resolvedClaims.length}
+- Rejected: ${rejectedClaims.length}
+- Status Breakdown: ${Object.entries(byStatus).map(([s, c]) => `${s}(${c})`).join(', ')}
+- ALL WARRANTY DATA (search by ID, invoice, product, customer, status):
+  ${warrantyDetails}`);
+    }
+
+    return sections.join('\n\n');
+  }
+
+  /**
+   * Check if a message is asking about system data
+   */
+  isDataQuery(message: string): boolean {
+    const dataKeywords = [
+      // Sales & Revenue
+      'sales', 'revenue', 'income', 'sold', 'selling', 'best selling', 'top selling',
+      'vikunu', 'vikina', 'aadhayama', 'labha',
+      // Stock & Inventory
+      'stock', 'inventory', 'low stock', 'out of stock', 'available',
+      'stock eka', 'thiyenawa', 'nethi',
+      // Products
+      'product', 'item', 'products', 'items', 'how many products',
+      'product keeya', 'item keeya',
+      // Customers
+      'customer', 'customers', 'credit', 'outstanding', 'balance', 'owing',
+      'customer kenekuge', 'credit balance',
+      // Invoices
+      'invoice', 'bill', 'invoices', 'bills', 'unpaid', 'pending',
+      'invoice keeya', 'bill keeya',
+      // Reports & Analysis
+      'report', 'analysis', 'summary', 'statistics', 'stats', 'total', 'count',
+      'report eka', 'analyze', 'analyse',
+      // Time-based
+      'today', 'yesterday', 'this month', 'last month', 'this week', 'this year',
+      'ada', 'iye', 'mee masaye', 'giya masaye',
+      // Services & Repairs
+      'repair', 'repairs', 'service', 'job', 'jobs', 'pending repair',
+      'repair keeya', 'job eka',
+      // Profit & Margin
+      'profit', 'margin', 'profit margin', 'earnings',
+      'labha', 'margin eka',
+      // Suppliers
+      'supplier', 'suppliers', 'purchase', 'purchases',
+      // Warranty
+      'warranty', 'warranties', 'expiring', 'claim',
+      // Questions
+      'how many', 'how much', 'what is', 'which', 'list', 'show', 'give me',
+      'keeya', 'keeyada', 'mokakda', 'monawada', 'pennanna', 'denna'
+    ];
+
+    const lowerMessage = message.toLowerCase();
+    
+    // Check for keywords
+    const hasKeyword = dataKeywords.some(keyword => lowerMessage.includes(keyword));
+    
+    // Check for invoice/product ID patterns (e.g., 10260011, INV-001, etc.)
+    const hasIdPattern = /\b\d{6,10}\b|\b(inv|pro|cus|job|grn|est|quo)[-_]?\d+\b/i.test(message);
+    
+    return hasKeyword || hasIdPattern;
   }
 }
 
