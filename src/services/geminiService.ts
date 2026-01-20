@@ -129,30 +129,39 @@ Remember: You represent ECOTEC - a premium computer and mobile shop in Sri Lanka
 
 class GeminiService {
   private apiKey: string | null = null;
-  private envApiKey: string | null = null;
   private baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
   private conversationHistory: ChatMessage[] = [];
 
   constructor() {
-    // Try to get API key from environment variable (priority)
-    this.envApiKey = import.meta.env.VITE_GEMINI_API_KEY || null;
-    this.apiKey = this.envApiKey;
+    // Initialize API key from environment variable or localStorage
+    this.initApiKey();
+  }
+
+  private initApiKey() {
+    // Priority 1: Environment variable (MUST use VITE_ prefix in Vite)
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (envKey && typeof envKey === 'string' && envKey.trim().length > 0) {
+      this.apiKey = envKey.trim();
+      return;
+    }
+    
+    // Priority 2: localStorage
+    const storedKey = localStorage.getItem('ecotec_gemini_api_key');
+    if (storedKey && storedKey.trim().length > 0) {
+      this.apiKey = storedKey.trim();
+    }
   }
 
   setApiKey(key: string) {
-    this.apiKey = key;
+    this.apiKey = key.trim();
     // Store in localStorage for persistence
-    localStorage.setItem('ecotec_gemini_api_key', key);
+    localStorage.setItem('ecotec_gemini_api_key', key.trim());
   }
 
   getApiKey(): string | null {
-    // Priority: env key > stored key
-    if (this.envApiKey) {
-      return this.envApiKey;
-    }
+    // Re-check env variable in case it wasn't available at construction
     if (!this.apiKey) {
-      // Try to get from localStorage
-      this.apiKey = localStorage.getItem('ecotec_gemini_api_key');
+      this.initApiKey();
     }
     return this.apiKey;
   }
@@ -162,15 +171,18 @@ class GeminiService {
   }
 
   hasEnvApiKey(): boolean {
-    return !!this.envApiKey;
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    return !!(envKey && typeof envKey === 'string' && envKey.trim().length > 0);
   }
 
   removeApiKey() {
-    // Can only remove localStorage key, not env key
-    if (!this.envApiKey) {
+    // Only clear if not using env key
+    if (!this.hasEnvApiKey()) {
       this.apiKey = null;
     }
     localStorage.removeItem('ecotec_gemini_api_key');
+    // Re-init to pick up env key if available
+    this.initApiKey();
   }
 
   clearHistory() {
@@ -181,7 +193,7 @@ class GeminiService {
     return [...this.conversationHistory];
   }
 
-  async sendMessage(userMessage: string, responseLanguage: 'auto' | 'english' | 'sinhala' = 'auto'): Promise<string> {
+  async sendMessage(userMessage: string, responseLanguage: 'auto' | 'english' | 'sinhala' | 'singlish' = 'auto'): Promise<string> {
     const apiKey = this.getApiKey();
     
     if (!apiKey) {
@@ -211,6 +223,9 @@ class GeminiService {
     } else if (responseLanguage === 'sinhala') {
       languageInstruction = '\n\nLANGUAGE REQUIREMENT: The user has selected SINHALA (සිංහල) as the response language.';
       finalInstructions = 'Please respond ONLY in Sinhala script (සිංහල), regardless of what language the user types in. Use proper Sinhala Unicode characters. Do not use English or transliterated text.';
+    } else if (responseLanguage === 'singlish') {
+      languageInstruction = '\n\nLANGUAGE REQUIREMENT: The user has selected SINGLISH as the response language.';
+      finalInstructions = 'Please respond in Singlish - a mix of Sinhala words written in English letters combined with English words. This is casual Sri Lankan style. Example: "Ow bro, meka hondai. Revenue eka Rs. 6.9 million wage tiyenawa." Be friendly and conversational.';
     }
 
     const fullPrompt = `${SYSTEM_PROMPT}${languageInstruction}
@@ -264,8 +279,21 @@ ${finalInstructions}`;
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || `API Error: ${response.status}`;
+        console.error('Gemini API Error:', response.status, errorData);
+        
+        // Check for specific error types
+        if (response.status === 400) {
+          throw new Error(`Bad Request: ${errorMessage}`);
+        }
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(`API Key Invalid: ${errorMessage}`);
+        }
+        if (response.status === 429) {
+          throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+        }
+        throw new Error(errorMessage);
       }
 
       const data: GeminiResponse = await response.json();
@@ -290,11 +318,18 @@ ${finalInstructions}`;
       this.conversationHistory.pop();
       
       if (error instanceof Error) {
-        if (error.message.includes('API key')) {
-          throw new Error('Invalid API key. Please check your Gemini API key in Settings.');
+        const errorMsg = error.message.toLowerCase();
+        if (errorMsg.includes('api key') || errorMsg.includes('api_key_invalid') || errorMsg.includes('invalid api') || errorMsg.includes('401')) {
+          throw new Error('Invalid API key. Please check your Gemini API key in Settings or .env file (GEMINI_API_KEY).');
         }
-        if (error.message.includes('quota')) {
+        if (errorMsg.includes('quota') || errorMsg.includes('429')) {
           throw new Error('API quota exceeded. Please try again later or upgrade your plan.');
+        }
+        if (errorMsg.includes('permission') || errorMsg.includes('403')) {
+          throw new Error('API permission denied. Please check your API key has the required permissions.');
+        }
+        if (errorMsg.includes('network') || errorMsg.includes('fetch')) {
+          throw new Error('Network error. Please check your internet connection and try again.');
         }
         throw error;
       }

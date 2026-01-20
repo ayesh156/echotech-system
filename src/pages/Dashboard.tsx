@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { mockInvoices, mockProducts, mockCustomers } from '../data/mockData';
+import { AIMonthlyAnalysis } from '../components/AIMonthlyAnalysis';
 import { 
   Package, FileText, Users, ArrowRight, ArrowUpRight,
   DollarSign, ShoppingCart, AlertTriangle, CheckCircle,
@@ -199,6 +200,9 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* AI Monthly Analysis Section */}
+      <AIMonthlyAnalysis />
 
       {/* Charts and Activity Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
