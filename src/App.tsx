@@ -39,6 +39,7 @@ const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })))
 const CashManagement = lazy(() => import('./pages/CashManagement').then(m => ({ default: m.CashManagement })));
 const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AIChat })));
 const Notes = lazy(() => import('./pages/Notes').then(m => ({ default: m.Notes })));
+const Calendar = lazy(() => import('./pages/Calendar').then(m => ({ default: m.Calendar })));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -97,6 +98,7 @@ function App() {
                   <Route path="/help" element={<Help />} />
                   <Route path="/ai-chat" element={<AIChat />} />
                   <Route path="/notes" element={<Notes />} />
+                  <Route path="/calendar" element={<Calendar />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

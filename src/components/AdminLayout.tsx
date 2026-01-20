@@ -6,7 +6,7 @@ import {
   Moon, Sun, Menu, X, ChevronLeft, ChevronRight, Bell, Search,
   User, HelpCircle, ChevronDown, Sparkles, TrendingUp,
   FolderTree, Building, Shield, Truck, ClipboardCheck, Wrench, Layers, ClipboardList,
-  Calculator, FileCheck, Wallet, Brain, Zap, StickyNote
+  Calculator, FileCheck, Wallet, Brain, Zap, StickyNote, CalendarDays, Lightbulb
 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import logoImage from '../assets/logo.jpg';
@@ -142,7 +142,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       ]
     },
     { path: '/reports', icon: TrendingUp, label: 'Reports', badge: null },
-    { path: '/notes', icon: StickyNote, label: 'Notes', badge: null },
+    { 
+      path: '/productivity', 
+      icon: Lightbulb, 
+      label: 'Productivity', 
+      badge: null,
+      subItems: [
+        { path: '/notes', icon: StickyNote, label: 'Notes' },
+        { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
+      ]
+    },
   ];
 
   const bottomNavItems = [
