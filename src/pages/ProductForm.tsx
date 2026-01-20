@@ -8,7 +8,7 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { SearchableSelect } from '../components/ui/searchable-select';
 import { 
-  Package, Tag, DollarSign, Boxes, FileText, Save, ArrowLeft, 
+  Tag, DollarSign, Boxes, FileText, Save, ArrowLeft, 
   Building2, Layers, Hash, Barcode, RefreshCw, ImageIcon, Upload, X, Shield, AlertCircle, Clipboard, CheckCircle2,
   Search, Sparkles, Brain, Loader2, Wand2, Globe, TrendingUp
 } from 'lucide-react';
@@ -546,25 +546,25 @@ export const ProductForm: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-3 sm:gap-4">
+    <div className="space-y-6">
+      {/* Page Title Header - Similar to ServiceForm */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-0">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/products')}
-            className={`p-2 rounded-xl transition-colors flex-shrink-0 ${
+            className={`p-2 rounded-xl transition-colors ${
               theme === 'dark' 
                 ? 'hover:bg-slate-800 text-slate-400 hover:text-white' 
                 : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'
             }`}
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-6 h-6" />
           </button>
           <div>
-            <h1 className={`text-xl sm:text-2xl lg:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+            <h1 className={`text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent`}>
               {isEditing ? 'Edit Product' : 'Add New Product'}
             </h1>
-            <p className={`mt-0.5 sm:mt-1 text-sm sm:text-base ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
               {isEditing ? 'Update product information' : 'Add a new product to inventory'}
             </p>
           </div>
@@ -572,32 +572,13 @@ export const ProductForm: React.FC = () => {
       </div>
 
       {/* Form Card */}
-      <div className={`rounded-2xl border overflow-hidden ${
+      {/* Form Container */}
+      <div className={`rounded-2xl border p-4 sm:p-6 ${
         theme === 'dark' 
-          ? 'bg-slate-800/30 border-slate-700/50' 
+          ? 'bg-slate-800/50 border-slate-700/50' 
           : 'bg-white border-slate-200'
       }`}>
-        {/* Gradient Header */}
-        <div className={`p-4 sm:p-6 text-white ${isEditing 
-          ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500' 
-          : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500'
-        }`}>
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center flex-shrink-0">
-              <Package className="w-5 h-5 sm:w-7 sm:h-7" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-lg sm:text-2xl font-bold truncate">
-                {isEditing ? existingProduct?.name : 'New Product'}
-              </h2>
-              <p className="text-xs sm:text-sm text-emerald-100">
-                {isEditing ? 'Editing product details' : 'Fill in the product details below'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* AI Auto-Fill Success Banner */}
           {aiAutoFillSuccess && (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/30">
@@ -611,7 +592,7 @@ export const ProductForm: React.FC = () => {
             </div>
           )}
 
-          {/* Product Image Upload - MOVED TO TOP for AI Auto-Fill */}
+          {/* Product Image */}
           <div className="space-y-2">
             <Label className={`flex items-center gap-2 text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
               <ImageIcon className="w-4 h-4" />
@@ -1157,7 +1138,7 @@ export const ProductForm: React.FC = () => {
               value={formData.description}
               onChange={(e) => handleChange('description', e.target.value)}
               placeholder="Enter product description or click 'AI Generate' for auto-generated description"
-              rows={3}
+              rows={8}
               className={`${
                 theme === 'dark' 
                   ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500' 
