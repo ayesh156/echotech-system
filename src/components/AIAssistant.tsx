@@ -334,7 +334,11 @@ How can I help you today? 😊`,
             name: acc.name,
             type: acc.type,
             balance: acc.balance,
-            description: acc.description
+            description: acc.description,
+            bankName: acc.bankName,
+            accountNumber: acc.accountNumber,
+            isActive: acc.isActive,
+            createdAt: acc.createdAt
           })),
           cashTransactions: mockCashTransactions.map(txn => ({
             id: txn.id,

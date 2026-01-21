@@ -27,11 +27,14 @@ import {
   SortAsc, SortDesc, Calendar, Receipt, Package, 
   CreditCard, DollarSign, BarChart3, Eye, ChevronDown,
   Truck, HandCoins, BadgePercent, AlertTriangle,
-  CheckCircle2, FileSpreadsheet, Printer, Download
+  CheckCircle2, FileSpreadsheet, Printer, Download, Landmark, 
+  CircleDollarSign, Coins, Settings
 } from 'lucide-react';
+import { AccountFormModal } from '../components/modals/AccountFormModal';
+import { AccountDetailModal } from '../components/modals/AccountDetailModal';
 
 type ViewMode = 'grid' | 'table';
-type TabView = 'transactions' | 'insights';
+type TabView = 'transactions' | 'insights' | 'accounts';
 type DateRange = 'today' | 'week' | 'month' | 'year' | 'custom';
 
 const getAccountIcon = (type: CashAccountType) => {
@@ -39,7 +42,12 @@ const getAccountIcon = (type: CashAccountType) => {
     case 'drawer': return Banknote;
     case 'cash_in_hand': return HandCoins;
     case 'business': return Building2;
-    default: return PiggyBank;
+    case 'bank': return Landmark;
+    case 'mobile_wallet': return Wallet;
+    case 'credit_card': return CreditCard;
+    case 'savings': return PiggyBank;
+    case 'investment': return CircleDollarSign;
+    default: return Coins;
   }
 };
 
@@ -48,7 +56,12 @@ const getAccountIconJsx = (type: CashAccountType) => {
     case 'drawer': return <Banknote className="w-4 h-4 text-amber-500" />;
     case 'cash_in_hand': return <HandCoins className="w-4 h-4 text-emerald-500" />;
     case 'business': return <Building2 className="w-4 h-4 text-blue-500" />;
-    default: return <PiggyBank className="w-4 h-4 text-slate-500" />;
+    case 'bank': return <Landmark className="w-4 h-4 text-indigo-500" />;
+    case 'mobile_wallet': return <Wallet className="w-4 h-4 text-purple-500" />;
+    case 'credit_card': return <CreditCard className="w-4 h-4 text-rose-500" />;
+    case 'savings': return <PiggyBank className="w-4 h-4 text-teal-500" />;
+    case 'investment': return <CircleDollarSign className="w-4 h-4 text-cyan-500" />;
+    default: return <Coins className="w-4 h-4 text-slate-500" />;
   }
 };
 
@@ -66,6 +79,26 @@ const getAccountColor = (type: CashAccountType, theme: string) => {
       return theme === 'dark' 
         ? 'from-blue-500/20 to-indigo-500/10 border-blue-500/30' 
         : 'from-blue-50 to-indigo-50 border-blue-200';
+    case 'bank': 
+      return theme === 'dark' 
+        ? 'from-indigo-500/20 to-violet-500/10 border-indigo-500/30' 
+        : 'from-indigo-50 to-violet-50 border-indigo-200';
+    case 'mobile_wallet': 
+      return theme === 'dark' 
+        ? 'from-purple-500/20 to-fuchsia-500/10 border-purple-500/30' 
+        : 'from-purple-50 to-fuchsia-50 border-purple-200';
+    case 'credit_card': 
+      return theme === 'dark' 
+        ? 'from-rose-500/20 to-pink-500/10 border-rose-500/30' 
+        : 'from-rose-50 to-pink-50 border-rose-200';
+    case 'savings': 
+      return theme === 'dark' 
+        ? 'from-teal-500/20 to-cyan-500/10 border-teal-500/30' 
+        : 'from-teal-50 to-cyan-50 border-teal-200';
+    case 'investment': 
+      return theme === 'dark' 
+        ? 'from-cyan-500/20 to-sky-500/10 border-cyan-500/30' 
+        : 'from-cyan-50 to-sky-50 border-cyan-200';
     default: 
       return theme === 'dark' 
         ? 'from-slate-500/20 to-slate-600/10 border-slate-500/30' 
@@ -78,7 +111,26 @@ const getAccountIconColor = (type: CashAccountType) => {
     case 'drawer': return 'text-amber-500';
     case 'cash_in_hand': return 'text-emerald-500';
     case 'business': return 'text-blue-500';
+    case 'bank': return 'text-indigo-500';
+    case 'mobile_wallet': return 'text-purple-500';
+    case 'credit_card': return 'text-rose-500';
+    case 'savings': return 'text-teal-500';
+    case 'investment': return 'text-cyan-500';
     default: return 'text-slate-500';
+  }
+};
+
+const getAccountTypeLabel = (type: CashAccountType) => {
+  switch (type) {
+    case 'drawer': return 'Cash Drawer';
+    case 'cash_in_hand': return 'Cash in Hand';
+    case 'business': return 'Business Fund';
+    case 'bank': return 'Bank Account';
+    case 'mobile_wallet': return 'Mobile Wallet';
+    case 'credit_card': return 'Credit Card';
+    case 'savings': return 'Savings Account';
+    case 'investment': return 'Investment';
+    default: return 'Other';
   }
 };
 
@@ -120,6 +172,7 @@ export const CashManagement: React.FC = () => {
   // Determine active view from URL
   const activeTab: TabView = useMemo(() => {
     if (location.pathname === '/cash-management/transactions') return 'transactions';
+    if (location.pathname === '/cash-management/accounts') return 'accounts';
     return 'insights';
   }, [location.pathname]);
   
@@ -155,6 +208,24 @@ export const CashManagement: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<CashTransaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<CashTransaction | null>(null);
+  
+  // Account modal states
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [selectedAccountForEdit, setSelectedAccountForEdit] = useState<CashAccount | null>(null);
+  const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<CashAccount | null>(null);
+  const [isAccountDetailModalOpen, setIsAccountDetailModalOpen] = useState(false);
+  const [selectedAccountForView, setSelectedAccountForView] = useState<CashAccount | null>(null);
+  
+  // Account list states (filters, view, pagination)
+  const [accountSearchQuery, setAccountSearchQuery] = useState('');
+  const [accountTypeFilter, setAccountTypeFilter] = useState<string>('all');
+  const [accountStatusFilter, setAccountStatusFilter] = useState<string>('all');
+  const [accountViewMode, setAccountViewMode] = useState<ViewMode>('grid');
+  const [accountSortOrder, setAccountSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showAccountFilters, setShowAccountFilters] = useState(false);
+  const [accountCurrentPage, setAccountCurrentPage] = useState(1);
+  const [accountItemsPerPage, setAccountItemsPerPage] = useState(9);
   
   // Action menu
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
@@ -207,6 +278,16 @@ export const CashManagement: React.FC = () => {
     }
     setCurrentPage(1);
   }, [viewMode]);
+
+  // Auto-adjust account items per page based on view mode
+  useEffect(() => {
+    if (accountViewMode === 'table') {
+      setAccountItemsPerPage(10);
+    } else {
+      setAccountItemsPerPage(9);
+    }
+    setAccountCurrentPage(1);
+  }, [accountViewMode]);
 
   // Default to card/grid view when on Transactions tab
   useEffect(() => {
@@ -460,6 +541,90 @@ export const CashManagement: React.FC = () => {
     setEndDate('');
   };
 
+  // Account Filtering
+  const filteredAccounts = useMemo(() => {
+    return accounts.filter(acc => {
+      // Search filter
+      if (accountSearchQuery) {
+        const query = accountSearchQuery.toLowerCase();
+        if (
+          !acc.name.toLowerCase().includes(query) &&
+          !acc.description?.toLowerCase().includes(query) &&
+          !acc.bankName?.toLowerCase().includes(query) &&
+          !acc.accountNumber?.toLowerCase().includes(query)
+        ) {
+          return false;
+        }
+      }
+      
+      // Type filter
+      if (accountTypeFilter !== 'all' && acc.type !== accountTypeFilter) {
+        return false;
+      }
+      
+      // Status filter
+      if (accountStatusFilter !== 'all') {
+        if (accountStatusFilter === 'active' && !acc.isActive) return false;
+        if (accountStatusFilter === 'inactive' && acc.isActive) return false;
+      }
+      
+      return true;
+    });
+  }, [accounts, accountSearchQuery, accountTypeFilter, accountStatusFilter]);
+
+  // Account Sorting
+  const sortedAccounts = useMemo(() => {
+    return [...filteredAccounts].sort((a, b) => {
+      // Sort by balance
+      return accountSortOrder === 'asc' ? a.balance - b.balance : b.balance - a.balance;
+    });
+  }, [filteredAccounts, accountSortOrder]);
+
+  // Account Pagination
+  const accountTotalPages = Math.ceil(sortedAccounts.length / accountItemsPerPage);
+  const accountStartIndex = (accountCurrentPage - 1) * accountItemsPerPage;
+  const paginatedAccounts = sortedAccounts.slice(accountStartIndex, accountStartIndex + accountItemsPerPage);
+
+  // Reset account page when filters change
+  useEffect(() => {
+    setAccountCurrentPage(1);
+  }, [accountSearchQuery, accountTypeFilter, accountStatusFilter]);
+
+  const hasActiveAccountFilters = accountSearchQuery || accountTypeFilter !== 'all' || accountStatusFilter !== 'all';
+
+  const clearAccountFilters = () => {
+    setAccountSearchQuery('');
+    setAccountTypeFilter('all');
+    setAccountStatusFilter('all');
+  };
+
+  // Account page numbers
+  const getAccountPageNumbers = useMemo(() => {
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 5;
+    
+    if (accountTotalPages <= maxVisiblePages) {
+      for (let i = 1; i <= accountTotalPages; i++) pages.push(i);
+    } else {
+      if (accountCurrentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(accountTotalPages);
+      } else if (accountCurrentPage >= accountTotalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = accountTotalPages - 3; i <= accountTotalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = accountCurrentPage - 1; i <= accountCurrentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(accountTotalPages);
+      }
+    }
+    return pages;
+  }, [accountCurrentPage, accountTotalPages]);
+
   // Handlers
   const handleAddTransaction = () => {
     setSelectedTransaction(null);
@@ -573,6 +738,57 @@ export const CashManagement: React.FC = () => {
     }
     setIsDeleteModalOpen(false);
     setTransactionToDelete(null);
+  };
+
+  // Account Management Handlers
+  const handleAddAccount = () => {
+    setSelectedAccountForEdit(null);
+    setIsAccountModalOpen(true);
+  };
+
+  const handleEditAccount = (account: CashAccount) => {
+    setSelectedAccountForEdit(account);
+    setIsAccountModalOpen(true);
+  };
+
+  const handleViewAccount = (account: CashAccount) => {
+    setSelectedAccountForView(account);
+    setIsAccountDetailModalOpen(true);
+  };
+
+  const handleSaveAccount = (account: CashAccount) => {
+    if (selectedAccountForEdit) {
+      // Update existing account
+      setAccounts(prev => 
+        prev.map(a => a.id === account.id ? account : a)
+      );
+    } else {
+      // Add new account
+      setAccounts(prev => [...prev, account]);
+    }
+    setIsAccountModalOpen(false);
+    setSelectedAccountForEdit(null);
+  };
+
+  const handleDeleteAccountClick = (account: CashAccount) => {
+    setAccountToDelete(account);
+    setIsDeleteAccountModalOpen(true);
+  };
+
+  const handleDeleteAccountConfirm = () => {
+    if (accountToDelete) {
+      // Check if account has transactions
+      const hasTransactions = transactions.some(t => t.accountId === accountToDelete.id);
+      if (hasTransactions) {
+        alert('Cannot delete account with existing transactions. Please delete or move transactions first.');
+        setIsDeleteAccountModalOpen(false);
+        setAccountToDelete(null);
+        return;
+      }
+      setAccounts(prev => prev.filter(a => a.id !== accountToDelete.id));
+    }
+    setIsDeleteAccountModalOpen(false);
+    setAccountToDelete(null);
   };
 
   // Export Functions
@@ -1543,6 +1759,13 @@ export const CashManagement: React.FC = () => {
           showAddButton: true,
           showDateRange: false,
         };
+      case 'accounts':
+        return {
+          title: 'Manage Accounts',
+          description: 'Add and manage your money accounts - Bank, Drawer, Wallet & more',
+          showAddButton: false,
+          showDateRange: false,
+        };
       default:
         return {
           title: 'Financial Insights',
@@ -2448,6 +2671,575 @@ export const CashManagement: React.FC = () => {
         </>
       )}
 
+      {/* Accounts Tab - Manage Money Accounts */}
+      {activeTab === 'accounts' && (
+        <>
+          {/* Search and Filters */}
+          <div className={`p-3 sm:p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200'}`}>
+            <div className="flex flex-col lg:flex-row gap-3">
+              {/* Search */}
+              <div className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border flex-1 ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                <Search className={`w-5 h-5 flex-shrink-0 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} />
+                <input
+                  type="text"
+                  placeholder="Search accounts..."
+                  value={accountSearchQuery}
+                  onChange={(e) => setAccountSearchQuery(e.target.value)}
+                  className={`bg-transparent border-none outline-none flex-1 min-w-0 text-sm ${theme === 'dark' ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'}`}
+                />
+              </div>
+
+              {/* Filters Row */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setShowAccountFilters(!showAccountFilters)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
+                    showAccountFilters || hasActiveAccountFilters
+                      ? 'bg-emerald-500 text-white'
+                      : theme === 'dark'
+                        ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  <span className="text-sm hidden sm:inline">Filters</span>
+                  {hasActiveAccountFilters && (
+                    <span className="px-1.5 py-0.5 text-xs bg-white/20 rounded-full">
+                      {[accountTypeFilter !== 'all', accountStatusFilter !== 'all'].filter(Boolean).length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setAccountSortOrder(accountSortOrder === 'asc' ? 'desc' : 'asc')}
+                  className={`p-2 rounded-xl border transition-colors ${theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400' : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}
+                  title={accountSortOrder === 'asc' ? 'Balance: Low to High' : 'Balance: High to Low'}
+                >
+                  {accountSortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+                </button>
+
+                <div className={`flex items-center rounded-xl overflow-hidden border ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+                  <button
+                    onClick={() => setAccountViewMode('table')}
+                    className={`p-2 transition-colors ${
+                      accountViewMode === 'table'
+                        ? 'bg-emerald-500 text-white'
+                        : theme === 'dark'
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                          : 'bg-white hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setAccountViewMode('grid')}
+                    className={`p-2 transition-colors ${
+                      accountViewMode === 'grid'
+                        ? 'bg-emerald-500 text-white'
+                        : theme === 'dark'
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                          : 'bg-white hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {hasActiveAccountFilters && (
+                  <button
+                    onClick={clearAccountFilters}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-colors ${theme === 'dark' ? 'text-slate-400 hover:text-white hover:bg-slate-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Clear
+                  </button>
+                )}
+
+                <button
+                  onClick={handleAddAccount}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-500 text-white rounded-xl font-medium shadow-lg hover:shadow-emerald-500/25 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Add Account</span>
+                </button>
+              </div>
+            </div>
+
+            {showAccountFilters && (
+              <div className={`pt-3 sm:pt-4 mt-3 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Account Type Filter */}
+                  <div className="w-full sm:w-48">
+                    <SearchableSelect
+                      value={accountTypeFilter}
+                      onValueChange={(value) => setAccountTypeFilter(value)}
+                      placeholder="All Types"
+                      searchPlaceholder="Search..."
+                      emptyMessage="No options"
+                      theme={theme}
+                      options={[
+                        { value: 'all', label: 'All Types', icon: <Wallet className="w-4 h-4" /> },
+                        { value: 'drawer', label: 'Cash Drawer', icon: <Banknote className="w-4 h-4 text-amber-500" /> },
+                        { value: 'cash_in_hand', label: 'Cash in Hand', icon: <HandCoins className="w-4 h-4 text-emerald-500" /> },
+                        { value: 'business', label: 'Business Fund', icon: <Building2 className="w-4 h-4 text-blue-500" /> },
+                        { value: 'bank', label: 'Bank Account', icon: <Landmark className="w-4 h-4 text-indigo-500" /> },
+                        { value: 'mobile_wallet', label: 'Mobile Wallet', icon: <Wallet className="w-4 h-4 text-purple-500" /> },
+                        { value: 'credit_card', label: 'Credit Card', icon: <CreditCard className="w-4 h-4 text-rose-500" /> },
+                        { value: 'savings', label: 'Savings', icon: <PiggyBank className="w-4 h-4 text-teal-500" /> },
+                        { value: 'investment', label: 'Investment', icon: <CircleDollarSign className="w-4 h-4 text-cyan-500" /> },
+                        { value: 'other', label: 'Other', icon: <Coins className="w-4 h-4 text-slate-500" /> },
+                      ]}
+                    />
+                  </div>
+                  {/* Status Filter */}
+                  <div className="w-full sm:w-40">
+                    <SearchableSelect
+                      value={accountStatusFilter}
+                      onValueChange={(value) => setAccountStatusFilter(value)}
+                      placeholder="All Status"
+                      searchPlaceholder="Search..."
+                      emptyMessage="No options"
+                      theme={theme}
+                      options={[
+                        { value: 'all', label: 'All Status', icon: <Filter className="w-4 h-4" /> },
+                        { value: 'active', label: 'Active', icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" /> },
+                        { value: 'inactive', label: 'Inactive', icon: <AlertTriangle className="w-4 h-4 text-slate-400" /> },
+                      ]}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Account Type Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { type: 'drawer' as CashAccountType, label: 'Drawers' },
+              { type: 'cash_in_hand' as CashAccountType, label: 'Cash in Hand' },
+              { type: 'bank' as CashAccountType, label: 'Banks' },
+              { type: 'mobile_wallet' as CashAccountType, label: 'Wallets' },
+              { type: 'business' as CashAccountType, label: 'Business' },
+              { type: 'savings' as CashAccountType, label: 'Savings' },
+            ].map(({ type, label }) => {
+              const typeAccounts = accounts.filter(a => a.type === type);
+              const totalBalance = typeAccounts.reduce((sum, a) => sum + a.balance, 0);
+              const Icon = getAccountIcon(type);
+              const iconColor = getAccountIconColor(type);
+              const isSelected = accountTypeFilter === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setAccountTypeFilter(isSelected ? 'all' : type)}
+                  className={`p-3 rounded-xl border transition-all text-left ${
+                    isSelected
+                      ? 'border-emerald-500 bg-emerald-500/10'
+                      : theme === 'dark'
+                        ? 'bg-slate-800/30 border-slate-700/50 hover:border-slate-600'
+                        : 'bg-white border-slate-200 shadow-sm hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className={`w-4 h-4 ${iconColor}`} />
+                    <span className={`text-xs font-medium truncate ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {label}
+                    </span>
+                  </div>
+                  <p className={`text-sm font-bold truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                    {formatCurrency(totalBalance)}
+                  </p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {typeAccounts.length} acc
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Table View */}
+          {accountViewMode === 'table' && (
+            <div className={`rounded-2xl border overflow-hidden ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className={theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50'}>
+                    <tr>
+                      <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Account</th>
+                      <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Type</th>
+                      <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden md:table-cell ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Bank/Details</th>
+                      <th className={`px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Balance</th>
+                      <th className={`px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider hidden sm:table-cell ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Status</th>
+                      <th className={`px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700/50' : 'divide-slate-200'}`}>
+                    {paginatedAccounts.map((account) => {
+                      const Icon = getAccountIcon(account.type);
+                      const iconColor = getAccountIconColor(account.type);
+                      const accountTxnCount = transactions.filter(t => t.accountId === account.id).length;
+                      return (
+                        <tr key={account.id} className={`transition-colors ${theme === 'dark' ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}`}>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                                <Icon className={`w-4 h-4 ${iconColor}`} />
+                              </div>
+                              <div>
+                                <button 
+                                  onClick={() => handleViewAccount(account)}
+                                  className={`font-medium text-left hover:underline ${theme === 'dark' ? 'text-white hover:text-emerald-400' : 'text-slate-900 hover:text-emerald-600'}`}
+                                >
+                                  {account.name}
+                                </button>
+                                <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{accountTxnCount} transactions</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                              theme === 'dark' 
+                                ? 'bg-slate-800/50 border-slate-700 text-slate-300' 
+                                : 'bg-slate-100 border-slate-200 text-slate-600'
+                            }`}>
+                              {getAccountTypeLabel(account.type)}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-4 hidden md:table-cell ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {account.type === 'bank' && account.bankName ? (
+                              <div>
+                                <p className="text-sm">{account.bankName}</p>
+                                {account.accountNumber && (
+                                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>•••• {account.accountNumber.slice(-4)}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <span className={`text-lg font-bold ${account.balance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                              {formatCurrency(account.balance)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-center hidden sm:table-cell">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                              account.isActive
+                                ? theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
+                                : theme === 'dark' ? 'bg-slate-500/20 text-slate-400' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${account.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              {account.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => handleViewAccount(account)}
+                                className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400' : 'hover:bg-emerald-50 text-slate-500 hover:text-emerald-600'}`}
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleEditAccount(account)}
+                                className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-700'}`}
+                                title="Edit Account"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAccountClick(account)}
+                                className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-red-500/20 text-slate-400 hover:text-red-400' : 'hover:bg-red-50 text-slate-500 hover:text-red-500'}`}
+                                title="Delete Account"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              
+              {paginatedAccounts.length === 0 && (
+                <div className={`p-12 text-center ${theme === 'dark' ? 'bg-slate-800/20' : 'bg-slate-50'}`}>
+                  <Wallet className={`w-12 h-12 mx-auto ${theme === 'dark' ? 'text-slate-600' : 'text-slate-300'}`} />
+                  <h3 className={`mt-4 text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>No accounts found</h3>
+                  <p className={`mt-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {hasActiveAccountFilters ? 'Try adjusting your filters' : 'Add your first account to get started'}
+                  </p>
+                  {!hasActiveAccountFilters && (
+                    <button onClick={handleAddAccount} className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium">
+                      <Plus className="w-4 h-4" />
+                      Add Account
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Grid View */}
+          {accountViewMode === 'grid' && (
+            <>
+              {paginatedAccounts.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paginatedAccounts.map((account) => {
+                    const Icon = getAccountIcon(account.type);
+                    const colorClass = getAccountColor(account.type, theme);
+                    const iconColor = getAccountIconColor(account.type);
+                    const accountTransactions = transactions.filter(t => t.accountId === account.id);
+                    const recentTransactions = accountTransactions.slice(0, 3);
+                    
+                    return (
+                      <div
+                        key={account.id}
+                        onClick={() => handleViewAccount(account)}
+                        className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${colorClass} transition-all hover:scale-[1.01] cursor-pointer`}
+                      >
+                        {/* Decorative blur */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                        
+                        {/* Card Content */}
+                        <div className="relative p-5">
+                          {/* Header */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-white/10' : 'bg-white/80'}`}>
+                                <Icon className={`w-5 h-5 ${iconColor}`} />
+                              </div>
+                              <div>
+                                <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                                  {account.name}
+                                </h3>
+                                <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  {getAccountTypeLabel(account.type)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => handleEditAccount(account)}
+                                className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-black/5 text-slate-500 hover:text-slate-700'}`}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAccountClick(account)}
+                                className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-red-500/20 text-slate-400 hover:text-red-400' : 'hover:bg-red-50 text-slate-500 hover:text-red-500'}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Balance */}
+                          <div className="mb-4">
+                            <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                              {formatCurrency(account.balance)}
+                            </p>
+                            <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                              Current Balance
+                            </p>
+                          </div>
+
+                          {/* Bank Details (if applicable) */}
+                          {account.type === 'bank' && account.bankName && (
+                            <div className={`mb-4 p-3 rounded-xl ${theme === 'dark' ? 'bg-white/5' : 'bg-black/5'}`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <Landmark className={`w-3.5 h-3.5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`} />
+                                <span className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                                  {account.bankName}
+                                </span>
+                              </div>
+                              {account.accountNumber && (
+                                <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  •••• {account.accountNumber.slice(-4)}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Description */}
+                          {account.description && (
+                            <p className={`text-sm mb-4 line-clamp-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                              {account.description}
+                            </p>
+                          )}
+
+                          {/* Recent Transactions Preview */}
+                          {recentTransactions.length > 0 && (
+                            <div className={`pt-4 border-t ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>
+                              <p className={`text-xs font-medium mb-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                Recent Activity
+                              </p>
+                              <div className="space-y-2">
+                                {recentTransactions.map((txn) => (
+                                  <div key={txn.id} className="flex items-center justify-between">
+                                    <span className={`text-xs truncate max-w-[120px] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                                      {txn.name}
+                                    </span>
+                                    <span className={`text-xs font-medium ${
+                                      txn.type === 'income' ? 'text-emerald-500' : txn.type === 'expense' ? 'text-red-500' : 'text-blue-500'
+                                    }`}>
+                                      {txn.type === 'income' ? '+' : '-'}{formatCurrency(txn.amount)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Status & Stats Footer */}
+                          <div className={`mt-4 pt-4 border-t flex items-center justify-between ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+                              account.isActive
+                                ? theme === 'dark' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'
+                                : theme === 'dark' ? 'bg-slate-500/20 text-slate-400' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${account.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                              {account.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                            <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                              {accountTransactions.length} transactions
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Add Account Card */}
+                  <button
+                    onClick={handleAddAccount}
+                    className={`relative overflow-hidden rounded-2xl border-2 border-dashed p-8 transition-all hover:scale-[1.01] flex flex-col items-center justify-center gap-3 min-h-[280px] ${
+                      theme === 'dark'
+                        ? 'border-slate-700 hover:border-emerald-500/50 hover:bg-emerald-500/5'
+                        : 'border-slate-200 hover:border-emerald-500 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <div className={`p-4 rounded-2xl ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                      <Plus className={`w-8 h-8 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`} />
+                    </div>
+                    <div className="text-center">
+                      <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        Add New Account
+                      </p>
+                      <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Bank, Wallet, or Custom
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              ) : (
+                <div className={`p-12 text-center rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/20 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+                  <Wallet className={`w-12 h-12 mx-auto ${theme === 'dark' ? 'text-slate-600' : 'text-slate-300'}`} />
+                  <h3 className={`mt-4 text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>No accounts found</h3>
+                  <p className={`mt-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {hasActiveAccountFilters ? 'Try adjusting your filters' : 'Add your first account to get started'}
+                  </p>
+                  {!hasActiveAccountFilters && (
+                    <button onClick={handleAddAccount} className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium">
+                      <Plus className="w-4 h-4" />
+                      Add Account
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Pagination */}
+          {accountTotalPages >= 1 && sortedAccounts.length > 0 && (
+            <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-white border-slate-200'}`}>
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Showing <span className="font-medium">{accountStartIndex + 1}</span> - <span className="font-medium">{Math.min(accountStartIndex + accountItemsPerPage, sortedAccounts.length)}</span> of <span className="font-medium">{sortedAccounts.length}</span> accounts
+                  </p>
+                  
+                  {/* Items Per Page Selector */}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Show:</span>
+                    <div className={`flex items-center rounded-full p-0.5 ${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                      {(accountViewMode === 'table' ? [10, 20] : [9, 15]).map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => {
+                            setAccountItemsPerPage(num);
+                            setAccountCurrentPage(1);
+                          }}
+                          className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                            accountItemsPerPage === num
+                              ? 'bg-emerald-500 text-white shadow-md'
+                              : theme === 'dark'
+                                ? 'text-slate-400 hover:text-white'
+                                : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Pagination Controls */}
+                {accountTotalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setAccountCurrentPage(1)} disabled={accountCurrentPage === 1} className={`p-2 rounded-lg ${accountCurrentPage === 1 ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setAccountCurrentPage(p => Math.max(1, p - 1))} disabled={accountCurrentPage === 1} className={`p-2 rounded-lg ${accountCurrentPage === 1 ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    {getAccountPageNumbers.map((page, idx) => (
+                      page === '...' ? (
+                        <span key={`dots-${idx}`} className={`px-2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>...</span>
+                      ) : (
+                        <button key={page} onClick={() => setAccountCurrentPage(page as number)} className={`w-9 h-9 rounded-lg text-sm font-medium ${accountCurrentPage === page ? 'bg-emerald-500 text-white' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-700'}`}>
+                          {page}
+                        </button>
+                      )
+                    ))}
+                    <button onClick={() => setAccountCurrentPage(p => Math.min(accountTotalPages, p + 1))} disabled={accountCurrentPage === accountTotalPages} className={`p-2 rounded-lg ${accountCurrentPage === accountTotalPages ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setAccountCurrentPage(accountTotalPages)} disabled={accountCurrentPage === accountTotalPages} className={`p-2 rounded-lg ${accountCurrentPage === accountTotalPages ? 'text-slate-400' : theme === 'dark' ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}>
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Tips */}
+          <div className={`p-5 rounded-2xl border ${
+            theme === 'dark' 
+              ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-500/20' 
+              : 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200'
+          }`}>
+            <div className="flex items-start gap-4">
+              <div className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                <Settings className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  Account Management Tips
+                </h3>
+                <ul className={`mt-2 space-y-1 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <li>• Create separate accounts for different purposes (Drawer, Bank, Petty Cash)</li>
+                  <li>• Track bank accounts with account numbers for easy reconciliation</li>
+                  <li>• Use transfers to move money between accounts</li>
+                  <li>• Inactive accounts won't appear in transaction forms but retain their history</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       {/* Modals */}
       <CashTransactionModal
         isOpen={isTransactionModalOpen}
@@ -2457,12 +3249,36 @@ export const CashManagement: React.FC = () => {
         onSave={handleSaveTransaction}
       />
 
+      <AccountFormModal
+        isOpen={isAccountModalOpen}
+        onClose={() => { setIsAccountModalOpen(false); setSelectedAccountForEdit(null); }}
+        onSave={handleSaveAccount}
+        account={selectedAccountForEdit}
+        existingAccounts={accounts}
+      />
+
+      <AccountDetailModal
+        isOpen={isAccountDetailModalOpen}
+        onClose={() => { setIsAccountDetailModalOpen(false); setSelectedAccountForView(null); }}
+        account={selectedAccountForView}
+        transactions={transactions}
+        onEdit={handleEditAccount}
+      />
+
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}
         title="Delete Transaction"
         message={`Are you sure you want to delete "${transactionToDelete?.name}"? This action cannot be undone.`}
         onCancel={() => { setIsDeleteModalOpen(false); setTransactionToDelete(null); }}
         onConfirm={handleDeleteConfirm}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteAccountModalOpen}
+        title="Delete Account"
+        message={`Are you sure you want to delete "${accountToDelete?.name}"? This will permanently remove the account. Make sure there are no transactions linked to this account.`}
+        onCancel={() => { setIsDeleteAccountModalOpen(false); setAccountToDelete(null); }}
+        onConfirm={handleDeleteAccountConfirm}
       />
     </div>
   );

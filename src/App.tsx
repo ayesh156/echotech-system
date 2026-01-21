@@ -94,6 +94,7 @@ function App() {
                   <Route path="/cash-management" element={<CashManagement />} />
                   <Route path="/cash-management/transactions" element={<CashManagement />} />
                   <Route path="/cash-management/insights" element={<CashManagement />} />
+                  <Route path="/cash-management/accounts" element={<CashManagement />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/help" element={<Help />} />
                   <Route path="/ai-chat" element={<AIChat />} />

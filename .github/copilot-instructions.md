@@ -611,4 +611,156 @@ If instructions are unclear or you need more context:
 
 ---
 
+## 🤖 AUTO-UPDATE AI ASSISTANT (MANDATORY)
+
+**CRITICAL INSTRUCTION:** When creating or modifying ANY section/feature in the system, you MUST update the `AIAssistant.tsx` component to ensure the AI can analyze and respond to queries about that section. This is a **NON-NEGOTIABLE** requirement.
+
+### When to Update AIAssistant:
+1. **New Page/Section Created** - Add data import and mapping
+2. **New Data Type Added to mockData.ts** - Import and include in systemData
+3. **Existing Section Enhanced** - Update the data mapping to include new fields
+4. **New Feature with Queryable Data** - Ensure AI can access and analyze it
+
+### Step-by-Step Update Process:
+
+#### Step 1: Import the Data
+Add the new mock data import at the top of `AIAssistant.tsx`:
+```tsx
+import { 
+  mockProducts, 
+  mockCustomers,
+  // ... existing imports
+  mockNewFeature  // ← Add new data import
+} from '../data/mockData';
+```
+
+#### Step 2: Add to systemData Object
+In the `handleSendMessage` function, add the new data to the `systemData` object with ALL relevant fields:
+```tsx
+const systemData = {
+  // ... existing data
+  newFeature: mockNewFeature.map(item => ({
+    id: item.id,
+    name: item.name,
+    // Include ALL fields that might be useful for AI analysis
+    // Include calculated fields, status, dates, amounts, relationships
+    status: item.status,
+    createdAt: item.createdAt,
+    // etc.
+  })),
+};
+```
+
+#### Step 3: Update Welcome Message (Optional but Recommended)
+If the new section is significant, add it to the welcome message capabilities list:
+```tsx
+content: `Ayubowan! 🙏 Welcome to ECOTEC AI Assistant!
+
+🔥 **Real-Time Data Access Enabled!**
+I can analyze your **actual system data** including:
+• 📦 Products, Stock & Inventory
+• 👥 Customers & Credit Balances
+• 📄 Invoices & Sales Data
+// ... existing items
+• 🆕 New Feature Data  // ← Add new section
+
+**Try asking:**
+// ... existing examples
+• "New feature query example?"  // ← Add example query
+`
+```
+
+#### Step 4: Update geminiService.ts (If Needed)
+If the new section requires special query detection, update `isDataQuery()` method in `geminiService.ts`:
+```tsx
+isDataQuery(message: string): boolean {
+  const dataKeywords = [
+    // ... existing keywords
+    'newfeature', 'new feature', // ← Add keywords
+  ];
+  // ...
+}
+```
+
+### Data Mapping Guidelines:
+
+**INCLUDE in systemData:**
+- ✅ All ID fields (for specific lookups)
+- ✅ All name/title fields (for search)
+- ✅ All status fields (for filtering)
+- ✅ All date fields (for time-based queries)
+- ✅ All amount/price fields (for financial analysis)
+- ✅ All relationship fields (customerId, supplierId, etc.)
+- ✅ Nested items arrays (invoice items, GRN items, etc.)
+- ✅ Calculated totals and balances
+
+**Field Mapping Example:**
+```tsx
+// For a new "Quotations" section:
+quotations: mockQuotations.map(q => ({
+  id: q.id,
+  quotationNumber: q.quotationNumber,
+  customerId: q.customerId,
+  customerName: q.customerName,
+  customerPhone: q.customerPhone,
+  subtotal: q.subtotal,
+  discount: q.discount,
+  tax: q.tax,
+  total: q.total,
+  validUntil: q.validUntil,
+  status: q.status, // 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired'
+  createdAt: q.createdAt,
+  notes: q.notes,
+  items: q.items?.map(item => ({
+    productId: item.productId,
+    productName: item.productName,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    total: item.total
+  }))
+})),
+```
+
+### Common Query Patterns AI Should Handle:
+After updating, the AI should be able to answer queries like:
+- "Show me [section] with status [status]"
+- "How many [items] today/this week/this month?"
+- "What's the total [amount] for [section]?"
+- "[Section] eke details denna" (Singlish)
+- "List all [items] for customer [name]"
+- "Pending [section] monawada?" (Singlish)
+
+### Verification Checklist:
+After updating AIAssistant, verify:
+- [ ] Data is imported correctly
+- [ ] All useful fields are mapped in systemData
+- [ ] Nested items/arrays are included
+- [ ] Welcome message updated (if significant feature)
+- [ ] Test by asking AI about the new section
+- [ ] AI can filter, search, and analyze the new data
+
+### Example Complete Update:
+When adding an "Estimates" section:
+
+1. **mockData.ts** - Create mock data with full structure
+2. **AIAssistant.tsx** - Import and map in systemData:
+```tsx
+estimates: mockEstimates.map(e => ({
+  id: e.id,
+  estimateNumber: e.estimateNumber,
+  customerId: e.customerId,
+  customerName: e.customerName,
+  status: e.status,
+  subtotal: e.subtotal,
+  total: e.total,
+  validUntil: e.validUntil,
+  createdAt: e.createdAt,
+  items: e.items?.map(i => ({...}))
+})),
+```
+3. **Welcome Message** - Add: `• 📝 Estimates & Quotations`
+4. **Example Query** - Add: `• "Pending estimates monawada?"`
+
+---
+
 **Remember:** You are building a **premium, world-class** computer shop management system. Every component should look professional, modern, and polished. Think like a senior software engineer at a top tech company!
