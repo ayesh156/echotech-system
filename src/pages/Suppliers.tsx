@@ -7,12 +7,13 @@ import { CreditPaymentModal } from '../components/modals/CreditPaymentModal';
 import { DeleteConfirmationModal } from '../components/modals/DeleteConfirmationModal';
 import { SupplierDetailModal } from '../components/modals/SupplierDetailModal';
 import { PurchasePaymentModal } from '../components/modals/PurchasePaymentModal';
+import { SupplierPaymentHistoryModal } from '../components/modals/SupplierPaymentHistoryModal';
 import { SearchableSelect } from '../components/ui/searchable-select';
 import { 
   Search, Plus, Edit, Mail, Phone, Trash2,
   AlertTriangle, CheckCircle, Clock, CreditCard,
   Calendar, MessageCircle, Package, DollarSign, Zap, Eye,
-  ShoppingCart,
+  ShoppingCart, History,
   X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, SlidersHorizontal,
   List, LayoutGrid, ArrowDownUp, SortAsc, SortDesc
 } from 'lucide-react';
@@ -55,12 +56,14 @@ export const Suppliers: React.FC = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isPurchasePaymentModalOpen, setIsPurchasePaymentModalOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [isPaymentHistoryModalOpen, setIsPaymentHistoryModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | undefined>(undefined);
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
   const [supplierForPayment, setSupplierForPayment] = useState<Supplier | null>(null);
   const [supplierForDetail, setSupplierForDetail] = useState<Supplier | null>(null);
   const [purchaseForPayment, setPurchaseForPayment] = useState<SupplierPurchase | null>(null);
   const [supplierForOrder, setSupplierForOrder] = useState<Supplier | null>(null);
+  const [supplierForPaymentHistory, setSupplierForPaymentHistory] = useState<Supplier | null>(null);
 
   // Close calendar when clicking outside
   useEffect(() => {
@@ -393,6 +396,12 @@ export const Suppliers: React.FC = () => {
   const handleOrderFromSupplier = (supplier: Supplier) => {
     setSupplierForOrder(supplier);
     setIsOrderModalOpen(true);
+  };
+
+  // View payment history for a supplier
+  const handlePaymentHistory = (supplier: Supplier) => {
+    setSupplierForPaymentHistory(supplier);
+    setIsPaymentHistoryModalOpen(true);
   };
 
   // Make payment for a specific purchase
@@ -978,6 +987,15 @@ ECOTEC Computer Solutions`;
                             <Eye className="w-4 h-4" />
                           </button>
                           <button 
+                            onClick={() => handlePaymentHistory(supplier)}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              theme === 'dark' ? 'hover:bg-purple-500/10 text-purple-400' : 'hover:bg-purple-50 text-purple-600'
+                            }`}
+                            title="Payment History"
+                          >
+                            <History className="w-4 h-4" />
+                          </button>
+                          <button 
                             onClick={() => handleOrderFromSupplier(supplier)}
                             className={`p-1.5 rounded-lg transition-colors ${
                               theme === 'dark' ? 'hover:bg-emerald-500/10 text-emerald-400' : 'hover:bg-emerald-50 text-emerald-600'
@@ -1087,6 +1105,15 @@ ECOTEC Computer Solutions`;
                             }`}
                           >
                             <Eye className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handlePaymentHistory(supplier)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              theme === 'dark' ? 'hover:bg-purple-500/10 text-purple-400' : 'hover:bg-purple-50 text-purple-600'
+                            }`}
+                            title="Payment History"
+                          >
+                            <History className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleOrderFromSupplier(supplier)}
@@ -1368,6 +1395,14 @@ ECOTEC Computer Solutions`;
                     <Eye className="w-4 h-4" /> View
                   </button>
                   <button 
+                    onClick={() => handlePaymentHistory(supplier)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      theme === 'dark' ? 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20' : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                    }`}
+                  >
+                    <History className="w-4 h-4" /> History
+                  </button>
+                  <button 
                     onClick={() => handleOrderFromSupplier(supplier)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                       theme === 'dark' ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
@@ -1586,6 +1621,16 @@ ECOTEC Computer Solutions`;
         purchase={purchaseForPayment}
         onClose={() => setIsPurchasePaymentModalOpen(false)}
         onPayment={handlePurchasePayment}
+      />
+
+      <SupplierPaymentHistoryModal
+        isOpen={isPaymentHistoryModalOpen}
+        onClose={() => {
+          setIsPaymentHistoryModalOpen(false);
+          setSupplierForPaymentHistory(null);
+        }}
+        supplier={supplierForPaymentHistory}
+        purchases={purchases}
       />
 
       {/* Order Modal */}

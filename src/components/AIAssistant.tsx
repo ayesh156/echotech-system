@@ -18,7 +18,8 @@ import {
   mockWarrantyClaims,
   mockGRNs,
   mockCashTransactions,
-  mockCashAccounts
+  mockCashAccounts,
+  mockSupplierPurchases
 } from '../data/mockData';
 
 type ResponseLanguage = 'auto' | 'english' | 'sinhala';
@@ -353,6 +354,33 @@ How can I help you today? 😊`,
             balanceAfter: txn.balanceAfter,
             transactionDate: txn.transactionDate,
             referenceType: txn.referenceType
+          })),
+          // Supplier Purchases with Payment History
+          supplierPurchases: mockSupplierPurchases.map(sp => ({
+            id: sp.id,
+            supplierId: sp.supplierId,
+            supplierName: sp.supplierName,
+            productName: sp.productName,
+            category: sp.category,
+            quantity: sp.quantity,
+            unitPrice: sp.unitPrice,
+            totalAmount: sp.totalAmount,
+            paidAmount: sp.paidAmount,
+            paymentPercentage: sp.paymentPercentage,
+            paymentStatus: sp.paymentStatus,
+            purchaseDate: sp.purchaseDate,
+            lastPaymentDate: sp.lastPaymentDate,
+            soldQuantity: sp.soldQuantity,
+            inStock: sp.inStock,
+            notes: sp.notes,
+            // All payments made for this purchase
+            payments: sp.payments?.map(p => ({
+              id: p.id,
+              amount: p.amount,
+              paymentDate: p.paymentDate,
+              paymentMethod: p.paymentMethod,
+              notes: p.notes
+            }))
           }))
         };
         
