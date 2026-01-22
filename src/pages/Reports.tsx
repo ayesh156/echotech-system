@@ -7,12 +7,29 @@ import {
   BarChart3, Activity, Wallet, Receipt, CircleDollarSign,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Store, Globe,
   Award, Target, Zap, AlertCircle, CheckCircle2, XCircle,
-  Download, FileSpreadsheet, FileText, FileDown, CalendarDays
+  Download, FileSpreadsheet, FileText, FileDown, CalendarDays,
+  Wrench, FileCheck, ClipboardList, TruckIcon, Box,
+  UserCheck, BadgeDollarSign, ShieldCheck, Boxes, Calculator
 } from 'lucide-react';
-import { mockInvoices as originalMockInvoices, mockProducts, mockSalesHistory as originalMockSalesHistory, mockWarrantyClaims } from '../data/mockData';
+import { 
+  mockInvoices as originalMockInvoices, 
+  mockProducts, 
+  mockSalesHistory as originalMockSalesHistory, 
+  mockWarrantyClaims,
+  mockGRNs,
+  mockJobNotes,
+  mockEstimates,
+  mockQuotations,
+  mockServices,
+  mockCashAccounts,
+  mockCashTransactions,
+  mockCustomers,
+  mockSuppliers
+} from '../data/mockData';
 import type { Invoice, SaleRecord } from '../data/mockData';
 
 type PeriodFilter = 'daily' | 'weekly' | 'monthly' | 'yearly';
+type ReportTab = 'sales' | 'purchases' | 'inventory' | 'services' | 'cashflow' | 'customers' | 'suppliers';
 
 // Generate demo invoices for 2026 to show data in all periods
 const generateDemoInvoices = (): Invoice[] => {
@@ -159,6 +176,7 @@ const allInvoices = mockInvoices;
 
 export const Reports: React.FC = () => {
   const { theme } = useTheme();
+  const [activeTab, setActiveTab] = useState<ReportTab>('sales');
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>('yearly');
   const [currentPage, setCurrentPage] = useState(1);
   const [salesPage, setSalesPage] = useState(1);
@@ -473,6 +491,287 @@ export const Reports: React.FC = () => {
       rejected: claims.filter(c => c.status === 'rejected').length,
     };
   }, []);
+
+  // ==========================================
+  // PURCHASES / GRN STATISTICS
+  // ==========================================
+  const purchaseStats = useMemo(() => {
+    const grns = mockGRNs || [];
+    const totalPurchases = grns.reduce((sum, grn) => sum + (grn.totalAmount || 0), 0);
+    const totalPaid = grns.filter(g => g.paymentStatus === 'paid').reduce((sum, grn) => sum + (grn.totalAmount || 0), 0);
+    const partialPaid = grns.filter(g => g.paymentStatus === 'partial').reduce((sum, grn) => sum + (grn.paidAmount || 0), 0);
+    const pending = totalPurchases - totalPaid - partialPaid;
+    
+    return {
+      totalGRNs: grns.length,
+      totalPurchases,
+      totalPaid: totalPaid + partialPaid,
+      pending,
+      completed: grns.filter(g => g.status === 'completed').length,
+      inspecting: grns.filter(g => g.status === 'inspecting' || g.status === 'pending').length,
+      topSuppliers: Object.entries(
+        grns.reduce((acc, grn) => {
+          const supplier = grn.supplierName || 'Unknown';
+          if (!acc[supplier]) acc[supplier] = { orders: 0, total: 0 };
+          acc[supplier].orders += 1;
+          acc[supplier].total += grn.totalAmount || 0;
+          return acc;
+        }, {} as Record<string, { orders: number; total: number }>)
+      ).map(([name, data]) => ({ name, ...data })).sort((a, b) => b.total - a.total).slice(0, 5)
+    };
+  }, []);
+
+  // ==========================================
+  // JOB NOTES / REPAIR STATISTICS
+  // ==========================================
+  const jobNotesStats = useMemo(() => {
+    const jobs = mockJobNotes || [];
+    const totalRevenue = jobs.reduce((sum, job) => sum + (job.actualCost || job.estimatedCost || 0), 0);
+    
+    const statusCounts = jobs.reduce((acc, job) => {
+      acc[job.status] = (acc[job.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const priorityCounts = jobs.reduce((acc, job) => {
+      acc[job.priority] = (acc[job.priority] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const deviceTypeCounts = jobs.reduce((acc, job) => {
+      acc[job.deviceType] = (acc[job.deviceType] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return {
+      total: jobs.length,
+      totalRevenue,
+      completed: statusCounts['completed'] || 0,
+      delivered: statusCounts['delivered'] || 0,
+      inProgress: statusCounts['in-progress'] || 0,
+      waitingParts: statusCounts['waiting-parts'] || 0,
+      diagnosing: statusCounts['diagnosing'] || 0,
+      received: statusCounts['received'] || 0,
+      urgent: priorityCounts['urgent'] || 0,
+      high: priorityCounts['high'] || 0,
+      deviceTypes: Object.entries(deviceTypeCounts).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count).slice(0, 5)
+    };
+  }, []);
+
+  // ==========================================
+  // ESTIMATES & QUOTATIONS STATISTICS
+  // ==========================================
+  const estimatesStats = useMemo(() => {
+    const estimates = mockEstimates || [];
+    const quotations = mockQuotations || [];
+    
+    const totalEstimatesValue = estimates.reduce((sum, e) => sum + (e.total || 0), 0);
+    const totalQuotationsValue = quotations.reduce((sum, q) => sum + (q.total || 0), 0);
+    
+    const acceptedEstimates = estimates.filter(e => e.status === 'accepted');
+    const acceptedQuotations = quotations.filter(q => q.status === 'accepted' || q.status === 'converted');
+    
+    return {
+      estimates: {
+        total: estimates.length,
+        totalValue: totalEstimatesValue,
+        accepted: acceptedEstimates.length,
+        acceptedValue: acceptedEstimates.reduce((sum, e) => sum + (e.total || 0), 0),
+        pending: estimates.filter(e => e.status === 'sent' || e.status === 'draft').length,
+        expired: estimates.filter(e => e.status === 'expired').length,
+        rejected: estimates.filter(e => e.status === 'rejected').length,
+        conversionRate: estimates.length > 0 ? (acceptedEstimates.length / estimates.length * 100).toFixed(1) : '0'
+      },
+      quotations: {
+        total: quotations.length,
+        totalValue: totalQuotationsValue,
+        accepted: acceptedQuotations.length,
+        acceptedValue: acceptedQuotations.reduce((sum, q) => sum + (q.total || 0), 0),
+        pending: quotations.filter(q => q.status === 'pending_approval' || q.status === 'sent' || q.status === 'viewed' || q.status === 'negotiating').length,
+        expired: quotations.filter(q => q.status === 'expired').length,
+        rejected: quotations.filter(q => q.status === 'rejected').length,
+        conversionRate: quotations.length > 0 ? (acceptedQuotations.length / quotations.length * 100).toFixed(1) : '0'
+      }
+    };
+  }, []);
+
+  // ==========================================
+  // SERVICES STATISTICS
+  // ==========================================
+  const servicesStats = useMemo(() => {
+    const services = mockServices || [];
+    const activeServices = services.filter(s => s.status === 'active');
+    const totalMinRevenue = activeServices.reduce((sum, s) => sum + (s.minPrice || 0), 0);
+    const totalMaxRevenue = activeServices.reduce((sum, s) => sum + (s.maxPrice || 0), 0);
+    
+    const categoryBreakdown = services.reduce((acc, s) => {
+      const cat = s.category || 'Other';
+      if (!acc[cat]) acc[cat] = { count: 0, avgPrice: 0, totalPrice: 0 };
+      acc[cat].count += 1;
+      const avgPrice = ((s.minPrice || 0) + (s.maxPrice || 0)) / 2;
+      acc[cat].totalPrice += avgPrice;
+      return acc;
+    }, {} as Record<string, { count: number; avgPrice: number; totalPrice: number }>);
+    
+    Object.keys(categoryBreakdown).forEach(k => {
+      categoryBreakdown[k].avgPrice = categoryBreakdown[k].totalPrice / categoryBreakdown[k].count;
+    });
+    
+    return {
+      total: services.length,
+      active: activeServices.length,
+      inactive: services.filter(s => s.status === 'inactive').length,
+      discontinued: services.filter(s => s.status === 'discontinued').length,
+      popular: services.filter(s => s.isPopular).length,
+      avgPriceRange: { min: totalMinRevenue / (activeServices.length || 1), max: totalMaxRevenue / (activeServices.length || 1) },
+      categories: Object.entries(categoryBreakdown).map(([name, data]) => ({ name, ...data })).sort((a, b) => b.count - a.count)
+    };
+  }, []);
+
+  // ==========================================
+  // CASH FLOW STATISTICS
+  // ==========================================
+  const cashFlowStats = useMemo(() => {
+    const accounts = mockCashAccounts || [];
+    const transactions = mockCashTransactions || [];
+    
+    const totalBalance = accounts.reduce((sum, a) => sum + (a.balance || 0), 0);
+    const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const expense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const transfers = transactions.filter(t => t.type === 'transfer').reduce((sum, t) => sum + (t.amount || 0), 0);
+    
+    const accountBreakdown = accounts.map(a => ({
+      name: a.name,
+      type: a.type,
+      balance: a.balance || 0
+    }));
+    
+    const expenseByCategory = transactions.filter(t => t.type === 'expense').reduce((acc, t) => {
+      const cat = t.category || 'Other';
+      acc[cat] = (acc[cat] || 0) + (t.amount || 0);
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return {
+      totalBalance,
+      totalIncome: income,
+      totalExpense: expense,
+      totalTransfers: transfers,
+      netCashFlow: income - expense,
+      accountCount: accounts.length,
+      activeAccounts: accounts.filter(a => a.isActive).length,
+      accounts: accountBreakdown.sort((a, b) => b.balance - a.balance),
+      expenseCategories: Object.entries(expenseByCategory).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 6)
+    };
+  }, []);
+
+  // ==========================================
+  // CUSTOMER CREDIT STATISTICS
+  // ==========================================
+  const customerCreditStats = useMemo(() => {
+    const customers = mockCustomers || [];
+    const withCredit = customers.filter(c => (c.creditBalance || 0) > 0);
+    const totalOutstanding = withCredit.reduce((sum, c) => sum + (c.creditBalance || 0), 0);
+    const overdue = customers.filter(c => c.creditStatus === 'overdue');
+    const overdueAmount = overdue.reduce((sum, c) => sum + (c.creditBalance || 0), 0);
+    
+    return {
+      totalCustomers: customers.length,
+      withCredit: withCredit.length,
+      totalOutstanding,
+      overdueCustomers: overdue.length,
+      overdueAmount,
+      activeCredit: customers.filter(c => c.creditStatus === 'active').length,
+      clearCredit: customers.filter(c => c.creditStatus === 'clear' || !c.creditStatus).length,
+      topDebtors: withCredit.sort((a, b) => (b.creditBalance || 0) - (a.creditBalance || 0)).slice(0, 5).map(c => ({
+        name: c.name,
+        balance: c.creditBalance || 0,
+        status: c.creditStatus || 'clear',
+        dueDate: c.creditDueDate
+      }))
+    };
+  }, []);
+
+  // ==========================================
+  // SUPPLIER PAYABLES STATISTICS
+  // ==========================================
+  const supplierStats = useMemo(() => {
+    const suppliers = mockSuppliers || [];
+    const activeSuppliers = suppliers.filter(s => (s as any).isActive !== false);
+    const totalPayables = suppliers.reduce((sum, s) => sum + ((s as any).creditBalance || 0), 0);
+    const totalPurchases = suppliers.reduce((sum, s) => sum + ((s as any).totalPurchases || 0), 0);
+    
+    return {
+      totalSuppliers: suppliers.length,
+      activeSuppliers: activeSuppliers.length,
+      totalPayables,
+      totalPurchases,
+      topSuppliersByPurchase: suppliers.sort((a, b) => (b.totalPurchases || 0) - (a.totalPurchases || 0)).slice(0, 5).map(s => ({
+        name: s.company || s.name,
+        purchases: s.totalPurchases || 0,
+        orders: s.totalOrders || 0
+      })),
+      suppliersWithPayables: suppliers.filter(s => ((s as any).creditBalance || 0) > 0).sort((a, b) => ((b as any).creditBalance || 0) - ((a as any).creditBalance || 0)).slice(0, 5).map(s => ({
+        name: s.company || s.name,
+        payable: (s as any).creditBalance || 0,
+        terms: 'Net 30'
+      }))
+    };
+  }, []);
+
+  // ==========================================
+  // INVENTORY STATISTICS
+  // ==========================================
+  const inventoryStats = useMemo(() => {
+    const products = mockProducts || [];
+    const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+    const totalValue = products.reduce((sum, p) => sum + ((p.costPrice || p.price) * (p.stock || 0)), 0);
+    const retailValue = products.reduce((sum, p) => sum + (p.price * (p.stock || 0)), 0);
+    
+    const lowStock = products.filter(p => (p.stock || 0) <= (p.lowStockThreshold || 10) && (p.stock || 0) > 0);
+    const outOfStock = products.filter(p => (p.stock || 0) === 0);
+    
+    const categoryStock = products.reduce((acc, p) => {
+      const cat = p.category || 'Other';
+      if (!acc[cat]) acc[cat] = { count: 0, stock: 0, value: 0 };
+      acc[cat].count += 1;
+      acc[cat].stock += p.stock || 0;
+      acc[cat].value += (p.costPrice || p.price) * (p.stock || 0);
+      return acc;
+    }, {} as Record<string, { count: number; stock: number; value: number }>);
+    
+    const brandStock = products.reduce((acc, p) => {
+      const brand = p.brand || 'Other';
+      if (!acc[brand]) acc[brand] = { count: 0, stock: 0 };
+      acc[brand].count += 1;
+      acc[brand].stock += p.stock || 0;
+      return acc;
+    }, {} as Record<string, { count: number; stock: number }>);
+    
+    return {
+      totalProducts: products.length,
+      totalStock,
+      totalCostValue: totalValue,
+      totalRetailValue: retailValue,
+      potentialProfit: retailValue - totalValue,
+      lowStockCount: lowStock.length,
+      outOfStockCount: outOfStock.length,
+      lowStockItems: lowStock.slice(0, 5).map(p => ({ name: p.name, stock: p.stock, threshold: p.lowStockThreshold || 10 })),
+      categories: Object.entries(categoryStock).map(([name, data]) => ({ name, ...data })).sort((a, b) => b.value - a.value).slice(0, 6),
+      brands: Object.entries(brandStock).map(([name, data]) => ({ name, ...data })).sort((a, b) => b.stock - a.stock).slice(0, 6)
+    };
+  }, []);
+
+  // Report tabs configuration
+  const reportTabs = [
+    { id: 'sales' as ReportTab, label: 'Sales', icon: TrendingUp, color: 'emerald' },
+    { id: 'purchases' as ReportTab, label: 'Purchases', icon: TruckIcon, color: 'blue' },
+    { id: 'inventory' as ReportTab, label: 'Inventory', icon: Box, color: 'purple' },
+    { id: 'services' as ReportTab, label: 'Services', icon: Wrench, color: 'amber' },
+    { id: 'cashflow' as ReportTab, label: 'Cash Flow', icon: Wallet, color: 'cyan' },
+    { id: 'customers' as ReportTab, label: 'Customers', icon: Users, color: 'pink' },
+    { id: 'suppliers' as ReportTab, label: 'Suppliers', icon: Building2, color: 'orange' },
+  ];
 
   // Sales history with pagination
   const paginatedSales = useMemo(() => {
@@ -1118,7 +1417,7 @@ export const Reports: React.FC = () => {
             Reports & Analytics
           </h1>
           <p className={`mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-            {periodLabels[selectedPeriod]} • Financial reports and business insights
+            {periodLabels[selectedPeriod]} • Comprehensive business insights
           </p>
         </div>
         
@@ -1390,35 +1689,94 @@ export const Reports: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div 
-              key={stat.label}
-              className={`relative overflow-hidden rounded-2xl border p-6 transition-all duration-300 hover:scale-[1.02] ${
-                theme === 'dark' 
-                  ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' 
-                  : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
-              }`}
-            >
-              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.bgGradient} rounded-full blur-3xl`} />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}>
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  <span className={`flex items-center gap-1 text-sm font-medium ${
-                    stat.change.positive ? 'text-green-500' : 'text-red-500'
-                  }`}>
-                    {stat.change.positive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                    {stat.change.value}
-                  </span>
-                </div>
-                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  {stat.label}
-                </p>
+      {/* Report Type Tabs - Modern Centered Design */}
+      <div className={`rounded-2xl border backdrop-blur-md ${
+        theme === 'dark' 
+          ? 'bg-slate-800/40 border-slate-700/50' 
+          : 'bg-white/60 border-slate-200 shadow-sm'
+      }`}>
+        <div className="flex flex-wrap items-center justify-center gap-2 p-3 lg:gap-3">
+          {reportTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            const gradientMap: Record<string, string> = {
+              'emerald': 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              'blue': 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              'purple': 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              'amber': 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              'cyan': 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+              'pink': 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+              'orange': 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+            };
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setCurrentPage(1);
+                  setSalesPage(1);
+                }}
+                className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-300 transform ${
+                  isActive
+                    ? 'text-white shadow-lg scale-100'
+                    : theme === 'dark'
+                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                }`}
+                style={isActive ? {
+                  background: gradientMap[tab.color as keyof typeof gradientMap] || gradientMap['emerald'],
+                  boxShadow: `0 10px 25px -5px ${
+                    tab.color === 'emerald' ? 'rgba(16, 185, 129, 0.3)' :
+                    tab.color === 'blue' ? 'rgba(59, 130, 246, 0.3)' :
+                    tab.color === 'purple' ? 'rgba(139, 92, 246, 0.3)' :
+                    tab.color === 'amber' ? 'rgba(245, 158, 11, 0.3)' :
+                    tab.color === 'cyan' ? 'rgba(6, 182, 212, 0.3)' :
+                    tab.color === 'pink' ? 'rgba(236, 72, 153, 0.3)' :
+                    'rgba(249, 115, 22, 0.3)'
+                }`
+                } : {}}
+              >
+                <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : 'scale-100'}`} />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ==================== SALES TAB CONTENT ==================== */}
+      {activeTab === 'sales' && (
+        <>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {stats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div 
+                  key={stat.label}
+                  className={`relative overflow-hidden rounded-2xl border p-6 transition-all duration-300 hover:scale-[1.02] ${
+                    theme === 'dark' 
+                      ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' 
+                      : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+                  }`}
+                >
+                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.bgGradient} rounded-full blur-3xl`} />
+                  <div className="relative">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <span className={`flex items-center gap-1 text-sm font-medium ${
+                        stat.change.positive ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {stat.change.positive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                        {stat.change.value}
+                      </span>
+                    </div>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                      {stat.label}
+                    </p>
                 <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                   {stat.value}
                 </p>
@@ -2074,6 +2432,508 @@ export const Reports: React.FC = () => {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {/* ==================== PURCHASES TAB CONTENT ==================== */}
+      {activeTab === 'purchases' && (
+        <>
+          {/* Purchases Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {[
+              { label: 'Total Purchases', value: formatCurrency(purchaseStats.totalPurchases), icon: TruckIcon, gradient: 'from-blue-500 to-cyan-600', bgGradient: 'from-blue-500/20 to-cyan-500/10' },
+              { label: 'Amount Paid', value: formatCurrency(purchaseStats.totalPaid), icon: CheckCircle2, gradient: 'from-emerald-500 to-teal-600', bgGradient: 'from-emerald-500/20 to-teal-500/10' },
+              { label: 'Pending Payment', value: formatCurrency(purchaseStats.pending), icon: Clock, gradient: 'from-amber-500 to-orange-600', bgGradient: 'from-amber-500/20 to-orange-500/10' },
+              { label: 'Total GRNs', value: purchaseStats.totalGRNs.toString(), icon: ClipboardList, gradient: 'from-purple-500 to-pink-600', bgGradient: 'from-purple-500/20 to-pink-500/10' },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className={`relative overflow-hidden rounded-2xl border p-6 transition-all duration-300 hover:scale-[1.02] ${
+                  theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+                }`}>
+                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.bgGradient} rounded-full blur-3xl`} />
+                  <div className="relative">
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg w-fit mb-4`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{stat.label}</p>
+                    <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{stat.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* GRN Status & Top Suppliers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>GRN Status</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className={`p-4 rounded-xl text-center ${theme === 'dark' ? 'bg-green-500/10' : 'bg-green-50'}`}>
+                  <CheckCircle2 className="w-6 h-6 mx-auto mb-2 text-green-500" />
+                  <p className="text-2xl font-bold text-green-500">{purchaseStats.completed}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Completed</p>
+                </div>
+                <div className={`p-4 rounded-xl text-center ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
+                  <Clock className="w-6 h-6 mx-auto mb-2 text-amber-500" />
+                  <p className="text-2xl font-bold text-amber-500">{purchaseStats.inspecting}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Pending/Inspecting</p>
+                </div>
+              </div>
+            </div>
+
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Top Suppliers by Purchase</h3>
+              <div className="space-y-3">
+                {purchaseStats.topSuppliers.map((supplier, index) => (
+                  <div key={supplier.name} className={`flex items-center gap-3 p-2 rounded-lg ${theme === 'dark' ? 'hover:bg-slate-700/30' : 'hover:bg-slate-50'}`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                      index === 0 ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white' :
+                      index === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-white' :
+                      index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
+                      theme === 'dark' ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
+                    }`}>{index + 1}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{supplier.name}</p>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{supplier.orders} orders</p>
+                    </div>
+                    <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>{formatCompactCurrency(supplier.total)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ==================== INVENTORY TAB CONTENT ==================== */}
+      {activeTab === 'inventory' && (
+        <>
+          {/* Inventory Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {[
+              { label: 'Total Products', value: inventoryStats.totalProducts.toString(), icon: Package, gradient: 'from-purple-500 to-pink-600', bgGradient: 'from-purple-500/20 to-pink-500/10' },
+              { label: 'Total Stock', value: inventoryStats.totalStock.toLocaleString(), icon: Boxes, gradient: 'from-blue-500 to-cyan-600', bgGradient: 'from-blue-500/20 to-cyan-500/10' },
+              { label: 'Stock Value (Cost)', value: formatCompactCurrency(inventoryStats.totalCostValue), icon: Calculator, gradient: 'from-emerald-500 to-teal-600', bgGradient: 'from-emerald-500/20 to-teal-500/10' },
+              { label: 'Potential Profit', value: formatCompactCurrency(inventoryStats.potentialProfit), icon: TrendingUp, gradient: 'from-amber-500 to-orange-600', bgGradient: 'from-amber-500/20 to-orange-500/10' },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className={`relative overflow-hidden rounded-2xl border p-6 transition-all duration-300 hover:scale-[1.02] ${
+                  theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+                }`}>
+                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.bgGradient} rounded-full blur-3xl`} />
+                  <div className="relative">
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg w-fit mb-4`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{stat.label}</p>
+                    <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{stat.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Stock Alerts & Categories */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                <AlertCircle className="w-5 h-5 text-amber-500" /> Stock Alerts
+              </h3>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className={`p-4 rounded-xl text-center ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
+                  <p className="text-2xl font-bold text-amber-500">{inventoryStats.lowStockCount}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Low Stock</p>
+                </div>
+                <div className={`p-4 rounded-xl text-center ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
+                  <p className="text-2xl font-bold text-red-500">{inventoryStats.outOfStockCount}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Out of Stock</p>
+                </div>
+              </div>
+              {inventoryStats.lowStockItems.length > 0 && (
+                <div className="space-y-2">
+                  <p className={`text-xs font-semibold uppercase ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>Low Stock Items</p>
+                  {inventoryStats.lowStockItems.map((item, i) => (
+                    <div key={i} className={`flex items-center justify-between p-2 rounded-lg ${theme === 'dark' ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                      <span className={`text-sm truncate ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>{item.name}</span>
+                      <span className="text-sm font-medium text-amber-500">{item.stock}/{item.threshold}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Stock by Category</h3>
+              <div className="space-y-3">
+                {inventoryStats.categories.map((cat) => (
+                  <div key={cat.name} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className={theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}>{cat.name}</span>
+                      <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>{cat.stock} units • {formatCompactCurrency(cat.value)}</span>
+                    </div>
+                    <div className={`h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                      <div 
+                        className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500" 
+                        style={{ width: `${(cat.value / (inventoryStats.categories[0]?.value || 1)) * 100}%` }} 
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ==================== SERVICES TAB CONTENT ==================== */}
+      {activeTab === 'services' && (
+        <>
+          {/* Services Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {[
+              { label: 'Total Services', value: servicesStats.total.toString(), icon: Wrench, gradient: 'from-amber-500 to-orange-600', bgGradient: 'from-amber-500/20 to-orange-500/10' },
+              { label: 'Active Services', value: servicesStats.active.toString(), icon: CheckCircle2, gradient: 'from-emerald-500 to-teal-600', bgGradient: 'from-emerald-500/20 to-teal-500/10' },
+              { label: 'Popular Services', value: servicesStats.popular.toString(), icon: Zap, gradient: 'from-purple-500 to-pink-600', bgGradient: 'from-purple-500/20 to-pink-500/10' },
+              { label: 'Avg Price Range', value: `${formatCompactCurrency(servicesStats.avgPriceRange.min)} - ${formatCompactCurrency(servicesStats.avgPriceRange.max)}`, icon: DollarSign, gradient: 'from-blue-500 to-cyan-600', bgGradient: 'from-blue-500/20 to-cyan-500/10' },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className={`relative overflow-hidden rounded-2xl border p-6 ${
+                  theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.bgGradient} rounded-full blur-3xl`} />
+                  <div className="relative">
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg w-fit mb-4`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{stat.label}</p>
+                    <p className={`text-xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{stat.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Job Notes Stats */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Job Notes Status</h3>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Total Jobs', value: jobNotesStats.total, color: 'blue' },
+                  { label: 'Completed', value: jobNotesStats.completed, color: 'green' },
+                  { label: 'Delivered', value: jobNotesStats.delivered, color: 'emerald' },
+                  { label: 'In Progress', value: jobNotesStats.inProgress, color: 'amber' },
+                  { label: 'Waiting Parts', value: jobNotesStats.waitingParts, color: 'orange' },
+                  { label: 'Urgent', value: jobNotesStats.urgent, color: 'red' },
+                ].map((item) => (
+                  <div key={item.label} className={`p-3 rounded-xl text-center ${theme === 'dark' ? `bg-${item.color}-500/10` : `bg-${item.color}-50`}`}>
+                    <p className={`text-xl font-bold text-${item.color}-500`}>{item.value}</p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{item.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Device Types</h3>
+              <div className="space-y-3">
+                {jobNotesStats.deviceTypes.map((device) => (
+                  <div key={device.type} className="flex items-center gap-3">
+                    <div className={`flex-1 h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                      <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500" style={{ width: `${(device.count / (jobNotesStats.deviceTypes[0]?.count || 1)) * 100}%` }} />
+                    </div>
+                    <span className={`text-sm capitalize ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>{device.type}</span>
+                    <span className={`text-sm font-medium ${theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}`}>{device.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Estimates & Quotations */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                <FileCheck className="w-5 h-5 text-blue-500" /> Estimates
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                  <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{estimatesStats.estimates.total}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total</p>
+                </div>
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                  <p className="text-2xl font-bold text-emerald-500">{estimatesStats.estimates.accepted}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Accepted</p>
+                </div>
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
+                  <p className="text-2xl font-bold text-amber-500">{estimatesStats.estimates.pending}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Pending</p>
+                </div>
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+                  <p className="text-2xl font-bold text-blue-500">{estimatesStats.estimates.conversionRate}%</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Conversion Rate</p>
+                </div>
+              </div>
+            </div>
+
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                <ClipboardList className="w-5 h-5 text-purple-500" /> Quotations
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                  <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{estimatesStats.quotations.total}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Total</p>
+                </div>
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                  <p className="text-2xl font-bold text-emerald-500">{estimatesStats.quotations.accepted}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Accepted</p>
+                </div>
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
+                  <p className="text-2xl font-bold text-amber-500">{estimatesStats.quotations.pending}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Pending</p>
+                </div>
+                <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
+                  <p className="text-2xl font-bold text-purple-500">{estimatesStats.quotations.conversionRate}%</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Conversion Rate</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ==================== CASH FLOW TAB CONTENT ==================== */}
+      {activeTab === 'cashflow' && (
+        <>
+          {/* Cash Flow Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {[
+              { label: 'Total Balance', value: formatCurrency(cashFlowStats.totalBalance), icon: Wallet, gradient: 'from-cyan-500 to-blue-600', bgGradient: 'from-cyan-500/20 to-blue-500/10' },
+              { label: 'Total Income', value: formatCurrency(cashFlowStats.totalIncome), icon: ArrowUpRight, gradient: 'from-emerald-500 to-teal-600', bgGradient: 'from-emerald-500/20 to-teal-500/10' },
+              { label: 'Total Expense', value: formatCurrency(cashFlowStats.totalExpense), icon: ArrowDownRight, gradient: 'from-red-500 to-rose-600', bgGradient: 'from-red-500/20 to-rose-500/10' },
+              { label: 'Net Cash Flow', value: formatCurrency(cashFlowStats.netCashFlow), icon: Activity, gradient: cashFlowStats.netCashFlow >= 0 ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-rose-600', bgGradient: cashFlowStats.netCashFlow >= 0 ? 'from-emerald-500/20 to-teal-500/10' : 'from-red-500/20 to-rose-500/10' },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className={`relative overflow-hidden rounded-2xl border p-6 ${
+                  theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.bgGradient} rounded-full blur-3xl`} />
+                  <div className="relative">
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg w-fit mb-4`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{stat.label}</p>
+                    <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{stat.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Accounts & Expenses */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Account Balances</h3>
+              <div className="space-y-3">
+                {cashFlowStats.accounts.slice(0, 6).map((account) => (
+                  <div key={account.name} className={`flex items-center justify-between p-3 rounded-xl ${theme === 'dark' ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-cyan-500/20' : 'bg-cyan-100'}`}>
+                        <Wallet className="w-4 h-4 text-cyan-500" />
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{account.name}</p>
+                        <p className={`text-xs capitalize ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{account.type.replace('_', ' ')}</p>
+                      </div>
+                    </div>
+                    <p className={`text-sm font-semibold ${account.balance >= 0 ? (theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600') : (theme === 'dark' ? 'text-red-400' : 'text-red-600')}`}>
+                      {formatCompactCurrency(account.balance)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Expense Categories</h3>
+              <div className="space-y-3">
+                {cashFlowStats.expenseCategories.map((cat, index) => {
+                  const colors = ['red', 'orange', 'amber', 'yellow', 'lime', 'green'];
+                  const color = colors[index % colors.length];
+                  return (
+                    <div key={cat.name} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className={theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}>{cat.name}</span>
+                        <span className={`text-${color}-500 font-medium`}>{formatCompactCurrency(cat.amount)}</span>
+                      </div>
+                      <div className={`h-2 rounded-full overflow-hidden ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                        <div className={`h-full rounded-full bg-${color}-500`} style={{ width: `${(cat.amount / (cashFlowStats.expenseCategories[0]?.amount || 1)) * 100}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ==================== CUSTOMERS TAB CONTENT ==================== */}
+      {activeTab === 'customers' && (
+        <>
+          {/* Customer Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {[
+              { label: 'Total Customers', value: customerCreditStats.totalCustomers.toString(), icon: Users, gradient: 'from-pink-500 to-rose-600', bgGradient: 'from-pink-500/20 to-rose-500/10' },
+              { label: 'With Credit Balance', value: customerCreditStats.withCredit.toString(), icon: CreditCard, gradient: 'from-amber-500 to-orange-600', bgGradient: 'from-amber-500/20 to-orange-500/10' },
+              { label: 'Total Outstanding', value: formatCurrency(customerCreditStats.totalOutstanding), icon: BadgeDollarSign, gradient: 'from-blue-500 to-cyan-600', bgGradient: 'from-blue-500/20 to-cyan-500/10' },
+              { label: 'Overdue Amount', value: formatCurrency(customerCreditStats.overdueAmount), icon: AlertCircle, gradient: 'from-red-500 to-rose-600', bgGradient: 'from-red-500/20 to-rose-500/10' },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className={`relative overflow-hidden rounded-2xl border p-6 ${
+                  theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.bgGradient} rounded-full blur-3xl`} />
+                  <div className="relative">
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg w-fit mb-4`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{stat.label}</p>
+                    <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{stat.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Credit Status & Top Debtors */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Credit Status Breakdown</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className={`p-4 rounded-xl text-center ${theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+                  <UserCheck className="w-6 h-6 mx-auto mb-2 text-emerald-500" />
+                  <p className="text-2xl font-bold text-emerald-500">{customerCreditStats.clearCredit}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Clear</p>
+                </div>
+                <div className={`p-4 rounded-xl text-center ${theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'}`}>
+                  <Clock className="w-6 h-6 mx-auto mb-2 text-amber-500" />
+                  <p className="text-2xl font-bold text-amber-500">{customerCreditStats.activeCredit}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Active</p>
+                </div>
+                <div className={`p-4 rounded-xl text-center ${theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'}`}>
+                  <AlertCircle className="w-6 h-6 mx-auto mb-2 text-red-500" />
+                  <p className="text-2xl font-bold text-red-500">{customerCreditStats.overdueCustomers}</p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Overdue</p>
+                </div>
+              </div>
+            </div>
+
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Top Outstanding Balances</h3>
+              <div className="space-y-3">
+                {customerCreditStats.topDebtors.map((debtor, index) => (
+                  <div key={index} className={`flex items-center gap-3 p-2 rounded-lg ${theme === 'dark' ? 'hover:bg-slate-700/30' : 'hover:bg-slate-50'}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                      debtor.status === 'overdue' ? 'bg-red-500/20 text-red-500' : 'bg-amber-500/20 text-amber-500'
+                    }`}>{debtor.name.charAt(0)}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{debtor.name}</p>
+                      <p className={`text-xs capitalize ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{debtor.status}</p>
+                    </div>
+                    <p className={`text-sm font-semibold ${debtor.status === 'overdue' ? 'text-red-500' : 'text-amber-500'}`}>{formatCompactCurrency(debtor.balance)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ==================== SUPPLIERS TAB CONTENT ==================== */}
+      {activeTab === 'suppliers' && (
+        <>
+          {/* Supplier Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {[
+              { label: 'Total Suppliers', value: supplierStats.totalSuppliers.toString(), icon: Building2, gradient: 'from-orange-500 to-red-600', bgGradient: 'from-orange-500/20 to-red-500/10' },
+              { label: 'Active Suppliers', value: supplierStats.activeSuppliers.toString(), icon: CheckCircle2, gradient: 'from-emerald-500 to-teal-600', bgGradient: 'from-emerald-500/20 to-teal-500/10' },
+              { label: 'Total Purchases', value: formatCurrency(supplierStats.totalPurchases), icon: ShoppingCart, gradient: 'from-blue-500 to-cyan-600', bgGradient: 'from-blue-500/20 to-cyan-500/10' },
+              { label: 'Total Payables', value: formatCurrency(supplierStats.totalPayables), icon: Wallet, gradient: 'from-amber-500 to-orange-600', bgGradient: 'from-amber-500/20 to-orange-500/10' },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className={`relative overflow-hidden rounded-2xl border p-6 ${
+                  theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.bgGradient} rounded-full blur-3xl`} />
+                  <div className="relative">
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg w-fit mb-4`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>{stat.label}</p>
+                    <p className={`text-2xl font-bold mt-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{stat.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Top Suppliers & Payables */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Top Suppliers by Purchase</h3>
+              <div className="space-y-3">
+                {supplierStats.topSuppliersByPurchase.map((supplier, index) => (
+                  <div key={supplier.name} className={`flex items-center gap-3 p-2 rounded-lg ${theme === 'dark' ? 'hover:bg-slate-700/30' : 'hover:bg-slate-50'}`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                      index === 0 ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white' :
+                      index === 1 ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-white' :
+                      index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
+                      theme === 'dark' ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
+                    }`}>{index + 1}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{supplier.name}</p>
+                      <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{supplier.orders} orders</p>
+                    </div>
+                    <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`}>{formatCompactCurrency(supplier.purchases)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`rounded-2xl border p-6 ${theme === 'dark' ? 'bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                <AlertCircle className="w-5 h-5 text-amber-500" /> Outstanding Payables
+              </h3>
+              {supplierStats.suppliersWithPayables.length > 0 ? (
+                <div className="space-y-3">
+                  {supplierStats.suppliersWithPayables.map((supplier, index) => (
+                    <div key={index} className={`flex items-center justify-between p-3 rounded-xl ${theme === 'dark' ? 'bg-slate-700/30' : 'bg-slate-50'}`}>
+                      <div>
+                        <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{supplier.name}</p>
+                        <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{supplier.terms}</p>
+                      </div>
+                      <p className="text-sm font-semibold text-amber-500">{formatCompactCurrency(supplier.payable)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={`text-center py-8 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <ShieldCheck className="w-12 h-12 mx-auto mb-2 text-emerald-500" />
+                  <p>No outstanding payables!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

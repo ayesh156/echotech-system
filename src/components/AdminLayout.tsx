@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import {
-  Package, FileText, Users, LayoutDashboard, Settings,
+  Package, FileText, Users, LayoutDashboard, Settings, Database,
   Moon, Sun, Menu, X, ChevronLeft, ChevronRight, Bell, Search,
   User, HelpCircle, ChevronDown, Sparkles, TrendingUp,
   FolderTree, Building, Shield, Truck, ClipboardCheck, Wrench, Layers, ClipboardList,
@@ -196,6 +196,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   ];
 
   const bottomNavItems = [
+    { path: '/data-export', icon: Database, label: 'Data Export' },
     { path: '/settings', icon: Settings, label: 'Settings' },
     { path: '/help', icon: HelpCircle, label: 'Help Center' },
   ];
